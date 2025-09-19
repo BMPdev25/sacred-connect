@@ -1,30 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../redux/store';
-import { register, clearError } from '../../redux/slices/authSlice';
 import InputField from '../../components/InputField';
 import ReligiousTraditionPicker from '../../components/ReligiousTraditionPicker';
-import Colors from '../../constants/Colors';
-import { router } from 'expo-router';
+import { APP_COLORS } from '../../constants/Colors';
+import { clearError, register } from '../../redux/slices/authSlice';
+import { AppDispatch, RootState } from '../../redux/store';
 
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  secondary: Colors.light.tabIconDefault,
-  white: Colors.light.background,
-  black: Colors.light.text,
-  lightGray: '#eee',
-  gray: '#6b6b6b',
-  error: '#cc0000',
-  background: Colors.light.background,
-};
+
 
 
 type UserType = 'devotee' | 'priest';
@@ -128,7 +119,7 @@ export default function SignUpScreen() {
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={styles.tabButton}
-            onPress={() => router.push('/login')}
+            onPress={() => router.push('/login' as any)}
           >
             <Text style={styles.tabText}>Login</Text>
           </TouchableOpacity>

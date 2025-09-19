@@ -2,14 +2,7 @@ import { useRouter } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
-import Colors from '../constants/Colors';
-
-// Map Colors to APP_COLORS-like shape used in the snippet
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  white: Colors.light.background,
-  gray: '#6b6b6b',
-};
+import { APP_COLORS } from '../constants/Colors';
 
 export default function SplashScreen() {
   const router = useRouter();

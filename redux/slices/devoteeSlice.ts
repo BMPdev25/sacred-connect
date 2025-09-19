@@ -99,10 +99,10 @@ const devoteeSlice = createSlice({
         state.isLoading = false;
         state.priests = action.payload;
       })
-      .addCase(searchPriests.rejected, (state, action: PayloadAction<string>) => {
-        state.isLoading = false;
-        state.error = action.payload;
-      })
+      .addCase(searchPriests.rejected, (state, action: PayloadAction<string | undefined>) => {
+            state.isLoading = false;
+            state.error = action.payload ?? 'Failed to search priests';
+          })
       // Handle getPriestDetails
       .addCase(getPriestDetails.pending, (state) => {
         state.isLoading = true;
@@ -112,9 +112,9 @@ const devoteeSlice = createSlice({
         state.isLoading = false;
         state.selectedPriest = action.payload;
       })
-      .addCase(getPriestDetails.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getPriestDetails.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch priest details';
       })
       // Handle createBooking
       .addCase(createBooking.pending, (state) => {
@@ -126,9 +126,9 @@ const devoteeSlice = createSlice({
         // Optionally update the state with the new booking
         state.bookings.push(action.payload);
       })
-      .addCase(createBooking.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(createBooking.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to create booking';
       });
   },
 });

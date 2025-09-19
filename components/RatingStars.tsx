@@ -2,12 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  lightGray: Colors.light.tabIconDefault,
-  gray: '#6b6b6b',
-};
+import { APP_COLORS } from '../constants/Colors';
 
 /**
  * A reusable star rating component

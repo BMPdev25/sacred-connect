@@ -1,13 +1,12 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Slot, Stack, useRouter } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import { Provider, useSelector } from 'react-redux';
-import store from '../redux/store';
-import { RootState } from '../redux/store';
+import store, { RootState } from '../redux/store';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -36,7 +35,7 @@ function AuthCheck({ children }: AuthCheckProps) {
 
   useEffect(() => {
     if (!userInfo?.token) {
-      router.replace('/(auth)/login');
+      router.replace('/(auth)/login' as any);
     } else {
       if (userInfo.userType === 'devotee') {
         // router.replace('');

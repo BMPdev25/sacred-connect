@@ -1,12 +1,7 @@
 // src/components/LoadingSpinner.js
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  gray: '#6b6b6b',
-};
+import { APP_COLORS } from '../constants/Colors';
 
 /**
  * A reusable loading spinner component

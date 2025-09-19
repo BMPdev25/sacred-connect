@@ -112,9 +112,9 @@ const priestSlice = createSlice({
         state.isLoading = false;
         state.profile = action.payload;
       })
-      .addCase(getProfile.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getProfile.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch profile';
       })
       // Handle getBookings
       .addCase(getBookings.pending, (state) => {
@@ -125,9 +125,9 @@ const priestSlice = createSlice({
         state.isLoading = false;
         state.bookings = action.payload;
       })
-      .addCase(getBookings.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getBookings.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch bookings';
       })
       // Handle getEarnings
       .addCase(getEarnings.pending, (state) => {
@@ -138,9 +138,9 @@ const priestSlice = createSlice({
         state.isLoading = false;
         state.earnings = action.payload;
       })
-      .addCase(getEarnings.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getEarnings.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch earnings';
       })
       // Handle updateProfile
       .addCase(updateProfile.pending, (state) => {
@@ -151,9 +151,9 @@ const priestSlice = createSlice({
         state.isLoading = false;
         state.profile = action.payload;
       })
-      .addCase(updateProfile.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updateProfile.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update profile';
       });
   },
 });

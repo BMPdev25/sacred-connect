@@ -2,22 +2,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  gray: '#6b6b6b',
-  black: Colors.light.text,
-  lightGray: Colors.light.tabIconDefault,
-  white: Colors.light.background,
-  primary: Colors.light.tint,
-};
+import { APP_COLORS } from '../constants/Colors';
 
 type Props = {
   value?: string | null;

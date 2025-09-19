@@ -2,14 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  white: Colors.light.background,
-  black: Colors.light.text,
-  lightGray: Colors.light.tabIconDefault,
-};
+import { APP_COLORS } from '../constants/Colors';
 
 type Props = {
   title?: string;

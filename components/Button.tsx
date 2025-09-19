@@ -1,23 +1,12 @@
 // src/components/Button.js
 import React from 'react';
 import {
-    ActivityIndicator,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
+  ActivityIndicator,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
 } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  secondary: Colors.light.tabIconDefault,
-  white: Colors.light.background,
-  black: Colors.light.text,
-  lightGray: '#eee',
-  gray: '#6b6b6b',
-  error: '#cc0000',
-  background: Colors.light.background,
-};
+import { APP_COLORS } from '../constants/Colors';
  
 type ButtonType = 'primary' | 'secondary' | 'outline' | 'text';
 type ButtonSize = 'small' | 'medium' | 'large';

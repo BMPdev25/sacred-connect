@@ -1,9 +1,33 @@
 // src/components/TabBar.js
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { APP_COLORS } from '../config';
+import {
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextStyle,
+  TouchableOpacity,
+  View,
+  ViewStyle,
+} from 'react-native';
+import { APP_COLORS } from '../constants/Colors';
 
-const TabBar = ({
+export type TabItem = {
+  key: string | number;
+  label: string;
+};
+
+type TabBarProps = {
+  tabs: TabItem[];
+  activeTab: string | number;
+  onTabChange: (key: string | number) => void;
+  tabStyle?: StyleProp<ViewStyle>;
+  activeTabStyle?: StyleProp<ViewStyle>;
+  tabTextStyle?: StyleProp<TextStyle>;
+  activeTabTextStyle?: StyleProp<TextStyle>;
+  containerStyle?: StyleProp<ViewStyle>;
+};
+
+const TabBar: React.FC<TabBarProps> = ({
   tabs,
   activeTab,
   onTabChange,
@@ -17,12 +41,12 @@ const TabBar = ({
     <View style={[styles.tabContainer, containerStyle]}>
       {tabs.map((tab) => (
         <TouchableOpacity
-          key={tab.key}
+          key={String(tab.key)}
           style={[
             styles.tabButton,
             tabStyle,
             activeTab === tab.key && styles.activeTabButton,
-            activeTab === tab.key && activeTabStyle,
+            activeTab === tab.key && (activeTabStyle as any),
           ]}
           onPress={() => onTabChange(tab.key)}
         >
@@ -31,7 +55,7 @@ const TabBar = ({
               styles.tabText,
               tabTextStyle,
               activeTab === tab.key && styles.activeTabText,
-              activeTab === tab.key && activeTabTextStyle,
+              activeTab === tab.key && (activeTabTextStyle as any),
             ]}
           >
             {tab.label}

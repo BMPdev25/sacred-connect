@@ -1,26 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-    StyleSheet,
-    Text,
-    TextInput,
-    TextInputProps,
-    TouchableOpacity,
-    View,
+  StyleSheet,
+  Text,
+  TextInput,
+  TextInputProps,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import Colors from '../constants/Colors';
+import { APP_COLORS } from '../constants/Colors';
 
-const APP_COLORS = {
-  ...{
-    background: Colors.light.background,
-    primary: Colors.light.tint,
-    white: Colors.light.background,
-    gray: '#6b6b6b',
-    lightGray: '#eee',
-    black: Colors.light.text,
-    error: '#cc0000',
-  },
-};
 
 type Props = TextInputProps & {
   label?: string;

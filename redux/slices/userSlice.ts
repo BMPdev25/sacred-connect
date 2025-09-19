@@ -9,6 +9,9 @@ interface UserProfile {
   email: string;
   profilePicture: string | null;
   // Add other user profile fields
+  security?: SecuritySettings;
+  privacy?: PrivacySettings;
+  notifications?: NotificationPreferences;
 }
 
 interface SecuritySettings {
@@ -223,9 +226,9 @@ const userSlice = createSlice({
           state.notificationPreferences = action.payload.notifications;
         }
       })
-      .addCase(getProfile.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getProfile.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch profile';
       });
 
     // Update Profile
@@ -238,9 +241,9 @@ const userSlice = createSlice({
         state.isLoading = false;
         state.profile = { ...state.profile, ...action.payload };
       })
-      .addCase(updateProfile.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updateProfile.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update profile';
       });
 
     // Upload Profile Picture
@@ -257,10 +260,10 @@ const userSlice = createSlice({
           state.profile.profilePicture = action.payload.profilePicture;
         }
       })
-      .addCase(uploadProfilePicture.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(uploadProfilePicture.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isUploading = false;
         state.uploadProgress = 0;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to upload profile picture';
       });
 
     // Delete Profile Picture
@@ -275,9 +278,9 @@ const userSlice = createSlice({
           state.profile.profilePicture = null;
         }
       })
-      .addCase(deleteProfilePicture.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(deleteProfilePicture.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to delete profile picture';
       });
 
     // Change Password
@@ -290,9 +293,9 @@ const userSlice = createSlice({
         state.isLoading = false;
         state.securitySettings.lastPasswordChange = new Date().toISOString();
       })
-      .addCase(changePassword.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(changePassword.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to change password';
       });
 
     // Update Security Settings
@@ -305,9 +308,9 @@ const userSlice = createSlice({
         state.isLoading = false;
         state.securitySettings = { ...state.securitySettings, ...action.payload };
       })
-      .addCase(updateSecuritySettings.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updateSecuritySettings.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update security settings';
       });
 
     // Update Privacy Settings
@@ -320,9 +323,9 @@ const userSlice = createSlice({
         state.isLoading = false;
         state.privacySettings = { ...state.privacySettings, ...action.payload };
       })
-      .addCase(updatePrivacySettings.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updatePrivacySettings.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update privacy settings';
       });
 
     // Update Notification Preferences
@@ -335,9 +338,9 @@ const userSlice = createSlice({
         state.isLoading = false;
         state.notificationPreferences = { ...state.notificationPreferences, ...action.payload };
       })
-      .addCase(updateNotificationPreferences.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updateNotificationPreferences.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update notification preferences';
       });
 
     // Delete Account
@@ -350,9 +353,9 @@ const userSlice = createSlice({
         // Account deleted - reset state
         return initialState;
       })
-      .addCase(deleteAccount.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(deleteAccount.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to delete account';
       });
   },
 });

@@ -1,6 +1,7 @@
 // src/redux/slices/bookingSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../api';
+import { RootState } from '../store';
 
 // Define types for the Booking and State
 interface Booking {
@@ -19,15 +20,14 @@ interface BookingState {
 }
 
 // Get user bookings
-export const getBookings = createAsyncThunk<Booking[], void, { rejectValue: string }>(
+export const getBookings = createAsyncThunk<Booking[], void, { state: RootState; rejectValue: string }>(
   'booking/getBookings',
   async (_, { rejectWithValue, getState }) => {
     try {
-      const { userToken } = getState().auth;
+      const state = getState();
+      const userToken = (state.auth as any)?.userToken;
       const response = await api.get('/api/devotee/bookings', {
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
+        headers: userToken ? { Authorization: `Bearer ${userToken}` } : undefined,
       });
       return response.data;
     } catch (error: any) {
@@ -50,21 +50,20 @@ export const updateBookingStatus = createAsyncThunk<Booking, { bookingId: string
 );
 
 // Submit rating and review
-export const submitRating = createAsyncThunk<any, { rating: number; review: string }, { rejectValue: string }>(
+export const submitRating = createAsyncThunk<any, { rating: number; review: string }, { state: RootState; rejectValue: string }>(
   'booking/submitRating',
   async (ratingData, { rejectWithValue, getState }) => {
     try {
       // Get the auth token from state
-      const { userToken } = getState().auth;
+      const state = getState();
+      const userToken = (state.auth as any)?.userToken;
 
       if (!userToken) {
         return rejectWithValue('Authentication required');
       }
 
       const response = await api.post('/api/ratings', ratingData, {
-        headers: {
-          Authorization: `Bearer ${userToken}`,
-        },
+        headers: { Authorization: `Bearer ${userToken}` },
       });
       return response.data;
     } catch (error: any) {
@@ -103,9 +102,9 @@ const bookingSlice = createSlice({
         state.isLoading = false;
         state.bookings = action.payload;
       })
-      .addCase(getBookings.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(getBookings.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to fetch bookings';
       })
       // Handle updateBookingStatus
       .addCase(updateBookingStatus.pending, (state) => {
@@ -120,9 +119,9 @@ const bookingSlice = createSlice({
           state.bookings[index] = action.payload;
         }
       })
-      .addCase(updateBookingStatus.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(updateBookingStatus.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to update booking status';
       })
       // Handle submitRating
       .addCase(submitRating.pending, (state) => {
@@ -133,9 +132,9 @@ const bookingSlice = createSlice({
         state.isLoading = false;
         // Rating submitted successfully
       })
-      .addCase(submitRating.rejected, (state, action: PayloadAction<string>) => {
+      .addCase(submitRating.rejected, (state, action: PayloadAction<string | undefined>) => {
         state.isLoading = false;
-        state.error = action.payload;
+        state.error = action.payload ?? 'Failed to submit rating';
       });
   },
 });

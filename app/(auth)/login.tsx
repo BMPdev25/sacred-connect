@@ -1,29 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { router } from 'expo-router';
+import React, { useEffect, useState } from 'react';
 import {
-  View,
+  Alert,
+  ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Alert,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { RootState, AppDispatch } from '../../redux/store';
-import { login, clearError } from '../../redux/slices/authSlice';
 import InputField from '../../components/InputField';
 import ReligiousTraditionPicker from '../../components/ReligiousTraditionPicker';
-import Colors from '../../constants/Colors';
-import { router } from 'expo-router';
-const APP_COLORS = {
-  primary: Colors.light.tint,
-  secondary: Colors.light.tabIconDefault,
-  white: Colors.light.background,
-  black: Colors.light.text,
-  lightGray: '#eee',
-  gray: '#6b6b6b',
-  error: '#cc0000',
-  background: Colors.light.background,
-};
+import { APP_COLORS } from '../../constants/Colors';
+import { clearError, login } from '../../redux/slices/authSlice';
+import { AppDispatch, RootState } from '../../redux/store';
+
 
 interface LoginState {
   phone: string;
@@ -96,7 +87,7 @@ export default function LoginScreen() {
               styles.tabButton,
               state.activeTab === 'signup' && styles.activeTabButton,
             ]}
-            onPress={() => router.push('/signup')}
+            onPress={() => router.push('/signup' as any)}
           >
             <Text
               style={[

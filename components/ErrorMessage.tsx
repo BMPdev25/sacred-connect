@@ -2,12 +2,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
-import Colors from '../constants/Colors';
-
-const APP_COLORS = {
-  error: '#cc0000',
-  white: Colors.light.background,
-};
+import { APP_COLORS } from '../constants/Colors';
 
 type Props = {
   message?: string | null;

@@ -222,7 +222,7 @@ export default function SignUpScreen() {
             onChange={(value: string) => setState(prev => ({ ...prev, religiousTradition: value }))}
             isVisible={state.showReligiousOptions}
             onClose={() => setState(prev => ({ ...prev, showReligiousOptions: !prev.showReligiousOptions }))}
-            // error={errors.religiousTradition ||}
+            
           />
         )}
 

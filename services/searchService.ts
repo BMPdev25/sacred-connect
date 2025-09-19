@@ -3,7 +3,7 @@ import api from '../api';
 
 const searchService = {
   // Universal search for priests and ceremonies
-  universalSearch: async (query, filters = {}) => {
+  universalSearch: async (query: string, filters: Record<string, any> = {}): Promise<any> => {
     const response = await api.get('/search/universal', {
       params: { query, ...filters }
     });
@@ -11,7 +11,7 @@ const searchService = {
   },
 
   // Get search suggestions for autocomplete
-  getSearchSuggestions: async (query, type = 'all') => {
+  getSearchSuggestions: async (query: string, type = 'all'): Promise<any> => {
     const response = await api.get('/search/suggestions', {
       params: { query, type }
     });
@@ -19,7 +19,7 @@ const searchService = {
   },
 
   // Get popular ceremonies
-  getPopularCeremonies: async (limit = 20, category = '', religiousTradition = '') => {
+  getPopularCeremonies: async (limit = 20, category = '', religiousTradition = ''): Promise<any> => {
     const response = await api.get('/search/ceremonies/popular', {
       params: { limit, category, religiousTradition }
     });
@@ -27,7 +27,7 @@ const searchService = {
   },
 
   // Get ceremony details
-  getCeremonyDetails: async (ceremonyId) => {
+  getCeremonyDetails: async (ceremonyId: string): Promise<any> => {
     const response = await api.get(`/search/ceremonies/${ceremonyId}`);
     return response.data;
   },

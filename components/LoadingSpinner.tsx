@@ -1,7 +1,12 @@
 // src/components/LoadingSpinner.js
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { APP_COLORS } from '../config';
+import Colors from '../constants/Colors';
+
+const APP_COLORS = {
+  primary: Colors.light.tint,
+  gray: '#6b6b6b',
+};
 
 /**
  * A reusable loading spinner component
@@ -11,7 +16,14 @@ import { APP_COLORS } from '../config';
  * @param {string} props.text - Text to display under the spinner
  * @param {Object} props.style - Additional styles for the container
  */
-const LoadingSpinner = ({
+type Props = {
+  size?: 'small' | 'large';
+  color?: string;
+  text?: string | null;
+  style?: any;
+};
+
+const LoadingSpinner: React.FC<Props> = ({
   size = 'large',
   color = APP_COLORS.primary,
   text = 'Loading...',

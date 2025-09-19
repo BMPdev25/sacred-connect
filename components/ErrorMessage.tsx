@@ -1,10 +1,22 @@
 // src/components/ErrorMessage.js
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { APP_COLORS } from '../config';
+import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import Colors from '../constants/Colors';
 
-const ErrorMessage = ({
+const APP_COLORS = {
+  error: '#cc0000',
+  white: Colors.light.background,
+};
+
+type Props = {
+  message?: string | null;
+  onRetry?: () => void;
+  showRetry?: boolean;
+  style?: ViewStyle | ViewStyle[];
+};
+
+const ErrorMessage: React.FC<Props> = ({
   message,
   onRetry,
   showRetry = false,

@@ -9,9 +9,26 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { APP_COLORS } from '../config';
+import Colors from '../constants/Colors';
 
-const ReligiousTraditionPicker = ({
+const APP_COLORS = {
+  gray: '#6b6b6b',
+  black: Colors.light.text,
+  lightGray: Colors.light.tabIconDefault,
+  white: Colors.light.background,
+  primary: Colors.light.tint,
+};
+
+type Props = {
+  value?: string | null;
+  onChange: (value: string) => void;
+  isVisible: boolean;
+  onClose: (visible?: boolean) => void;
+  label?: string;
+  placeholder?: string;
+};
+
+const ReligiousTraditionPicker: React.FC<Props> = ({
   value,
   onChange,
   isVisible,
@@ -28,9 +45,9 @@ const ReligiousTraditionPicker = ({
     'Other'
   ];
 
-  const selectOption = (option) => {
+  const selectOption = (option: string) => {
     onChange(option);
-    onClose();
+    onClose(false);
   };
 
   return (
@@ -57,13 +74,13 @@ const ReligiousTraditionPicker = ({
         visible={isVisible}
         transparent
         animationType="slide"
-        onRequestClose={onClose}
+        onRequestClose={()=>onClose(false)}
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Select Religious Tradition</Text>
-              <TouchableOpacity onPress={onClose}>
+              <TouchableOpacity onPress={() => onClose(false)}>
                 <Ionicons name="close" size={24} color={APP_COLORS.gray} />
               </TouchableOpacity>
             </View>

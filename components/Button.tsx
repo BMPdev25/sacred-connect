@@ -6,9 +6,35 @@ import {
     Text,
     TouchableOpacity,
 } from 'react-native';
-import { APP_COLORS } from '../config';
+import Colors from '../constants/Colors';
 
-const Button = ({
+const APP_COLORS = {
+  primary: Colors.light.tint,
+  secondary: Colors.light.tabIconDefault,
+  white: Colors.light.background,
+  black: Colors.light.text,
+  lightGray: '#eee',
+  gray: '#6b6b6b',
+  error: '#cc0000',
+  background: Colors.light.background,
+};
+ 
+type ButtonType = 'primary' | 'secondary' | 'outline' | 'text';
+type ButtonSize = 'small' | 'medium' | 'large';
+
+type ButtonProps = {
+  title: React.ReactNode;
+  onPress?: () => void;
+  type?: ButtonType;
+  size?: ButtonSize;
+  disabled?: boolean;
+  loading?: boolean;
+  style?: any;
+  textStyle?: any;
+  [key: string]: any;
+};
+
+const Button: React.FC<ButtonProps> = ({
   title,
   onPress,
   type = 'primary',

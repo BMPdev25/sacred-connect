@@ -9,12 +9,12 @@ const devoteeService = {
    * Get devotee profile
    * @returns {Promise} Response from the API
    */
-  getProfile: async () => {
+  getProfile: async (): Promise<any> => {
     try {
       const response = await api.get('/api/devotee/profile');
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch profile. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch profile. Please try again.';
     }
   },
 
@@ -23,12 +23,12 @@ const devoteeService = {
    * @param {Object} profileData - The profile data to update
    * @returns {Promise} Response from the API
    */
-  updateProfile: async (profileData) => {
+  updateProfile: async (profileData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.put('/api/devotee/profile', profileData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to update profile. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to update profile. Please try again.';
     }
   },
 
@@ -36,13 +36,13 @@ const devoteeService = {
    * Get all priests (for debugging)
    * @returns {Promise} Response from the API
    */
-  getAllPriests: async () => {
+  getAllPriests: async (): Promise<any> => {
     try {
       console.log('Calling getAllPriests API...');
       const response = await api.get('/api/devotee/priests/all');
       console.log('getAllPriests response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('getAllPriests error:', error);
       // Return empty array instead of throwing error
       return { priests: [], total: 0 };
@@ -54,15 +54,15 @@ const devoteeService = {
    * @param {Object} searchParams - The search parameters
    * @returns {Promise} Response from the API
    */
-  searchPriests: async (searchParams) => {
+  searchPriests: async (searchParams: Record<string, any>): Promise<any> => {
     try {
       console.log('Calling searchPriests API with params:', searchParams);
       const response = await api.get('/api/devotee/priests', { params: searchParams });
       console.log('searchPriests response:', response.data);
       return response.data;
-    } catch (error) {
+    } catch (error: any) {
       console.error('searchPriests error:', error);
-      throw error.response?.data?.message || 'Failed to search priests. Please try again.';
+      throw error?.response?.data?.message || 'Failed to search priests. Please try again.';
     }
   },
 
@@ -71,12 +71,12 @@ const devoteeService = {
    * @param {string} priestId - The priest ID
    * @returns {Promise} Response from the API
    */
-  getPriestDetails: async (priestId) => {
+  getPriestDetails: async (priestId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/priests/${priestId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch priest details. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch priest details. Please try again.';
     }
   },
 
@@ -86,15 +86,15 @@ const devoteeService = {
    * @param {string} date - The date to check availability (optional)
    * @returns {Promise} Response from the API
    */
-  getPriestAvailability: async (priestId, date) => {
+  getPriestAvailability: async (priestId: string, date?: string): Promise<any> => {
     try {
       const url = date
         ? `/api/devotee/priests/${priestId}/availability?date=${date}`
         : `/api/devotee/priests/${priestId}/availability`;
       const response = await api.get(url);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch priest availability. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch priest availability. Please try again.';
     }
   },
 
@@ -103,13 +103,13 @@ const devoteeService = {
    * @param {string} status - Filter bookings by status (optional)
    * @returns {Promise} Response from the API
    */
-  getBookings: async (status) => {
+  getBookings: async (status?: string): Promise<any> => {
     try {
       const url = status ? `/api/devotee/bookings?status=${status}` : '/api/devotee/bookings';
       const response = await api.get(url);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch bookings. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }
   },
 
@@ -118,12 +118,12 @@ const devoteeService = {
    * @param {string} bookingId - The booking ID
    * @returns {Promise} Response from the API
    */
-  getBookingDetails: async (bookingId) => {
+  getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/bookings/${bookingId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch booking details. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }
   },
 
@@ -132,12 +132,12 @@ const devoteeService = {
    * @param {Object} bookingData - The booking data
    * @returns {Promise} Response from the API
    */
-  createBooking: async (bookingData) => {
+  createBooking: async (bookingData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post('/api/devotee/bookings', bookingData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to create booking. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to create booking. Please try again.';
     }
   },
 
@@ -147,12 +147,12 @@ const devoteeService = {
    * @param {Object} cancellationData - The cancellation data (reason, etc.)
    * @returns {Promise} Response from the API
    */
-  cancelBooking: async (bookingId, cancellationData) => {
+  cancelBooking: async (bookingId: string, cancellationData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.put(`/api/devotee/bookings/${bookingId}/cancel`, cancellationData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to cancel booking. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to cancel booking. Please try again.';
     }
   },
 
@@ -162,12 +162,12 @@ const devoteeService = {
    * @param {Object} paymentData - The payment data
    * @returns {Promise} Response from the API
    */
-  processPayment: async (bookingId, paymentData) => {
+  processPayment: async (bookingId: string, paymentData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post(`/api/devotee/bookings/${bookingId}/payment`, paymentData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to process payment. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to process payment. Please try again.';
     }
   },
 
@@ -177,12 +177,12 @@ const devoteeService = {
    * @param {Object} reviewData - The review data
    * @returns {Promise} Response from the API
    */
-  submitReview: async (priestId, reviewData) => {
+  submitReview: async (priestId: string, reviewData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post(`/api/devotee/priests/${priestId}/reviews`, reviewData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to submit review. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
     }
   },
 
@@ -191,12 +191,12 @@ const devoteeService = {
    * @param {string} priestId - The priest ID
    * @returns {Promise} Response from the API
    */
-  getPriestReviews: async (priestId) => {
+  getPriestReviews: async (priestId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/priests/${priestId}/reviews`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch reviews. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch reviews. Please try again.';
     }
   },
 
@@ -204,12 +204,12 @@ const devoteeService = {
    * Get ceremonies/services offered
    * @returns {Promise} Response from the API
    */
-  getCeremonies: async () => {
+  getCeremonies: async (): Promise<any> => {
     try {
       const response = await api.get('/api/devotee/ceremonies');
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch ceremonies. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch ceremonies. Please try again.';
     }
   },
 
@@ -218,12 +218,12 @@ const devoteeService = {
    * @param {string} ceremonyId - The ceremony ID
    * @returns {Promise} Response from the API
    */
-  getCeremonyDetails: async (ceremonyId) => {
+  getCeremonyDetails: async (ceremonyId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/ceremonies/${ceremonyId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch ceremony details. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch ceremony details. Please try again.';
     }
   },
 
@@ -232,12 +232,12 @@ const devoteeService = {
    * @param {string} priestId - The priest ID
    * @returns {Promise} Response from the API
    */
-  addFavoritePriest: async (priestId) => {
+  addFavoritePriest: async (priestId: string): Promise<any> => {
     try {
       const response = await api.post('/api/devotee/favorites', { priestId });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to add favorite. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to add favorite. Please try again.';
     }
   },
 
@@ -246,12 +246,12 @@ const devoteeService = {
    * @param {string} priestId - The priest ID
    * @returns {Promise} Response from the API
    */
-  removeFavoritePriest: async (priestId) => {
+  removeFavoritePriest: async (priestId: string): Promise<any> => {
     try {
       const response = await api.delete(`/api/devotee/favorites/${priestId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to remove favorite. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to remove favorite. Please try again.';
     }
   },
 
@@ -259,12 +259,12 @@ const devoteeService = {
    * Get favorite priests
    * @returns {Promise} Response from the API
    */
-  getFavoritePriests: async () => {
+  getFavoritePriests: async (): Promise<any> => {
     try {
       const response = await api.get('/api/devotee/favorites');
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch favorites. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch favorites. Please try again.';
     }
   },
 
@@ -272,12 +272,12 @@ const devoteeService = {
    * Get notifications for the devotee
    * @returns {Promise} Response from the API
    */
-  getNotifications: async () => {
+  getNotifications: async (): Promise<any> => {
     try {
       const response = await api.get('/api/devotee/notifications');
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch notifications. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch notifications. Please try again.';
     }
   },
 
@@ -286,12 +286,12 @@ const devoteeService = {
    * @param {string} notificationId - The notification ID
    * @returns {Promise} Response from the API
    */
-  markNotificationAsRead: async (notificationId) => {
+  markNotificationAsRead: async (notificationId: string): Promise<any> => {
     try {
       const response = await api.put(`/api/devotee/notifications/${notificationId}/read`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to mark notification as read. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to mark notification as read. Please try again.';
     }
   },
 };

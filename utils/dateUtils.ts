@@ -6,8 +6,10 @@
  * @param {string} format - The format to use (default: 'full')
  * @returns {string} The formatted date string
  */
-export const formatDate = (dateString, format = 'full') => {
-  const date = new Date(dateString);
+export type DateFormat = 'full' | 'medium' | 'short' | 'monthYear' | string;
+
+export const formatDate = (dateString: string | Date, format: DateFormat = 'full'): string => {
+  const date = typeof dateString === 'string' ? new Date(dateString) : new Date(dateString);
 
   switch (format) {
     case 'full':
@@ -44,7 +46,7 @@ export const formatDate = (dateString, format = 'full') => {
  * @param {string} timeString - The time string to format (format: 'HH:MM')
  * @returns {string} The formatted time string
  */
-export const formatTime = (timeString) => {
+export const formatTime = (timeString: string): string => {
   const [hours, minutes] = timeString.split(':');
   const hour = parseInt(hours, 10);
   const suffix = hour >= 12 ? 'PM' : 'AM';
@@ -58,8 +60,8 @@ export const formatTime = (timeString) => {
  * @param {number} days - Number of days to get
  * @returns {Array} Array of date objects
  */
-export const getNextNDays = (days) => {
-  const result = [];
+export const getNextNDays = (days: number): Date[] => {
+  const result: Date[] = [];
   const today = new Date();
 
   for (let i = 0; i < days; i++) {
@@ -76,9 +78,9 @@ export const getNextNDays = (days) => {
  * @param {Date|string} date - The date to check
  * @returns {boolean} Whether the date is today
  */
-export const isToday = (date) => {
+export const isToday = (date: Date | string): boolean => {
   const today = new Date();
-  const checkDate = new Date(date);
+  const checkDate = typeof date === 'string' ? new Date(date) : new Date(date);
 
   return (
     checkDate.getDate() === today.getDate() &&
@@ -92,9 +94,9 @@ export const isToday = (date) => {
  * @param {Date|string} date - The date to check
  * @returns {boolean} Whether the date is in the past
  */
-export const isPastDate = (date) => {
+export const isPastDate = (date: Date | string): boolean => {
   const today = new Date();
-  const checkDate = new Date(date);
+  const checkDate = typeof date === 'string' ? new Date(date) : new Date(date);
 
   // Set both dates to midnight for fair comparison
   today.setHours(0, 0, 0, 0);
@@ -108,9 +110,9 @@ export const isPastDate = (date) => {
  * @param {Date|string} date - The date to get the day name from
  * @returns {string} The day name
  */
-export const getDayName = (date) => {
+export const getDayName = (date: Date | string): string => {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const checkDate = new Date(date);
+  const checkDate = typeof date === 'string' ? new Date(date) : new Date(date);
 
   return days[checkDate.getDay()];
 };
@@ -120,9 +122,9 @@ export const getDayName = (date) => {
  * @param {Date|string} date - The date to get the month name from
  * @returns {string} The month name
  */
-export const getMonthName = (date) => {
+export const getMonthName = (date: Date | string): string => {
   const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-  const checkDate = new Date(date);
+  const checkDate = typeof date === 'string' ? new Date(date) : new Date(date);
 
   return months[checkDate.getMonth()];
 };

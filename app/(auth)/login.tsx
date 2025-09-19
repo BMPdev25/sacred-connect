@@ -1,4 +1,3 @@
-// Updated LoginScreen.js using the new components
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -7,26 +6,48 @@ import {
   StyleSheet,
   ScrollView,
   Alert,
-  TextInput,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../redux/store';
 import { login, clearError } from '../../redux/slices/authSlice';
-import { APP_COLORS } from '../../config';
-import { Ionicons } from '@expo/vector-icons';
 import InputField from '../../components/InputField';
 import ReligiousTraditionPicker from '../../components/ReligiousTraditionPicker';
+import Colors from '../../constants/Colors';
+import { router } from 'expo-router';
+const APP_COLORS = {
+  primary: Colors.light.tint,
+  secondary: Colors.light.tabIconDefault,
+  white: Colors.light.background,
+  black: Colors.light.text,
+  lightGray: '#eee',
+  gray: '#6b6b6b',
+  error: '#cc0000',
+  background: Colors.light.background,
+};
 
-const LoginScreen = ({ navigation }) => {
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [religiousTradition, setReligiousTradition] = useState('');
-  const [templeAffiliation, setTempleAffiliation] = useState('');
-  const [activeTab, setActiveTab] = useState('login');
-  const [showReligiousOptions, setShowReligiousOptions] = useState(false);
+interface LoginState {
+  phone: string;
+  password: string;
+  showPassword: boolean;
+  religiousTradition: string;
+  templeAffiliation: string;
+  activeTab: 'login' | 'signup';
+  showReligiousOptions: boolean;
+}
 
-  const dispatch = useDispatch();
-  const { isLoading, error } = useSelector((state) => state.auth);
+export default function LoginScreen() {
+  const [state, setState] = useState<LoginState>({
+    phone: '',
+    password: '',
+    showPassword: false,
+    religiousTradition: '',
+    templeAffiliation: '',
+    activeTab: 'login',
+    showReligiousOptions: false,
+  });
+
+  const dispatch = useDispatch<AppDispatch>();
+  const { isLoading, error } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (error) {
@@ -35,12 +56,12 @@ const LoginScreen = ({ navigation }) => {
     }
   }, [error, dispatch]);
 
-  const handleLogin = () => {
-    if (!phone || !password) {
+  const handleLogin = (): void => {
+    if (!state.phone || !state.password) {
       Alert.alert('Validation Error', 'Please enter your phone number and password');
       return;
     }
-    dispatch(login({ phone, password }));
+    dispatch(login({ phone: state.phone, password: state.password }));
   };
 
   return (
@@ -57,14 +78,14 @@ const LoginScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'login' && styles.activeTabButton,
+              state.activeTab === 'login' && styles.activeTabButton,
             ]}
-            onPress={() => setActiveTab('login')}
+            onPress={() => setState(prev => ({ ...prev, activeTab: 'login' }))}
           >
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'login' && styles.activeTabText,
+                state.activeTab === 'login' && styles.activeTabText,
               ]}
             >
               Login
@@ -73,14 +94,14 @@ const LoginScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.tabButton,
-              activeTab === 'signup' && styles.activeTabButton,
+              state.activeTab === 'signup' && styles.activeTabButton,
             ]}
-            onPress={() => navigation.navigate('SignUp')}
+            onPress={() => router.push('/signup')}
           >
             <Text
               style={[
                 styles.tabText,
-                activeTab === 'signup' && styles.activeTabText,
+                state.activeTab === 'signup' && styles.activeTabText,
               ]}
             >
               Sign Up
@@ -88,26 +109,24 @@ const LoginScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <InputField
-          label="Phone Number"
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="Enter your phone number"
-          keyboardType="phone-pad"
-        />
+          <InputField
+            label="Phone Number"
+            value={state.phone}
+            onChangeText={(text: string) => setState(prev => ({ ...prev, phone: text }))}
+            placeholder="Enter your phone number"
+            keyboardType="phone-pad"
+          />
 
-        <InputField
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          placeholder="Enter your password"
-          secureTextEntry={!showPassword}
-          showTogglePassword={true}
-          passwordVisible={showPassword}
-          onTogglePassword={() => setShowPassword(!showPassword)}
-        />
-
-        <TouchableOpacity
+          <InputField
+            label="Password"
+            value={state.password}
+            onChangeText={(text: string) => setState(prev => ({ ...prev, password: text }))}
+            placeholder="Enter your password"
+            secureTextEntry={!state.showPassword}
+            showTogglePassword={true}
+            passwordVisible={state.showPassword}
+            onTogglePassword={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+          />        <TouchableOpacity
           style={styles.loginButton}
           onPress={handleLogin}
           disabled={isLoading}
@@ -124,16 +143,16 @@ const LoginScreen = ({ navigation }) => {
         </View>
 
         <ReligiousTraditionPicker
-          value={religiousTradition}
-          onChange={setReligiousTradition}
-          isVisible={showReligiousOptions}
-          onClose={() => setShowReligiousOptions(!showReligiousOptions)}
+          value={state.religiousTradition}
+          onChange={(value: string) => setState(prev => ({ ...prev, religiousTradition: value }))}
+          isVisible={state.showReligiousOptions}
+          onClose={() => setState(prev => ({ ...prev, showReligiousOptions: !prev.showReligiousOptions }))}
         />
 
         <InputField
           label="Temple Affiliation (Optional)"
-          value={templeAffiliation}
-          onChangeText={setTempleAffiliation}
+          value={state.templeAffiliation}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, templeAffiliation: text }))}
           placeholder="Enter your temple affiliation"
         />
 
@@ -239,5 +258,3 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
 });
-
-export default LoginScreen;

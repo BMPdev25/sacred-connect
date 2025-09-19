@@ -2,9 +2,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { APP_COLORS } from '../config';
+import Colors from '../constants/Colors';
 
-const CustomHeader = ({ title, showBackButton, onBackPress, renderRightContent }) => {
+const APP_COLORS = {
+  primary: Colors.light.tint,
+  white: Colors.light.background,
+  black: Colors.light.text,
+  lightGray: Colors.light.tabIconDefault,
+};
+
+type Props = {
+  title?: string;
+  showBackButton?: boolean;
+  onBackPress?: () => void;
+  renderRightContent?: () => React.ReactNode;
+};
+
+const CustomHeader: React.FC<Props> = ({ title, showBackButton, onBackPress, renderRightContent }) => {
   return (
     <View style={styles.header}>
       <View style={styles.leftContainer}>
@@ -60,7 +74,6 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0, 0, 0, 0.1)',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
-    fontSize: 24,
   },
   titleText: {
     fontSize: 18,

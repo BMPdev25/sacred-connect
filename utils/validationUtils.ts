@@ -5,7 +5,7 @@
  * @param {string} email - The email to validate
  * @returns {boolean} Whether the email is valid
  */
-export const isValidEmail = (email) => {
+export const isValidEmail = (email: string | undefined | null): boolean => {
   if (!email) return false;
 
   // Simple regex for email validation
@@ -18,7 +18,7 @@ export const isValidEmail = (email) => {
  * @param {string} phone - The phone number to validate
  * @returns {boolean} Whether the phone number is valid
  */
-export const isValidPhone = (phone) => {
+export const isValidPhone = (phone: string | undefined | null): boolean => {
   if (!phone) return false;
 
   // Remove all non-numeric characters
@@ -33,7 +33,12 @@ export const isValidPhone = (phone) => {
  * @param {string} password - The password to validate
  * @returns {Object} Result with isValid status and feedback message
  */
-export const validatePassword = (password) => {
+export interface PasswordValidationResult {
+  isValid: boolean;
+  message: string;
+}
+
+export const validatePassword = (password: string | undefined | null): PasswordValidationResult => {
   if (!password) {
     return {
       isValid: false,
@@ -72,7 +77,7 @@ export const validatePassword = (password) => {
  * @param {string} name - The name to validate
  * @returns {boolean} Whether the name is valid
  */
-export const isValidName = (name) => {
+export const isValidName = (name: string | undefined | null): boolean => {
   if (!name) return false;
 
   // Name should be at least 2 characters long and contain only letters and spaces
@@ -85,9 +90,9 @@ export const isValidName = (name) => {
  * @param {string} dateString - The date string to validate
  * @returns {boolean} Whether the date is valid and in the future
  */
-export const isValidFutureDate = (dateString) => {
+export const isValidFutureDate = (dateString: string | Date | undefined | null): boolean => {
   try {
-    const date = new Date(dateString);
+    const date = typeof dateString === 'string' ? new Date(dateString) : new Date(dateString as Date);
     const today = new Date();
 
     // Set both dates to midnight for fair comparison
@@ -111,7 +116,7 @@ export const isValidFutureDate = (dateString) => {
  * @param {string} timeString - The time string to validate
  * @returns {boolean} Whether the time is valid
  */
-export const isValidTime = (timeString) => {
+export const isValidTime = (timeString: string | undefined | null): boolean => {
   if (!timeString) return false;
 
   // Time format: HH:MM
@@ -124,10 +129,10 @@ export const isValidTime = (timeString) => {
  * @param {number|string} amount - The amount to validate
  * @returns {boolean} Whether the amount is valid
  */
-export const isValidAmount = (amount) => {
+export const isValidAmount = (amount: number | string | undefined | null): boolean => {
   if (amount === undefined || amount === null || amount === '') return false;
 
-  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : (amount as number);
 
   return !isNaN(numAmount) && numAmount > 0;
 };
@@ -137,7 +142,7 @@ export const isValidAmount = (amount) => {
  * @param {string} upiId - The UPI ID to validate
  * @returns {boolean} Whether the UPI ID is valid
  */
-export const isValidUpiId = (upiId) => {
+export const isValidUpiId = (upiId: string | undefined | null): boolean => {
   if (!upiId) return false;
 
   // UPI ID format: username@upi

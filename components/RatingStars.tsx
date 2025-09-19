@@ -2,7 +2,12 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { APP_COLORS } from '../config';
+import Colors from '../constants/Colors';
+
+const APP_COLORS = {
+  lightGray: Colors.light.tabIconDefault,
+  gray: '#6b6b6b',
+};
 
 /**
  * A reusable star rating component
@@ -15,7 +20,17 @@ import { APP_COLORS } from '../config';
  * @param {boolean} props.showCount - Whether to show the review count
  * @param {Object} props.style - Additional styles for the container
  */
-const RatingStars = ({
+type Props = {
+  rating?: number;
+  onRatingChange?: (value: number) => void;
+  size?: number;
+  readOnly?: boolean;
+  count?: number;
+  showCount?: boolean;
+  style?: any;
+};
+
+const RatingStars: React.FC<Props> = ({
   rating = 0,
   onRatingChange,
   size = 20,

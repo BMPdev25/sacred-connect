@@ -1,4 +1,3 @@
-// Updated SignUpScreen.js using the new components
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -9,29 +8,66 @@ import {
   Alert,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { RootState, AppDispatch } from '../../redux/store';
 import { register, clearError } from '../../redux/slices/authSlice';
-import { APP_COLORS } from '../../config';
 import InputField from '../../components/InputField';
 import ReligiousTraditionPicker from '../../components/ReligiousTraditionPicker';
+import Colors from '../../constants/Colors';
+import { router } from 'expo-router';
+
+const APP_COLORS = {
+  primary: Colors.light.tint,
+  secondary: Colors.light.tabIconDefault,
+  white: Colors.light.background,
+  black: Colors.light.text,
+  lightGray: '#eee',
+  gray: '#6b6b6b',
+  error: '#cc0000',
+  background: Colors.light.background,
+};
 
 
+type UserType = 'devotee' | 'priest';
 
-const SignUpScreen = ({ navigation }) => {
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [userType, setUserType] = useState('devotee');
-  const [religiousTradition, setReligiousTradition] = useState('');
-  const [showReligiousOptions, setShowReligiousOptions] = useState(false);
+interface SignUpState {
+  name: string;
+  email: string;
+  phone: string;
+  password: string;
+  confirmPassword: string;
+  showPassword: boolean;
+  userType: UserType;
+  religiousTradition: string;
+  showReligiousOptions: boolean;
+}
+
+interface FormErrors {
+  name?: string;
+  email?: string;
+  phone?: string;
+  password?: string;
+  confirmPassword?: string;
+  religiousTradition?: string;
+}
+
+export default function SignUpScreen() {
+  const [state, setState] = useState<SignUpState>({
+    name: '',
+    email: '',
+    phone: '',
+    password: '',
+    confirmPassword: '',
+    showPassword: false,
+    userType: 'devotee',
+    religiousTradition: '',
+    showReligiousOptions: false,
+  });
 
   // Form validation
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<FormErrors>({});
 
-  const dispatch = useDispatch();
-  const { isLoading, error } = useSelector((state) => state.auth);
+  const dispatch = useDispatch<AppDispatch>();
+  const { isLoading, error } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (error) {
@@ -40,41 +76,41 @@ const SignUpScreen = ({ navigation }) => {
     }
   }, [error, dispatch]);
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
 
-    if (!name) newErrors.name = 'Name is required';
-    if (!email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Email is invalid';
+    if (!state.name) newErrors.name = 'Name is required';
+    if (!state.email) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(state.email)) newErrors.email = 'Email is invalid';
 
-    if (!phone) newErrors.phone = 'Phone number is required';
-    else if (!/^\d{10}$/.test(phone.replace(/\D/g, '')))
+    if (!state.phone) newErrors.phone = 'Phone number is required';
+    else if (!/^\d{10}$/.test(state.phone.replace(/\D/g, '')))
       newErrors.phone = 'Phone number must be 10 digits';
 
-    if (!password) newErrors.password = 'Password is required';
-    else if (password.length < 6)
+    if (!state.password) newErrors.password = 'Password is required';
+    else if (state.password.length < 6)
       newErrors.password = 'Password must be at least 6 characters';
 
-    if (!confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
-    else if (password !== confirmPassword)
+    if (!state.confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
+    else if (state.password !== state.confirmPassword)
       newErrors.confirmPassword = 'Passwords do not match';
 
-    if (userType === 'priest' && !religiousTradition)
+    if (state.userType === 'priest' && !state.religiousTradition)
       newErrors.religiousTradition = 'Please select your religious tradition';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = () => {
+  const handleSignUp = (): void => {
     if (validateForm()) {
       dispatch(register({
-        name,
-        email,
-        phone,
-        password,
-        userType,
-        religiousTradition: userType === 'priest' ? religiousTradition : undefined
+        name: state.name,
+        email: state.email,
+        phone: state.phone,
+        password: state.password,
+        userType: state.userType,
+        // religiousTradition: state.userType === 'priest' ? state.religiousTradition : undefined
       }));
     }
   };
@@ -92,7 +128,7 @@ const SignUpScreen = ({ navigation }) => {
         <View style={styles.tabContainer}>
           <TouchableOpacity
             style={styles.tabButton}
-            onPress={() => navigation.navigate('Login')}
+            onPress={() => router.push('/login')}
           >
             <Text style={styles.tabText}>Login</Text>
           </TouchableOpacity>
@@ -109,14 +145,14 @@ const SignUpScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.userTypeButton,
-                userType === 'devotee' && styles.activeUserTypeButton,
+                state.userType === 'devotee' && styles.activeUserTypeButton,
               ]}
-              onPress={() => setUserType('devotee')}
+              onPress={() => setState(prev => ({ ...prev, userType: 'devotee' }))}
             >
               <Text
                 style={[
                   styles.userTypeButtonText,
-                  userType === 'devotee' && styles.activeUserTypeButtonText,
+                  state.userType === 'devotee' && styles.activeUserTypeButtonText,
                 ]}
               >
                 Devotee
@@ -125,14 +161,14 @@ const SignUpScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.userTypeButton,
-                userType === 'priest' && styles.activeUserTypeButton,
+                state.userType === 'priest' && styles.activeUserTypeButton,
               ]}
-              onPress={() => setUserType('priest')}
+              onPress={() => setState(prev => ({ ...prev, userType: 'priest' }))}
             >
               <Text
                 style={[
                   styles.userTypeButtonText,
-                  userType === 'priest' && styles.activeUserTypeButtonText,
+                  state.userType === 'priest' && styles.activeUserTypeButtonText,
                 ]}
               >
                 Priest
@@ -143,16 +179,16 @@ const SignUpScreen = ({ navigation }) => {
 
         <InputField
           label="Full Name"
-          value={name}
-          onChangeText={setName}
+          value={state.name}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, name: text }))}
           placeholder="Enter your full name"
           error={errors.name}
         />
 
         <InputField
           label="Email"
-          value={email}
-          onChangeText={setEmail}
+          value={state.email}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, email: text }))}
           placeholder="Enter your email address"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -161,8 +197,8 @@ const SignUpScreen = ({ navigation }) => {
 
         <InputField
           label="Phone Number"
-          value={phone}
-          onChangeText={setPhone}
+          value={state.phone}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, phone: text }))}
           placeholder="Enter your phone number"
           keyboardType="phone-pad"
           error={errors.phone}
@@ -170,32 +206,32 @@ const SignUpScreen = ({ navigation }) => {
 
         <InputField
           label="Password"
-          value={password}
-          onChangeText={setPassword}
+          value={state.password}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, password: text }))}
           placeholder="Create a password"
-          secureTextEntry={!showPassword}
+          secureTextEntry={!state.showPassword}
           showTogglePassword={true}
-          passwordVisible={showPassword}
-          onTogglePassword={() => setShowPassword(!showPassword)}
+          passwordVisible={state.showPassword}
+          onTogglePassword={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
           error={errors.password}
         />
 
         <InputField
           label="Confirm Password"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
+          value={state.confirmPassword}
+          onChangeText={(text: string) => setState(prev => ({ ...prev, confirmPassword: text }))}
           placeholder="Confirm your password"
-          secureTextEntry={!showPassword}
+          secureTextEntry={!state.showPassword}
           error={errors.confirmPassword}
         />
 
-        {userType === 'priest' && (
+        {state.userType === 'priest' && (
           <ReligiousTraditionPicker
-            value={religiousTradition}
-            onChange={setReligiousTradition}
-            isVisible={showReligiousOptions}
-            onClose={() => setShowReligiousOptions(!showReligiousOptions)}
-            error={errors.religiousTradition}
+            value={state.religiousTradition}
+            onChange={(value: string) => setState(prev => ({ ...prev, religiousTradition: value }))}
+            isVisible={state.showReligiousOptions}
+            onClose={() => setState(prev => ({ ...prev, showReligiousOptions: !prev.showReligiousOptions }))}
+            // error={errors.religiousTradition ||}
           />
         )}
 
@@ -325,5 +361,3 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 });
-
-export default SignUpScreen;

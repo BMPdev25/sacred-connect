@@ -6,12 +6,12 @@
  * @param {boolean} showSymbol - Whether to show the symbol (₹)
  * @returns {string} The formatted currency string
  */
-export const formatCurrency = (amount, showSymbol = true) => {
+export const formatCurrency = (amount: number | string, showSymbol = true): string => {
   // Convert to number if string
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
 
   // Check if valid number
-  if (isNaN(numAmount)) {
+  if (isNaN(Number(numAmount))) {
     return showSymbol ? '₹0' : '0';
   }
 
@@ -24,7 +24,7 @@ export const formatCurrency = (amount, showSymbol = true) => {
     maximumFractionDigits: 0,
   });
 
-  const formatted = formatter.format(numAmount);
+  const formatted = formatter.format(Number(numAmount));
 
   // Remove the symbol if not required
   return showSymbol ? formatted : formatted.replace('₹', '');
@@ -35,7 +35,7 @@ export const formatCurrency = (amount, showSymbol = true) => {
  * @param {string} phoneNumber - The phone number to format
  * @returns {string} The formatted phone number
  */
-export const formatPhoneNumber = (phoneNumber) => {
+export const formatPhoneNumber = (phoneNumber: string): string => {
   // Remove all non-numeric characters
   const cleaned = ('' + phoneNumber).replace(/\D/g, '');
 
@@ -54,7 +54,7 @@ export const formatPhoneNumber = (phoneNumber) => {
  * @param {number} length - The length to truncate to
  * @returns {string} The truncated text
  */
-export const truncateText = (text, length) => {
+export const truncateText = (text: string | undefined | null, length: number): string => {
   if (!text) return '';
 
   if (text.length <= length) {
@@ -69,7 +69,7 @@ export const truncateText = (text, length) => {
  * @param {string} text - The text to convert
  * @returns {string} The title case text
  */
-export const toTitleCase = (text) => {
+export const toTitleCase = (text: string | undefined | null): string => {
   if (!text) return '';
 
   return text
@@ -85,7 +85,7 @@ export const toTitleCase = (text) => {
  * @param {string} endTime - The end time (format: 'HH:MM')
  * @returns {string} The formatted duration
  */
-export const formatDuration = (startTime, endTime) => {
+export const formatDuration = (startTime: string, endTime: string): string => {
   const [startHours, startMinutes] = startTime.split(':').map(Number);
   const [endHours, endMinutes] = endTime.split(':').map(Number);
 
@@ -118,7 +118,7 @@ export const formatDuration = (startTime, endTime) => {
  * @param {number} decimals - The number of decimal places
  * @returns {string} The formatted percentage
  */
-export const formatPercentage = (value, decimals = 0) => {
+export const formatPercentage = (value: number, decimals = 0): string => {
   if (isNaN(value)) return '0%';
 
   const formatter = new Intl.NumberFormat('en-IN', {

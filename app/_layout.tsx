@@ -1,10 +1,13 @@
 import FontAwesome from '@expo/vector-icons/FontAwesome';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Slot, Stack, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
+import { Provider, useSelector } from 'react-redux';
+import store from '../redux/store';
+import { RootState } from '../redux/store';
 
 import { useColorScheme } from '@/components/useColorScheme';
 
@@ -20,6 +23,31 @@ export const unstable_settings = {
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// Create a wrapper component for authentication check
+interface AuthCheckProps {
+  children: React.ReactNode;
+}
+
+function AuthCheck({ children }: AuthCheckProps) {
+  const router = useRouter();
+  const userInfo = useSelector((state: RootState) => state.auth.userInfo);
+  const colorScheme = useColorScheme();
+
+  useEffect(() => {
+    if (!userInfo?.token) {
+      router.replace('/(auth)/login');
+    } else {
+      if (userInfo.userType === 'devotee') {
+        // router.replace('');
+      } else if (userInfo.userType === 'priest') {
+        // router.replace('/(priest)/home');
+      }
+    }
+  }, [userInfo]);
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -49,12 +77,17 @@ function RootLayoutNav() {
   const colorScheme = useColorScheme();
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="splash" options={{ headerShown: false }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
-      </Stack>
-    </ThemeProvider>
+    <Provider store={store}>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <AuthCheck>
+          <Stack>
+            <Stack.Screen name="splash" options={{ headerShown: false }} />
+            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+            {/* <Stack.Screen name="(devotee)" options={{ headerShown: false }} /> */}
+            {/* <Stack.Screen name="(priest)" options={{ headerShown: false }} /> */}
+          </Stack>
+        </AuthCheck>
+      </ThemeProvider>
+    </Provider>
   );
 }

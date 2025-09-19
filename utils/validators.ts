@@ -4,31 +4,36 @@
  */
 
 // Validate email format
-export const isValidEmail = (email) => {
+export const isValidEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
 // Validate phone number (10 digits)
-export const isValidPhone = (phone) => {
+export const isValidPhone = (phone: string): boolean => {
   const phoneRegex = /^\d{10}$/;
   return phoneRegex.test(phone.replace(/\D/g, ''));
 };
 
 // Validate password strength
-export const isStrongPassword = (password) => {
+export const isStrongPassword = (password: string): boolean => {
   // At least 8 characters, 1 uppercase, 1 lowercase, 1 number
   const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
   return passwordRegex.test(password);
 };
 
 // Validate if passwords match
-export const doPasswordsMatch = (password, confirmPassword) => {
+export const doPasswordsMatch = (password: string, confirmPassword: string): boolean => {
   return password === confirmPassword;
 };
 
 // Get password strength message
-export const getPasswordStrength = (password) => {
+export interface PasswordStrengthResult {
+  strength: number;
+  message: string;
+}
+
+export const getPasswordStrength = (password: string): PasswordStrengthResult => {
   if (!password) return { strength: 0, message: '' };
 
   if (password.length < 6) {
@@ -70,8 +75,11 @@ export const getPasswordStrength = (password) => {
 };
 
 // Validate form fields
-export const validateForm = (fields) => {
-  const errors = {};
+export type FormFields = Record<string, any>;
+export type FormErrors = Record<string, string>;
+
+export const validateForm = (fields: FormFields): FormErrors => {
+  const errors: FormErrors = {};
 
   Object.keys(fields).forEach(key => {
     const value = fields[key];

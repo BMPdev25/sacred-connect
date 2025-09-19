@@ -10,12 +10,12 @@ const bookingService = {
    * @param {Object} bookingData - Booking details
    * @returns {Promise} Response from the API
    */
-  createBooking: async (bookingData) => {
+  createBooking: async (bookingData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post('/api/bookings', bookingData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to create booking. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to create booking. Please try again.';
     }
   },
 
@@ -24,12 +24,12 @@ const bookingService = {
    * @param {string} bookingId - Booking ID
    * @returns {Promise} Response from the API
    */
-  getBookingDetails: async (bookingId) => {
+  getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/bookings/${bookingId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch booking details. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }
   },
 
@@ -38,12 +38,12 @@ const bookingService = {
    * @param {Object} params - Query parameters for filtering bookings
    * @returns {Promise} Response from the API
    */
-  getBookings: async (params = {}) => {
+  getBookings: async (params: Record<string, any> = {}): Promise<any> => {
     try {
       const response = await api.get('/api/bookings', { params });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch bookings. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }
   },
 
@@ -53,12 +53,12 @@ const bookingService = {
    * @param {string} status - New status
    * @returns {Promise} Response from the API
    */
-  updateBookingStatus: async (bookingId, status) => {
+  updateBookingStatus: async (bookingId: string, status: string): Promise<any> => {
     try {
       const response = await api.put(`/api/bookings/${bookingId}/status`, { status });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to update booking status. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to update booking status. Please try again.';
     }
   },
 
@@ -68,12 +68,12 @@ const bookingService = {
    * @param {string} reason - Cancellation reason
    * @returns {Promise} Response from the API
    */
-  cancelBooking: async (bookingId, reason) => {
+  cancelBooking: async (bookingId: string, reason: string): Promise<any> => {
     try {
       const response = await api.put(`/api/bookings/${bookingId}/cancel`, { reason });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to cancel booking. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to cancel booking. Please try again.';
     }
   },
 
@@ -83,12 +83,12 @@ const bookingService = {
    * @param {Object} paymentDetails - Payment details
    * @returns {Promise} Response from the API
    */
-  processPayment: async (bookingId, paymentDetails) => {
+  processPayment: async (bookingId: string, paymentDetails: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post(`/api/bookings/${bookingId}/payment`, paymentDetails);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to process payment. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to process payment. Please try again.';
     }
   },
 
@@ -97,12 +97,12 @@ const bookingService = {
    * @param {string} bookingId - Booking ID
    * @returns {Promise} Response from the API
    */
-  getPaymentStatus: async (bookingId) => {
+  getPaymentStatus: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/bookings/${bookingId}/payment`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch payment status. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch payment status. Please try again.';
     }
   },
 
@@ -112,12 +112,12 @@ const bookingService = {
    * @param {string} notes - Notes to add
    * @returns {Promise} Response from the API
    */
-  addNotes: async (bookingId, notes) => {
+  addNotes: async (bookingId: string, notes: string): Promise<any> => {
     try {
       const response = await api.put(`/api/bookings/${bookingId}/notes`, { notes });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to add notes. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to add notes. Please try again.';
     }
   },
 
@@ -127,12 +127,12 @@ const bookingService = {
    * @param {Object} reviewData - Review data (rating, comment)
    * @returns {Promise} Response from the API
    */
-  submitReview: async (bookingId, reviewData) => {
+  submitReview: async (bookingId: string, reviewData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post(`/api/bookings/${bookingId}/review`, reviewData);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to submit review. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
     }
   },
 
@@ -142,14 +142,14 @@ const bookingService = {
    * @param {string} date - Date in ISO format
    * @returns {Promise} Response from the API
    */
-  getAvailableTimeSlots: async (priestId, date) => {
+  getAvailableTimeSlots: async (priestId: string, date: string): Promise<any> => {
     try {
       const response = await api.get(`/api/bookings/timeslots`, {
         params: { priestId, date }
       });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch available time slots. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch available time slots. Please try again.';
     }
   },
 
@@ -161,14 +161,14 @@ const bookingService = {
    * @param {string} endTime - End time (format: HH:MM)
    * @returns {Promise} Response from the API
    */
-  checkAvailability: async (priestId, date, startTime, endTime) => {
+  checkAvailability: async (priestId: string, date: string, startTime: string, endTime: string): Promise<any> => {
     try {
       const response = await api.get('/api/bookings/check-availability', {
         params: { priestId, date, startTime, endTime }
       });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to check availability. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to check availability. Please try again.';
     }
   },
 
@@ -178,12 +178,12 @@ const bookingService = {
    * @param {Object} changes - Requested changes
    * @returns {Promise} Response from the API
    */
-  requestModification: async (bookingId, changes) => {
+  requestModification: async (bookingId: string, changes: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post(`/api/bookings/${bookingId}/modification`, changes);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to request modification. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to request modification. Please try again.';
     }
   },
 
@@ -194,14 +194,14 @@ const bookingService = {
    * @param {boolean} accepted - Whether the modification is accepted
    * @returns {Promise} Response from the API
    */
-  respondToModification: async (bookingId, modificationId, accepted) => {
+  respondToModification: async (bookingId: string, modificationId: string, accepted: boolean): Promise<any> => {
     try {
       const response = await api.put(`/api/bookings/${bookingId}/modification/${modificationId}`, {
         accepted
       });
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to respond to modification request. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to respond to modification request. Please try again.';
     }
   },
 
@@ -210,12 +210,12 @@ const bookingService = {
    * @param {string} priestId - Priest ID
    * @returns {Promise} Response from the API
    */
-  getPriestCeremonies: async (priestId) => {
+  getPriestCeremonies: async (priestId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/bookings/ceremonies/${priestId}`);
       return response.data;
-    } catch (error) {
-      throw error.response?.data?.message || 'Failed to fetch ceremony types. Please try again.';
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch ceremony types. Please try again.';
     }
   },
 };

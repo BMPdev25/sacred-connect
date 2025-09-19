@@ -1,6 +1,5 @@
-import { Stack } from 'expo-router';
+import { Redirect, Stack } from 'expo-router';
 import { useSelector } from 'react-redux';
-import { Redirect } from 'expo-router';
 import { RootState } from '../../redux/store';
 
 export default function AuthLayout() {
@@ -12,9 +11,9 @@ export default function AuthLayout() {
   // If user is already authenticated, redirect to their role-specific home
   if (userInfo?.token) {
     if (userInfo.userType === 'devotee') {
-      return <Redirect href="/" />;
+      return <Redirect href={'/(devotee)/home' as any} />;
     } else if (userInfo.userType === 'priest') {
-      return <Redirect href="/" />;
+      return <Redirect href={'/(priest)/home' as any} />;
     }
   }
 

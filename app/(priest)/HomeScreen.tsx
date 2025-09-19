@@ -1,10 +1,8 @@
-// src/screens/priest/HomeScreen.js
+// src/screens/priest/HomeScreen.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
-    Dimensions,
     Image,
     Platform,
     ScrollView,
@@ -14,102 +12,74 @@ import {
     View
 } from 'react-native';
 import { useSelector } from 'react-redux';
-import { RootState } from '../../redux/store';
-import PriestService from '../../services/priestService';
-
 import { APP_COLORS } from '../../constants/Colors';
+import { RootState } from '../../redux/store';
+import priestService from '../../services/priestService';
 
-const HEADER_TOP_PADDING = Platform.OS === 'android' ? 24 : 44;
-const CARD_WIDTH = Math.floor(Dimensions.get('window').width * 0.7);
+// Use RN StatusBar.currentHeight for Android
+const androidStatusBarHeight = (Platform as any).constants?.StatusBarHeight ?? 24;
+const HEADER_TOP_PADDING = Platform.OS === 'android' ? androidStatusBarHeight : 44;
 
-const HomeScreen: React.FC<any> = (props) => {
-  const rootNavigation = useNavigation<any>();
+const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [showProfileBanner, setShowProfileBanner] = useState<boolean>(true); // Profile completion banner
-  const [isAvailable, setIsAvailable] = useState<boolean>(true); // Availability toggle
-  const [currentTip, setCurrentTip] = useState<number>(0); // For rotating tips
-  
-  // Dynamic data state
+  const [showProfileBanner, setShowProfileBanner] = useState<boolean>(true);
+  const [isAvailable, setIsAvailable] = useState<boolean>(true);
+  const [currentTip, setCurrentTip] = useState<number>(0);
+
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [earnings, setEarnings] = useState<any>({ thisMonth: 0, trend: 0 });
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Example ceremonies for priests (can be customized)
+  // Example ceremonies for priests
   const ceremonies = [
-    {
-      id: '1',
-      name: 'Wedding',
-      image: require('../../assets/wedding.jpg'),
-    },
-    {
-      id: '2',
-      name: 'Housewarming',
-      image: require('../../assets/housewarming.png'),
-    },
-    {
-      id: '3',
-      name: 'Baby Naming',
-      image: require('../../assets/baby-naming.jpg'),
-    },
+    { id: '1', name: 'Wedding', image: require('../../assets/images/wedding.jpg') },
+    { id: '2', name: 'Housewarming', image: require('../../assets/images/housewarming.png') },
+    { id: '3', name: 'Baby Naming', image: require('../../assets/images/baby-naming.jpg') },
   ];
 
-  // Load data when component mounts
   useEffect(() => {
     const loadDashboardData = async () => {
       try {
         setLoading(true);
-        
-        // Fetch bookings
         try {
-          const bookingsData = await PriestService.getBookings();
-          setUpcomingBookings(bookingsData.slice(0, 3) || []); // Show only first 3
-        } catch (error) {
-          console.log('Failed to load bookings:', error);
+          const bookingsData = await priestService.getBookings();
+          setUpcomingBookings((bookingsData && bookingsData.slice ? bookingsData.slice(0, 3) : bookingsData) || []);
+        } catch (err) {
+          console.log('Failed to load bookings:', err);
           setUpcomingBookings([]);
         }
-        
-        // Fetch earnings
+
         try {
-          const earningsData = await PriestService.getEarnings();
+          const earningsData = await priestService.getEarnings();
           setEarnings(earningsData || { thisMonth: 0, growthPercentage: 0, availableBalance: 0 });
-        } catch (error) {
-          console.log('Failed to load earnings:', error);
+        } catch (err) {
+          console.log('Failed to load earnings:', err);
           setEarnings({ thisMonth: 0, growthPercentage: 0, availableBalance: 0 });
         }
-        
-        // For now, keep notifications and reviews empty for new users
+
         setNotifications([]);
         setRecentReviews([]);
-        
       } catch (error) {
         console.error('Error loading dashboard data:', error);
       } finally {
         setLoading(false);
       }
     };
-    
+
     loadDashboardData();
   }, []);
 
-  const handleSearch = () => {
-    // Optionally implement search for ceremonies/bookings
-  };
-
   const handleCeremonyPress = (ceremony: any) => {
-    rootNavigation.navigate('AvailableOffersScreen', { ceremony });
+    navigation.navigate('AvailableOffersScreen' as any, { ceremony });
   };
 
-  // Check if profile is complete
   const isProfileComplete = userInfo?.profileCompleted;
-  
-  // Calculate notification data
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
   const latestNotification = notifications.length > 0 ? notifications[0] : null;
 
-  // Mock tips
   const tips = [
     'Respond quickly to booking requests for higher ratings!',
     'Keep your profile updated for more visibility.',
@@ -138,7 +108,7 @@ const HomeScreen: React.FC<any> = (props) => {
                 Manage your ceremonies, bookings, and earnings
               </Text>
             </View>
-            <TouchableOpacity style={styles.notificationBell} onPress={() => props.navigation.navigate('Notifications')}>
+            <TouchableOpacity style={styles.notificationBell} onPress={() => navigation.navigate('Notifications')}>
               <Ionicons name="notifications-outline" size={28} color={APP_COLORS.white} />
               {unreadCount > 0 && (
                 <View style={styles.notificationBadge} />
@@ -193,7 +163,7 @@ const HomeScreen: React.FC<any> = (props) => {
               styles.withdrawButton,
               (!earnings?.availableBalance || earnings.availableBalance === 0) && styles.withdrawButtonDisabled
             ]}
-            onPress={() => props.navigation.navigate('Earnings')}
+            onPress={() => navigation.navigate('Earnings')}
             disabled={!earnings?.availableBalance || earnings.availableBalance === 0}
           >
             <Text style={[
@@ -245,7 +215,7 @@ const HomeScreen: React.FC<any> = (props) => {
         <View style={styles.upcomingBookingsContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
-            <TouchableOpacity onPress={() => props.navigation.navigate('Bookings')}>
+            <TouchableOpacity onPress={() => navigation.navigate('Bookings')}>
               <Text style={styles.viewAllTextSmall}>View All</Text>
             </TouchableOpacity>
           </View>

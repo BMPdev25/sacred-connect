@@ -7,22 +7,22 @@ const paymentMethods = [
   {
     key: 'card',
     label: 'Credit/Debit Card',
-    icon: require('../../assets/visa-logo.png'),
+  icon: require('../../assets/images/visa-logo.png'),
   },
   {
     key: 'upi',
     label: 'UPI',
-    icon: require('../../assets/upi-logo.png'),
+  icon: require('../../assets/images/upi-logo.png'),
   },
   {
     key: 'netbanking',
     label: 'Net Banking',
-    icon: require('../../assets/mastercard-logo.png'),
+  icon: require('../../assets/images/mastercard-logo.png'),
   },
   {
     key: 'wallet',
     label: 'Wallets',
-    icon: require('../../assets/default-profile.png'), // Replace with wallet icon if available
+  icon: require('../../assets/images/default-profile.png'), // Replace with wallet icon if available
   },
 ];
 

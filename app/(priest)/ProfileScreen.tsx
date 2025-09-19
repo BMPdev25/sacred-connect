@@ -112,7 +112,7 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
       <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
         <View style={styles.profileHeader}>
           <Image
-            source={require('../../assets/default-profile.png')}
+            source={require('../../assets/images/default-profile.png')}
             style={styles.profileImage}
           />
           <TouchableOpacity

@@ -173,7 +173,7 @@ const PaymentScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, 
               </View>
               <Text style={styles.paymentMethodText}>UPI</Text>
             </View>
-            <Image source={require('../../assets/upi-logo.png')} style={styles.paymentIcon} />
+            <Image source={require('../../assets/images/upi-logo.png')} style={styles.paymentIcon} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -192,8 +192,8 @@ const PaymentScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, 
               <Text style={styles.paymentMethodText}>Credit/Debit Card</Text>
             </View>
             <View style={styles.cardIcons}>
-              <Image source={require('../../assets/visa-logo.png')} style={styles.cardIcon} />
-              <Image source={require('../../assets/mastercard-logo.png')} style={styles.cardIcon} />
+              <Image source={require('../../assets/images/visa-logo.png')} style={styles.cardIcon} />
+              <Image source={require('../../assets/images/mastercard-logo.png')} style={styles.cardIcon} />
             </View>
           </TouchableOpacity>
 

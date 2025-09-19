@@ -141,7 +141,7 @@ const PriestSearchScreen: React.FC<{ navigation: any; route: { params?: { search
       onPress={() => handlePriestPress(item)}
     >
       <Image 
-        source={item.profilePicture ? { uri: item.profilePicture } : require('../../assets/pandit1.jpg')} 
+  source={item.profilePicture ? { uri: item.profilePicture } : require('../../assets/images/pandit1.jpg')} 
         style={styles.priestImage} 
       />
       <View style={styles.priestInfo}>

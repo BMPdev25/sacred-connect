@@ -29,17 +29,17 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     {
       id: '1',
       name: 'Wedding',
-      image: require('../../assets/wedding.jpg'),
+      image: require('../../assets/images/wedding.jpg'),
     },
     {
       id: '2',
       name: 'Grih Pravesh',
-      image: require('../../assets/home-rituals.jpg'),
+      image: require('../../assets/images/home-rituals.jpg'),
     },
     {
       id: '3',
       name: 'Baby Naming',
-      image: require('../../assets/baby-naming.jpg'),
+      image: require('../../assets/images/baby-naming.jpg'),
     },
   ];
 
@@ -178,7 +178,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               onPress={() => handlePriestPress(priest)}
             >
               <Image 
-                source={priest.profilePicture ? { uri: priest.profilePicture } : require('../../assets/pandit1.jpg')} 
+                source={priest.profilePicture ? { uri: priest.profilePicture } : require('../../assets/images/pandit1.jpg')} 
                 style={styles.priestImage} 
               />
               <View style={styles.priestInfo}>

@@ -93,7 +93,7 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView style={styles.content}>
         <View style={styles.profileHeader}>
           <Image
-            source={require('../../assets/default-profile.png')}
+            source={require('../../assets/images/default-profile.png')}
             style={styles.profileImage}
           />
           <Text style={styles.userName}>{userInfo?.name || 'User Name'}</Text>

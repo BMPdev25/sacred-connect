@@ -88,10 +88,11 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Navigate to main tabs after 4 seconds
+    // Navigate to main devotee home after 4 seconds (fallback route)
     const timer = setTimeout(() => {
       // Replace route to prevent going back to splash
-      router.replace('/(tabs)');
+      // Use devotee home as a sensible default — auth logic will redirect if needed
+      router.replace('/(devotee)/home' as any);
     }, 4000);
 
     return () => clearTimeout(timer);

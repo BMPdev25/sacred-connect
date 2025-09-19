@@ -109,7 +109,7 @@ const UniversalSearchScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             ? { uri: item.profilePicture }
             : item.profilePicture?.url
             ? { uri: item.profilePicture.url }
-            : require('../../assets/default-profile.png')
+            : require('../../assets/images/default-profile.png')
         }
         style={styles.priestImage}
       />
@@ -152,7 +152,7 @@ const UniversalSearchScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         source={
           item.primaryImage?.url
             ? { uri: item.primaryImage.url }
-            : require('../../assets/default-ceremony.png')
+            : require('../../assets/images/home-rituals.jpg')
         }
         style={styles.ceremonyImage}
       />

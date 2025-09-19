@@ -63,7 +63,7 @@ const RatingScreen: React.FC<{ navigation: any; route: { params?: { booking?: Bo
       priest: {
         id: 'P001',
         name: 'Pandit Ram Sharma',
-        image: require('../../assets/pandit1.jpg'),
+  image: require('../../assets/images/pandit1.jpg'),
         specialization: 'Wedding Ceremonies',
       },
       ceremony: {
@@ -228,7 +228,7 @@ const RatingScreen: React.FC<{ navigation: any; route: { params?: { booking?: Bo
         <View style={styles.bookingSummary}>
           <View style={styles.summaryCard}>
             <View style={styles.priestInfo}>
-              <Image source={booking.priest?.image || require('../../assets/pandit1.jpg')} style={styles.priestImage} />
+              <Image source={booking.priest?.image || require('../../assets/images/pandit1.jpg')} style={styles.priestImage} />
               <View style={styles.priestDetails}>
                 <Text style={styles.priestName}>{booking.priest?.name || 'Priest'}</Text>
                 <Text style={styles.specialization}>{booking.priest?.specialization || ''}</Text>

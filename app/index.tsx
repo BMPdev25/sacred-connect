@@ -1,13 +1,6 @@
-import { useRouter } from 'expo-router';
-import { useEffect } from 'react';
+import { Redirect } from 'expo-router';
 
 export default function IndexRedirect() {
-  const router = useRouter();
-
-  // useEffect(() => {
-  //   // Ensure the app always starts at the splash screen
-  //   router.replace('/splash');
-  // }, []);
-
-  return null;
+  // Use a static Redirect so navigation happens after the router is ready
+  return <Redirect href="/splash" />;
 }

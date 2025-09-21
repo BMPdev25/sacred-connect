@@ -1,24 +1,22 @@
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
+  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { useDispatch, useSelector } from 'react-redux';
-import InputField from '../../components/InputField';
-import ReligiousTraditionPicker from '../../components/ReligiousTraditionPicker';
-import { APP_COLORS } from '../../constants/Colors';
-import { clearError, register } from '../../redux/slices/authSlice';
-import { AppDispatch, RootState } from '../../redux/store';
+} from "react-native";
+import { useDispatch, useSelector } from "react-redux";
+import InputField from "../../components/InputField";
+import ReligiousTraditionPicker from "../../components/ReligiousTraditionPicker";
+import { APP_COLORS } from "../../constants/Colors";
+import { clearError, register } from "../../redux/slices/authSlice";
+import { AppDispatch, RootState } from "../../redux/store";
 
-
-
-
-type UserType = 'devotee' | 'priest';
+type UserType = "devotee" | "priest";
 
 interface SignUpState {
   name: string;
@@ -43,14 +41,14 @@ interface FormErrors {
 
 export default function SignUpScreen() {
   const [state, setState] = useState<SignUpState>({
-    name: '',
-    email: '',
-    phone: '',
-    password: '',
-    confirmPassword: '',
+    name: "",
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
     showPassword: false,
-    userType: 'devotee',
-    religiousTradition: '',
+    userType: "devotee",
+    religiousTradition: "",
     showReligiousOptions: false,
   });
 
@@ -62,7 +60,7 @@ export default function SignUpScreen() {
 
   useEffect(() => {
     if (error) {
-      Alert.alert('Registration Error', error);
+      Alert.alert("Registration Error", error);
       dispatch(clearError());
     }
   }, [error, dispatch]);
@@ -70,24 +68,26 @@ export default function SignUpScreen() {
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    if (!state.name) newErrors.name = 'Name is required';
-    if (!state.email) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(state.email)) newErrors.email = 'Email is invalid';
+    if (!state.name) newErrors.name = "Name is required";
+    if (!state.email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(state.email))
+      newErrors.email = "Email is invalid";
 
-    if (!state.phone) newErrors.phone = 'Phone number is required';
-    else if (!/^\d{10}$/.test(state.phone.replace(/\D/g, '')))
-      newErrors.phone = 'Phone number must be 10 digits';
+    if (!state.phone) newErrors.phone = "Phone number is required";
+    else if (!/^\d{10}$/.test(state.phone.replace(/\D/g, "")))
+      newErrors.phone = "Phone number must be 10 digits";
 
-    if (!state.password) newErrors.password = 'Password is required';
+    if (!state.password) newErrors.password = "Password is required";
     else if (state.password.length < 6)
-      newErrors.password = 'Password must be at least 6 characters';
+      newErrors.password = "Password must be at least 6 characters";
 
-    if (!state.confirmPassword) newErrors.confirmPassword = 'Please confirm your password';
+    if (!state.confirmPassword)
+      newErrors.confirmPassword = "Please confirm your password";
     else if (state.password !== state.confirmPassword)
-      newErrors.confirmPassword = 'Passwords do not match';
+      newErrors.confirmPassword = "Passwords do not match";
 
-    if (state.userType === 'priest' && !state.religiousTradition)
-      newErrors.religiousTradition = 'Please select your religious tradition';
+    if (state.userType === "priest" && !state.religiousTradition)
+      newErrors.religiousTradition = "Please select your religious tradition";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -95,37 +95,31 @@ export default function SignUpScreen() {
 
   const handleSignUp = (): void => {
     if (validateForm()) {
-      dispatch(register({
-        name: state.name,
-        email: state.email,
-        phone: state.phone,
-        password: state.password,
-        userType: state.userType,
-        // religiousTradition: state.userType === 'priest' ? state.religiousTradition : undefined
-      }));
+      dispatch(
+        register({
+          name: state.name,
+          email: state.email,
+          phone: state.phone,
+          password: state.password,
+          userType: state.userType,
+        })
+      );
     }
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
-    >
-      <View style={styles.logoContainer}>
-        <Text style={styles.logoText}>BookMyPujari</Text>
-      </View>
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+      >
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>BookMyPujari</Text>
+        </View>
 
-      <View style={styles.formContainer}>
+        <View style={styles.formContainer}>
         <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={styles.tabButton}
-            onPress={() => router.push('/login' as any)}
-          >
-            <Text style={styles.tabText}>Login</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, styles.activeTabButton]}
-          >
+          <TouchableOpacity style={[styles.tabButton, styles.activeTabButton]}>
             <Text style={[styles.tabText, styles.activeTabText]}>Sign Up</Text>
           </TouchableOpacity>
         </View>
@@ -136,14 +130,17 @@ export default function SignUpScreen() {
             <TouchableOpacity
               style={[
                 styles.userTypeButton,
-                state.userType === 'devotee' && styles.activeUserTypeButton,
+                state.userType === "devotee" && styles.activeUserTypeButton,
               ]}
-              onPress={() => setState(prev => ({ ...prev, userType: 'devotee' }))}
+              onPress={() =>
+                setState((prev) => ({ ...prev, userType: "devotee" }))
+              }
             >
               <Text
                 style={[
                   styles.userTypeButtonText,
-                  state.userType === 'devotee' && styles.activeUserTypeButtonText,
+                  state.userType === "devotee" &&
+                    styles.activeUserTypeButtonText,
                 ]}
               >
                 Devotee
@@ -152,14 +149,17 @@ export default function SignUpScreen() {
             <TouchableOpacity
               style={[
                 styles.userTypeButton,
-                state.userType === 'priest' && styles.activeUserTypeButton,
+                state.userType === "priest" && styles.activeUserTypeButton,
               ]}
-              onPress={() => setState(prev => ({ ...prev, userType: 'priest' }))}
+              onPress={() =>
+                setState((prev) => ({ ...prev, userType: "priest" }))
+              }
             >
               <Text
                 style={[
                   styles.userTypeButtonText,
-                  state.userType === 'priest' && styles.activeUserTypeButtonText,
+                  state.userType === "priest" &&
+                    styles.activeUserTypeButtonText,
                 ]}
               >
                 Priest
@@ -171,7 +171,9 @@ export default function SignUpScreen() {
         <InputField
           label="Full Name"
           value={state.name}
-          onChangeText={(text: string) => setState(prev => ({ ...prev, name: text }))}
+          onChangeText={(text: string) =>
+            setState((prev) => ({ ...prev, name: text }))
+          }
           placeholder="Enter your full name"
           error={errors.name}
         />
@@ -179,7 +181,9 @@ export default function SignUpScreen() {
         <InputField
           label="Email"
           value={state.email}
-          onChangeText={(text: string) => setState(prev => ({ ...prev, email: text }))}
+          onChangeText={(text: string) =>
+            setState((prev) => ({ ...prev, email: text }))
+          }
           placeholder="Enter your email address"
           keyboardType="email-address"
           autoCapitalize="none"
@@ -189,7 +193,9 @@ export default function SignUpScreen() {
         <InputField
           label="Phone Number"
           value={state.phone}
-          onChangeText={(text: string) => setState(prev => ({ ...prev, phone: text }))}
+          onChangeText={(text: string) =>
+            setState((prev) => ({ ...prev, phone: text }))
+          }
           placeholder="Enter your phone number"
           keyboardType="phone-pad"
           error={errors.phone}
@@ -198,31 +204,43 @@ export default function SignUpScreen() {
         <InputField
           label="Password"
           value={state.password}
-          onChangeText={(text: string) => setState(prev => ({ ...prev, password: text }))}
+          onChangeText={(text: string) =>
+            setState((prev) => ({ ...prev, password: text }))
+          }
           placeholder="Create a password"
           secureTextEntry={!state.showPassword}
           showTogglePassword={true}
           passwordVisible={state.showPassword}
-          onTogglePassword={() => setState(prev => ({ ...prev, showPassword: !prev.showPassword }))}
+          onTogglePassword={() =>
+            setState((prev) => ({ ...prev, showPassword: !prev.showPassword }))
+          }
           error={errors.password}
         />
 
         <InputField
           label="Confirm Password"
           value={state.confirmPassword}
-          onChangeText={(text: string) => setState(prev => ({ ...prev, confirmPassword: text }))}
+          onChangeText={(text: string) =>
+            setState((prev) => ({ ...prev, confirmPassword: text }))
+          }
           placeholder="Confirm your password"
           secureTextEntry={!state.showPassword}
           error={errors.confirmPassword}
         />
 
-        {state.userType === 'priest' && (
+        {state.userType === "priest" && (
           <ReligiousTraditionPicker
             value={state.religiousTradition}
-            onChange={(value: string) => setState(prev => ({ ...prev, religiousTradition: value }))}
+            onChange={(value: string) =>
+              setState((prev) => ({ ...prev, religiousTradition: value }))
+            }
             isVisible={state.showReligiousOptions}
-            onClose={() => setState(prev => ({ ...prev, showReligiousOptions: !prev.showReligiousOptions }))}
-            
+            onClose={() =>
+              setState((prev) => ({
+                ...prev,
+                showReligiousOptions: !prev.showReligiousOptions,
+              }))
+            }
           />
         )}
 
@@ -232,17 +250,24 @@ export default function SignUpScreen() {
           disabled={isLoading}
         >
           <Text style={styles.signUpButtonText}>
-            {isLoading ? 'Signing Up...' : 'Sign Up'}
+            {isLoading ? "Signing Up..." : "Sign Up"}
           </Text>
         </TouchableOpacity>
 
         <Text style={styles.termsText}>
           By signing up, you agree to our Terms of Service and Privacy Policy
         </Text>
-      </View>
-    </ScrollView>
+        <View style={styles.authLinkContainer}>
+          <Text style={styles.authLinkText}>Already have an account? </Text>
+          <TouchableOpacity onPress={() => router.push('/login' as any)}>
+            <Text style={styles.authLinkAction}>Login</Text>
+          </TouchableOpacity>
+        </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
   container: {
@@ -253,17 +278,17 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   logoContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 20,
     marginBottom: 20,
   },
   logoText: {
-    fontFamily: 'System',
+    fontFamily: "System",
     fontSize: 36,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: APP_COLORS.primary,
     letterSpacing: 1,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
+    textShadowColor: "rgba(0, 0, 0, 0.1)",
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
@@ -275,7 +300,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   tabContainer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
@@ -283,7 +308,7 @@ const styles = StyleSheet.create({
   tabButton: {
     flex: 1,
     paddingVertical: 10,
-    alignItems: 'center',
+    alignItems: "center",
   },
   activeTabButton: {
     borderBottomWidth: 2,
@@ -295,7 +320,7 @@ const styles = StyleSheet.create({
   },
   activeTabText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: APP_COLORS.primary,
   },
   userTypeContainer: {
@@ -303,12 +328,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 8,
   },
   userTypeButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   userTypeButton: {
     flex: 1,
@@ -316,8 +341,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: APP_COLORS.lightGray,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginHorizontal: 4,
   },
   activeUserTypeButton: {
@@ -330,25 +355,45 @@ const styles = StyleSheet.create({
   },
   activeUserTypeButtonText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   signUpButton: {
     backgroundColor: APP_COLORS.primary,
     height: 48,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     marginVertical: 16,
   },
   signUpButtonText: {
     color: APP_COLORS.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   termsText: {
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 12,
     color: APP_COLORS.gray,
     marginTop: 8,
+  },
+  authLinkContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  authLinkText: {
+    color: APP_COLORS.gray,
+    fontSize: 14,
+  },
+  authLinkAction: {
+    color: APP_COLORS.primary,
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginLeft: 6,
+  },
+  safeArea: {
+    flex: 1,
+    backgroundColor: APP_COLORS.background,
   },
 });

@@ -1,11 +1,12 @@
-import { useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Redirect } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import { APP_COLORS } from '../constants/Colors';
 
 export default function SplashScreen() {
-  const router = useRouter();
+  const [nextRoute, setNextRoute] = React.useState<string | null>(null);
 
   // Animated values
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -88,11 +89,28 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    // Navigate to main devotee home after 4 seconds (fallback route)
-    const timer = setTimeout(() => {
-      // Replace route to prevent going back to splash
-      // Use devotee home as a sensible default — auth logic will redirect if needed
-      router.replace('/(devotee)/home' as any);
+    // After animations, decide where to navigate by setting nextRoute
+    const timer = setTimeout(async () => {
+      try {
+        const userInfoStr = await AsyncStorage.getItem('userInfo');
+        if (userInfoStr) {
+          const userInfo = JSON.parse(userInfoStr);
+          if (userInfo?.userType === 'priest') {
+            setNextRoute('/(priest)/home');
+            return;
+          }
+          if (userInfo?.userType === 'devotee') {
+            setNextRoute('/(devotee)/home');
+            return;
+          }
+        }
+
+        // Not logged in or unknown type -> go to login
+        setNextRoute('/(auth)/login');
+      } catch (err) {
+        // On error, go to login
+        setNextRoute('/(auth)/login');
+      }
     }, 4000);
 
     return () => clearTimeout(timer);
@@ -100,6 +118,7 @@ export default function SplashScreen() {
 
   return (
     <View style={styles.container}>
+      {nextRoute ? <Redirect href={nextRoute as any} /> : null}
       <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} />
 
       {/* Logo */}

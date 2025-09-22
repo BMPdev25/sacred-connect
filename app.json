@@ -30,7 +30,12 @@
       "favicon": "./assets/images/app-icon.png"
     },
     "plugins": [
-      "expo-router"
+      [
+        "expo-router",
+        {
+          "sitemap": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

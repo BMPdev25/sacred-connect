@@ -1,306 +1,325 @@
-// src/screens/priest/EarningsScreen.js
+// src/screens/priest/EnhancedEarningsScreen.js
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Dimensions,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { APP_COLORS } from '../../constants/Colors';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import priestService from '../../services/priestService';
 
+import { APP_COLORS } from '../../constants/Colors';
 
-const HEADER_TOP_PADDING = Platform.OS === 'android' ? 24 : 44;
+const { width: screenWidth } = Dimensions.get('window');
 
-const EarningsScreen = () => {
-  const [selectedMonth, setSelectedMonth] = useState<string>('current');
-  const [withdrawalModalVisible, setWithdrawalModalVisible] = useState(false);
-  const [withdrawalAmount, setWithdrawalAmount] = useState('');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
-  const [earningsData, setEarningsData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+const EarningsScreen = ({ navigation }: any) => {
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [selectedPeriod, setSelectedPeriod] = useState<string>('thisMonth');
+  const [earningsData, setEarningsData] = useState<any>({
+    totalEarnings: 0,
+    thisMonth: 0,
+    lastMonth: 0,
+    pendingPayments: 0,
+    completedCeremonies: 0,
+    monthlyTrends: [],
+    categoryBreakdown: [],
+    recentTransactions: [],
+  });
 
   useEffect(() => {
-    fetchEarningsData();
+    loadEarningsData();
   }, []);
 
-  const fetchEarningsData = async () => {
+  const loadEarningsData = async () => {
     try {
-      setLoading(true);
-      const data = await priestService.getEarnings();
-      setEarningsData(data);
+      setIsLoading(true);
+      const response = await priestService.getEarnings();
+      if (response.success) {
+        setEarningsData(response.data);
+      }
     } catch (error) {
-      console.error('Error fetching earnings:', error);
-      Alert.alert('Error', 'Failed to load earnings data');
+      console.error('Failed to load earnings:', error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchEarningsData();
-    setRefreshing(false);
-  };
-
-  const handleWithdrawal = async () => {
-    const amount = parseFloat(withdrawalAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid amount');
-      return;
-    }
-
-    const availableBalance = earningsData?.availableBalance || 0;
-    if (amount > availableBalance) {
-      Alert.alert('Validation Error', 'Withdrawal amount cannot exceed available balance');
-      return;
-    }
-
-    try {
-      await priestService.requestWithdrawal({
-        amount: amount,
-        paymentMethod: selectedPaymentMethod
-      });
-      
-      Alert.alert('Success', 'Withdrawal request submitted successfully');
-      setWithdrawalModalVisible(false);
-      setWithdrawalAmount('');
-      
-      // Refresh earnings data
-      await fetchEarningsData();
-    } catch (error: any) {
-      console.error('Withdrawal error:', error);
-      Alert.alert('Error', error.message || 'Failed to process withdrawal request');
-    }
-  };
-
-  const formatCurrency = (amount: number | undefined) => {
+  const formatCurrency = (amount: number | any) => {
     return `₹${(amount as any)?.toLocaleString?.('en-IN') || '0'}`;
   };
 
-  const formatDate = (date: any) => {
-    if (!date) return 'N/A';
-    return new Date(date).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+  const getChangePercent = (current: number, previous: number) => {
+    if (previous === 0) return 0;
+    return ((current - previous) / previous * 100).toFixed(1);
   };
 
-  if (loading) {
+  const renderEarningCard = (title: string, amount: number, subtitle: string | undefined, icon: any, color: string, change?: any) => (
+    <View style={[styles.earningCard, { borderLeftColor: color }]}>
+      <View style={styles.cardHeader}>
+        <View>
+          <Text style={styles.cardTitle}>{title}</Text>
+          <Text style={[styles.cardAmount, { color }]}>{formatCurrency(amount)}</Text>
+          {subtitle && <Text style={styles.cardSubtitle}>{subtitle}</Text>}
+        </View>
+        <View style={[styles.cardIcon, { backgroundColor: color + '20' }]}>
+          <Ionicons name={icon} size={24} color={color} />
+        </View>
+      </View>
+      {change !== undefined && (
+        <View style={styles.changeContainer}>
+          <Ionicons
+            name={change >= 0 ? 'trending-up' : 'trending-down'}
+            size={16}
+            color={change >= 0 ? APP_COLORS.success : APP_COLORS.error}
+          />
+          <Text
+            style={[
+              styles.changeText,
+              { color: change >= 0 ? APP_COLORS.success : APP_COLORS.error },
+            ]}
+          >
+            {change >= 0 ? '+' : ''}{change}%
+          </Text>
+          <Text style={styles.changeLabel}>vs last month</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const chartConfig = {
+    backgroundGradientFrom: '#ffffff',
+    backgroundGradientTo: '#ffffff',
+    color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
+    strokeWidth: 2,
+    barPercentage: 0.5,
+    useShadowColorFromDataset: false,
+  };
+
+  const monthlyData = {
+    labels: (earningsData.monthlyTrends || []).map((trend: any) => 
+      new Date(2024, (trend.month || 1) - 1).toLocaleDateString('en', { month: 'short' })
+    ),
+    datasets: [{
+      data: (earningsData.monthlyTrends || []).map((trend: any) => trend.earnings || 0),
+      color: (opacity = 1) => `rgba(255, 107, 107, ${opacity})`,
+      strokeWidth: 2,
+    }],
+  };
+
+  const categoryData = (earningsData.categoryBreakdown || []).map((item: any, index: number) => ({
+    name: item.category,
+    population: item.amount,
+    color: [APP_COLORS.primary, APP_COLORS.secondary, APP_COLORS.success, APP_COLORS.warning][index % 4],
+    legendFontColor: APP_COLORS.text,
+    legendFontSize: 12,
+  }));
+
+  if (isLoading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
-        <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} />
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={APP_COLORS.primary} />
-        <Text style={{ marginTop: 16, color: APP_COLORS.gray }}>Loading earnings data...</Text>
+        <Text style={styles.loadingText}>Loading earnings data...</Text>
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} />
-      <View style={[styles.header, { paddingTop: HEADER_TOP_PADDING, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
-        <Text style={styles.headerTitle}>Earnings</Text>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.primary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Earnings Dashboard</Text>
+        <TouchableOpacity onPress={loadEarningsData}>
+          <Ionicons name="refresh" size={24} color={APP_COLORS.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.earningsSummary}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>Total Earnings</Text>
-            <View style={styles.periodSelector}>
-              <TouchableOpacity onPress={() => setSelectedMonth('previous')}>
-                <Text
-                  style={[
-                    styles.periodText,
-                    selectedMonth === 'previous' && styles.activePeriodText,
-                  ]}
-                >
-                  Previous
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSelectedMonth('current')}>
-                <Text
-                  style={[
-                    styles.periodText,
-                    selectedMonth === 'current' && styles.activePeriodText,
-                  ]}
-                >
-                  Current
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Text style={styles.totalAmount}>
-            {selectedMonth === 'current' 
-              ? formatCurrency(earningsData?.thisMonth) 
-              : formatCurrency(earningsData?.lastMonth)
-            }
-          </Text>
-          
-          {earningsData?.growthPercentage !== undefined && earningsData.growthPercentage !== 0 && (
-            <View style={styles.growthIndicator}>
-              <Ionicons
-                name={earningsData.growthPercentage >= 0 ? "arrow-up" : "arrow-down"}
-                size={16}
-                color={earningsData.growthPercentage >= 0 ? APP_COLORS.success : APP_COLORS.error}
-              />
-              <Text style={[
-                styles.growthText,
-                { color: earningsData.growthPercentage >= 0 ? APP_COLORS.success : APP_COLORS.error }
-              ]}>
-                {Math.abs(earningsData.growthPercentage)}% vs last month
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Period Selector */}
+        <View style={styles.periodSelector}>
+          {[
+            { key: 'thisMonth', label: 'This Month' },
+            { key: 'lastMonth', label: 'Last Month' },
+            { key: 'allTime', label: 'All Time' },
+          ].map((period) => (
+            <TouchableOpacity
+              key={period.key}
+              style={[
+                styles.periodButton,
+                selectedPeriod === period.key && styles.activePeriodButton,
+              ]}
+              onPress={() => setSelectedPeriod(period.key)}
+            >
+              <Text
+                style={[
+                  styles.periodButtonText,
+                  selectedPeriod === period.key && styles.activePeriodButtonText,
+                ]}
+              >
+                {period.label}
               </Text>
-            </View>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Earning Cards */}
+        <View style={styles.cardsContainer}>
+          {renderEarningCard(
+            'Total Earnings',
+            earningsData.totalEarnings,
+            'All time earnings',
+            'wallet',
+            APP_COLORS.primary
+          )}
+          
+          {renderEarningCard(
+            'This Month',
+            earningsData.thisMonth,
+            `${earningsData.completedCeremonies} ceremonies`,
+            'calendar',
+            APP_COLORS.success,
+            getChangePercent(earningsData.thisMonth, earningsData.lastMonth)
+          )}
+          
+          {renderEarningCard(
+            'Pending Payments',
+            earningsData.pendingPayments,
+            'Awaiting payout',
+            'time',
+            APP_COLORS.warning
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.withdrawButton}
-          onPress={() => setWithdrawalModalVisible(true)}
-        >
-          <Ionicons
-            name="wallet-outline"
-            size={20}
-            color={APP_COLORS.white}
-          />
-          <Text style={styles.withdrawButtonText}>Withdraw Earnings</Text>
-        </TouchableOpacity>
+        {/* Monthly Trend Chart */}
+        {earningsData.monthlyTrends.length > 0 && (
+          <View style={styles.chartContainer}>
+            <Text style={styles.chartTitle}>Monthly Earnings Trend</Text>
+            <LineChart
+              data={monthlyData}
+              width={screenWidth - 32}
+              height={220}
+              chartConfig={chartConfig}
+              style={styles.chart}
+              bezier
+            />
+          </View>
+        )}
 
+        {/* Category Breakdown */}
+        {categoryData.length > 0 && (
+          <View style={styles.chartContainer}>
+            <Text style={styles.chartTitle}>Earnings by Category</Text>
+            <PieChart
+              data={categoryData}
+              width={screenWidth - 32}
+              height={200}
+              chartConfig={chartConfig}
+              accessor="population"
+              backgroundColor="transparent"
+              paddingLeft="15"
+              style={styles.chart}
+            />
+          </View>
+        )}
+
+        {/* Recent Transactions */}
         <View style={styles.transactionsContainer}>
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
-          
-          {(!earningsData?.transactions || earningsData.transactions.length === 0) ? (
-            <View style={styles.emptyState}>
-              <Ionicons name="receipt-outline" size={48} color={APP_COLORS.gray} />
-              <Text style={styles.emptyStateText}>No transactions yet</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Complete your first ceremony to see earnings here
-              </Text>
-            </View>
-          ) : (
-            (earningsData.transactions || []).map((transaction: any, index: number) => (
-              <View key={transaction.id || index} style={styles.transactionCard}>
-                <View style={styles.transactionHeader}>
-                  <Text style={styles.transactionName}>{transaction.description}</Text>
-                  <Text style={styles.transactionAmount}>{formatCurrency(transaction.amount)}</Text>
-                </View>
-                <Text style={styles.transactionClient}>{transaction.client}</Text>
-                <View style={styles.transactionFooter}>
-                  <View style={styles.transactionDate}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={16}
-                      color={APP_COLORS.gray}
-                    />
-                    <Text style={styles.transactionDateText}>{formatDate(transaction.date)}</Text>
-                  </View>
-                  <View style={styles.transactionStatus}>
-                    <Ionicons
-                      name="checkmark-circle"
-                      size={16}
-                      color={APP_COLORS.success}
-                    />
-                    <Text style={styles.transactionStatusText}>Completed</Text>
-                  </View>
-                </View>
-              </View>
-            ))
-          )}
-        </View>
-      </ScrollView>
-
-      {/* Withdrawal Modal */}
-      <Modal
-        visible={withdrawalModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setWithdrawalModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Withdraw Earnings</Text>
-              <TouchableOpacity
-                onPress={() => setWithdrawalModalVisible(false)}
-              >
-                <Ionicons name="close" size={24} color={APP_COLORS.gray} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <Text style={styles.balanceText}>
-                Available Balance: {formatCurrency(earningsData?.availableBalance)}
-              </Text>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Amount (₹)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={withdrawalAmount}
-                  onChangeText={setWithdrawalAmount}
-                  keyboardType="numeric"
-                  placeholder="Enter amount to withdraw"
+          { (earningsData.recentTransactions || []).map((transaction: any, index: number) => (
+            <View key={index} style={styles.transactionItem}>
+              <View style={styles.transactionIcon}>
+                <Ionicons
+                  name={
+                    transaction.type === 'earning'
+                      ? 'arrow-down-circle'
+                      : 'arrow-up-circle'
+                  }
+                  size={24}
+                  color={
+                    transaction.type === 'earning'
+                      ? APP_COLORS.success
+                      : APP_COLORS.primary
+                  }
                 />
               </View>
-
-              <Text style={styles.paymentMethodLabel}>Payment Method</Text>
-              <View style={styles.paymentMethods}>
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    selectedPaymentMethod === 'upi' &&
-                      styles.selectedPaymentMethod,
-                  ]}
-                  onPress={() => setSelectedPaymentMethod('upi')}
-                >
-                  <View style={styles.radioButton}>
-                    {selectedPaymentMethod === 'upi' && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <Text style={styles.paymentMethodText}>UPI</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    selectedPaymentMethod === 'card' &&
-                      styles.selectedPaymentMethod,
-                  ]}
-                  onPress={() => setSelectedPaymentMethod('card')}
-                >
-                  <View style={styles.radioButton}>
-                    {selectedPaymentMethod === 'card' && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <Text style={styles.paymentMethodText}>Credit/Debit Card</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.withdrawConfirmButton}
-                onPress={handleWithdrawal}
-              >
-                <Text style={styles.withdrawConfirmButtonText}>
-                  Withdraw Funds
+              <View style={styles.transactionDetails}>
+                <Text style={styles.transactionTitle}>{transaction.description}</Text>
+                <Text style={styles.transactionDate}>
+                  {new Date(transaction.date).toLocaleDateString()}
                 </Text>
-              </TouchableOpacity>
+              </View>
+              <Text
+                style={[
+                  styles.transactionAmount,
+                  {
+                    color:
+                      transaction.type === 'earning'
+                        ? APP_COLORS.success
+                        : APP_COLORS.error,
+                  },
+                ]}
+              >
+                {transaction.type === 'earning' ? '+' : '-'}
+                {formatCurrency(transaction.amount)}
+              </Text>
+            </View>
+          ))}
+        </View>
+
+        {/* Payout Information */}
+        <View style={styles.payoutContainer}>
+          <View style={styles.payoutHeader}>
+            <Text style={styles.sectionTitle}>Payout Schedule</Text>
+            <TouchableOpacity style={styles.requestPayoutButton}>
+              <Text style={styles.requestPayoutText}>Request Payout</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.payoutInfo}>
+            <View style={styles.payoutItem}>
+              <Text style={styles.payoutLabel}>Next Payout Date</Text>
+              <Text style={styles.payoutValue}>
+                {earningsData.nextPayoutDate 
+                  ? new Date(earningsData.nextPayoutDate).toLocaleDateString()
+                  : 'Not scheduled'
+                }
+              </Text>
+            </View>
+            <View style={styles.payoutItem}>
+              <Text style={styles.payoutLabel}>Last Payout</Text>
+              <Text style={styles.payoutValue}>
+                {earningsData.lastPayoutDate 
+                  ? new Date(earningsData.lastPayoutDate).toLocaleDateString()
+                  : 'No previous payout'
+                }
+              </Text>
             </View>
           </View>
         </View>
-      </Modal>
+
+        {/* Performance Metrics */}
+        <View style={styles.metricsContainer}>
+          <Text style={styles.sectionTitle}>Performance Metrics</Text>
+          <View style={styles.metricsGrid}>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>{earningsData.completedCeremonies}</Text>
+              <Text style={styles.metricLabel}>Completed Ceremonies</Text>
+            </View>
+            <View style={styles.metricItem}>
+              <Text style={styles.metricValue}>
+                ₹{Math.round(earningsData.thisMonth / (earningsData.completedCeremonies || 1))}
+              </Text>
+              <Text style={styles.metricLabel}>Avg. per Ceremony</Text>
+            </View>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 };
@@ -310,246 +329,229 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: APP_COLORS.background,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: APP_COLORS.gray,
+  },
   header: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    // Top padding is now handled dynamically
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    backgroundColor: APP_COLORS.white,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
   },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
+    color: APP_COLORS.text,
   },
-  scrollContent: {
+  content: {
+    flex: 1,
     padding: 16,
-  },
-  earningsSummary: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  summaryHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   periodSelector: {
     flexDirection: 'row',
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 4,
+    marginBottom: 16,
   },
-  periodText: {
-    marginLeft: 12,
+  periodButton: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 8,
+  },
+  activePeriodButton: {
+    backgroundColor: APP_COLORS.primary,
+  },
+  periodButtonText: {
+    fontSize: 14,
     color: APP_COLORS.gray,
   },
-  activePeriodText: {
-    color: APP_COLORS.primary,
-    fontWeight: 'bold',
-  },
-  totalAmount: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  growthIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  growthText: {
-    marginLeft: 4,
-    color: APP_COLORS.success,
-  },
-  withdrawButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    marginBottom: 20,
-  },
-  withdrawButtonText: {
+  activePeriodButtonText: {
     color: APP_COLORS.white,
+    fontWeight: '600',
+  },
+  cardsContainer: {
+    gap: 16,
+    marginBottom: 24,
+  },
+  earningCard: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    borderLeftWidth: 4,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  cardTitle: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    marginBottom: 4,
+  },
+  cardAmount: {
+    fontSize: 24,
     fontWeight: 'bold',
-    marginLeft: 8,
+    marginBottom: 4,
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+  },
+  cardIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  changeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 4,
+  },
+  changeLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginLeft: 4,
+  },
+  chartContainer: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  chartTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: APP_COLORS.text,
+    marginBottom: 16,
+  },
+  chart: {
+    borderRadius: 8,
   },
   transactionsContainer: {
-    marginBottom: 20,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    marginBottom: 12,
+    color: APP_COLORS.text,
+    marginBottom: 16,
   },
-  transactionCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 2,
-  },
-  transactionHeader: {
+  transactionItem: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 4,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
   },
-  transactionName: {
+  transactionIcon: {
+    marginRight: 12,
+  },
+  transactionDetails: {
+    flex: 1,
+  },
+  transactionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  transactionAmount: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: APP_COLORS.primary,
-  },
-  transactionClient: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 12,
-  },
-  transactionFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    color: APP_COLORS.text,
+    marginBottom: 2,
   },
   transactionDate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  transactionDateText: {
-    marginLeft: 4,
+    fontSize: 12,
     color: APP_COLORS.gray,
-    fontSize: 14,
   },
-  transactionStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: '600',
   },
-  transactionStatusText: {
-    marginLeft: 4,
-    color: APP_COLORS.success,
-    fontSize: 14,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalContent: {
+  payoutContainer: {
     backgroundColor: APP_COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
   },
-  modalHeader: {
+  payoutHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  modalBody: {
-    paddingBottom: 20,
-  },
-  balanceText: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  paymentMethodLabel: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 8,
-  },
-  paymentMethods: {
-    marginBottom: 20,
-  },
-  paymentMethodOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
-    borderRadius: 8,
-    padding: 12,
-  },
-  selectedPaymentMethod: {
-    borderColor: APP_COLORS.primary,
-    backgroundColor: APP_COLORS.primary + '10',
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: APP_COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 8,
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  requestPayoutButton: {
     backgroundColor: APP_COLORS.primary,
-  },
-  paymentMethodText: {
-    fontSize: 16,
-  },
-  withdrawConfirmButton: {
-    backgroundColor: APP_COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
   },
-  withdrawConfirmButtonText: {
+  requestPayoutText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 16,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    elevation: 2,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
     fontSize: 14,
+    fontWeight: '600',
+  },
+  payoutInfo: {
+    gap: 12,
+  },
+  payoutItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  payoutLabel: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+  },
+  payoutValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: APP_COLORS.text,
+  },
+  metricsContainer: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  metricItem: {
+    flex: 1,
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 8,
+  },
+  metricValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: APP_COLORS.primary,
+    marginBottom: 4,
+  },
+  metricLabel: {
+    fontSize: 12,
     color: APP_COLORS.gray,
     textAlign: 'center',
-    lineHeight: 20,
   },
 });
 

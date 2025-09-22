@@ -1,6 +1,5 @@
-// src/screens/devotee/ProfileScreen.js
 import { Ionicons } from '@expo/vector-icons';
-import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import {
   Alert,
@@ -13,6 +12,7 @@ import {
   TouchableOpacity,
   View
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from '../../constants/Colors';
 import { loadUser, logout, updateProfile } from '../../redux/slices/authSlice';
@@ -25,6 +25,8 @@ const HEADER_TOP_PADDING = Platform.OS === 'android' ? (StatusBar.currentHeight 
 const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
+
+  console.log('User Info:', userInfo);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -51,7 +53,17 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         },
         {
           text: 'Logout',
-            onPress: () => dispatch(logout()),
+          onPress: async () => {
+            // dispatch logout thunk which clears AsyncStorage and auth state
+            await dispatch(logout());
+            // replace navigation stack to login
+            try {
+              router.replace('/login' as any);
+            } catch (e) {
+              // fallback: attempt push
+              router.push('/login' as any);
+            }
+          },
         },
       ],
       { cancelable: false }
@@ -81,8 +93,8 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   };
 
   return (
-    <View style={styles.container}>
-  <ExpoStatusBar style="dark" backgroundColor={APP_COLORS.white} />
+    <SafeAreaView style={styles.container}>
+      {/* <ExpoStatusBar style="dark" backgroundColor={APP_COLORS.white} /> */}
       <View style={[styles.header, { paddingTop: HEADER_TOP_PADDING, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
         <Text style={styles.headerTitle}>Profile</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Help')}>
@@ -197,7 +209,7 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <Text style={styles.versionText}>Sacred Connect v1.0.0</Text>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
-  return 'http://192.168.0.10:5000'; // Updated to match backend port
+  return 'http://192.168.7.101:5000'; // Updated to match backend port
 };
 
 // Create axios instance with proper configuration

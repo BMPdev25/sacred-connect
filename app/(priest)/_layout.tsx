@@ -1,14 +1,66 @@
-import { Stack } from 'expo-router';
-import React from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from "expo-router";
+import React from "react";
+import { APP_COLORS } from "../../constants/Colors";
 
 export default function PriestLayout() {
-	return (
-		<Stack>
-			<Stack.Screen name="home" options={{ headerShown: false }} />
-			<Stack.Screen name="Bookings" options={{ headerShown: false }} />
-			<Stack.Screen name="Earnings" options={{ headerShown: false }} />
-			<Stack.Screen name="Profile" options={{ headerShown: false }} />
-			<Stack.Screen name="Notifications" options={{ headerShown: false }} />
-		</Stack>
-	);
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: APP_COLORS.primary,
+        tabBarStyle: { backgroundColor: APP_COLORS.white },
+      }}
+    >
+      <Tabs.Screen
+        name="HomeScreen"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="home-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="BookingsScreen"
+        options={{
+          title: "Bookings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="calendar-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="EarningsScreen"
+        options={{
+          title: "Earnings",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="cash-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="ProfileScreen"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="NotificationsScreen"
+        options={{
+          title: "Notifications",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons
+              name="notifications-outline"
+              size={size || 20}
+              color={color}
+            />
+          ),
+        }}
+      />
+    </Tabs>
+  );
 }

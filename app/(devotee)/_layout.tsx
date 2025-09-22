@@ -1,16 +1,38 @@
-import { Stack } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
+import React from "react";
+import { Text } from "react-native";
+import { APP_COLORS } from "../../constants/Colors";
 
 export default function DevoteeLayout() {
-	return (
-		<Stack>
-			<Stack.Screen name="home" options={{ headerShown: false }} />
-			<Stack.Screen name="PriestSearch" options={{ headerShown: false }} />
-			<Stack.Screen name="PriestDetails" options={{ headerShown: false }} />
-			<Stack.Screen name="Booking" options={{ headerShown: false }} />
-			<Stack.Screen name="Bookings" options={{ headerShown: false }} />
-			<Stack.Screen name="Profile" options={{ headerShown: false }} />
-			<Stack.Screen name="TermsAndConditionScreen" options={{ title: 'Terms', headerShown: false }} />
-		</Stack>
-	);
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: APP_COLORS.primary,
+        tabBarStyle: { backgroundColor: APP_COLORS.white },
+      }}
+    >
+      <Tabs.Screen
+        name="HomeScreen"
+        options={{
+          title: "Home",
+          tabBarIcon: () => <Text>🏠</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="bookings"
+        options={{
+          title: "Bookings",
+          tabBarIcon: () => <Text>📅</Text>,
+        }}
+      />
+      <Tabs.Screen
+        name="ProfileScreen"
+        options={{
+          title: "Profile",
+          tabBarIcon: () => <Text>👤</Text>,
+        }}
+      />
+    </Tabs>
+  );
 }

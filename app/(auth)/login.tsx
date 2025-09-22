@@ -47,7 +47,7 @@ export default function LoginScreen() {
     }
   }, [error, dispatch]);
 
-  const handleLogin = (): void => {
+  const handleLogin = async (): Promise<void> => {
     if (!state.phone || !state.password) {
       Alert.alert(
         "Validation Error",
@@ -55,7 +55,25 @@ export default function LoginScreen() {
       );
       return;
     }
-    dispatch(login({ phone: state.phone, password: state.password }));
+
+    try {
+      // Await the login thunk and get the returned user info
+      const user = await dispatch(login({ phone: state.phone, password: state.password })).unwrap();
+
+      // Navigate to role-specific home
+      if (user?.userType === 'priest') {
+        router.replace('/(priest)/HomeScreen' as any);
+      } else if (user?.userType === 'devotee') {
+        router.replace('/(devotee)/HomeScreen' as any);
+      } else {
+        // fallback to root or login
+        router.replace('/' as any);
+      }
+    } catch (err: any) {
+      // login thunk will have already set error in state; show a friendly alert if needed
+      const message = err?.message || 'Login failed. Please try again.';
+      Alert.alert('Login Error', message);
+    }
   };
 
   return (

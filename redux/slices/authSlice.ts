@@ -92,7 +92,7 @@ export const register = createAsyncThunk<UserInfo, RegisterParams, { rejectValue
       return response.data;
     } catch (error: any) {
       console.error('Registration error:', error);
-
+      console.log(error)
       let errorMessage = 'An error occurred during registration.';
 
       if (error.response) {

@@ -1,16 +1,17 @@
 // src/screens/priest/ProfileScreen.js
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
-    Alert,
-    Image,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  Image,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from '../../constants/Colors';
@@ -28,32 +29,6 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const profile = (userInfo as any)?.profile;
-
-  // Add debugging for navigation state
-  useEffect(() => {
-    console.log('ProfileScreen: Component mounted', navigation.getState());
-    return () => {
-      console.log('ProfileScreen: Component unmounted');
-    };
-  }, []);
-
-  // Add navigation listeners for debugging
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      console.log('ProfileScreen: Screen focused');
-      // No need to dispatch loadUser() here as it causes navigation reset
-      // User data is already loaded and available through Redux
-    });
-
-    const unsubscribeBlur = navigation.addListener('blur', () => {
-      console.log('ProfileScreen: Screen blurred');
-    });
-
-    return () => {
-      unsubscribe();
-      unsubscribeBlur();
-    };
-  }, [navigation]);
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = (): number => {
@@ -86,7 +61,17 @@ const ProfileScreen: React.FC<Props> = ({ navigation }) => {
         },
         {
           text: 'Logout',
-          onPress: () => (dispatch as any)(logout()),
+                    onPress: async () => {
+                      // dispatch logout thunk which clears AsyncStorage and auth state
+                     await dispatch(logout() as any);
+                      // replace navigation stack to login
+                      try {
+                        router.replace('/login' as any);
+                      } catch (e) {
+                        // fallback: attempt push
+                        router.push('/login' as any);
+                      }
+                    },
         },
       ],
       { cancelable: false }

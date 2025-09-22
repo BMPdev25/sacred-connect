@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Redirect } from 'expo-router';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
@@ -91,26 +90,7 @@ export default function SplashScreen() {
 
     // After animations, decide where to navigate by setting nextRoute
     const timer = setTimeout(async () => {
-      try {
-        const userInfoStr = await AsyncStorage.getItem('userInfo');
-        if (userInfoStr) {
-          const userInfo = JSON.parse(userInfoStr);
-          if (userInfo?.userType === 'priest') {
-            setNextRoute('/(priest)/home');
-            return;
-          }
-          if (userInfo?.userType === 'devotee') {
-            setNextRoute('/(devotee)/home');
-            return;
-          }
-        }
-
-        // Not logged in or unknown type -> go to login
-        setNextRoute('/(auth)/login');
-      } catch (err) {
-        // On error, go to login
-        setNextRoute('/(auth)/login');
-      }
+        setNextRoute('/(auth)/');
     }, 4000);
 
     return () => clearTimeout(timer);

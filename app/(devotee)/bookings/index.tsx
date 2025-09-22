@@ -1,22 +1,23 @@
-// src/screens/devotee/BookingsScreen.js - Updated with functional buttons and navigation
+// Moved from BookingsScreen.tsx
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { APP_COLORS } from '../../constants/Colors';
-import { getBookings } from '../../redux/slices/bookingSlice';
-import { AppDispatch, RootState } from '../../redux/store';
-import { formatCurrency } from '../../utils/formatUtlis';
+import { APP_COLORS } from '../../../constants/Colors';
+import { getBookings } from '../../../redux/slices/bookingSlice';
+import { AppDispatch, RootState } from '../../../redux/store';
+import { formatCurrency } from '../../../utils/formatUtlis';
 
 
 const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -28,17 +29,10 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
-    console.log('BookingsScreen component mounted');
-    // Fetch bookings when component mounts (if user exists)
     if (userInfo) {
       dispatch(getBookings());
     }
   }, [dispatch, userInfo]);
-
-  useEffect(() => {
-    // Debug: Log bookings array after fetch
-    console.log('Bookings fetched from API:', bookings);
-  }, [bookings]);
 
   useEffect(() => {
     if (error) {
@@ -59,7 +53,6 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     }
   };
 
-  // Handle Pay Now button
   const handlePayNow = (booking: any) => {
     const paymentType = booking.paymentStatus === 'pending' ? 'advance' : 'remaining';
     const bookingWithPaymentType = {
@@ -73,7 +66,6 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
   };
 
-  // Handle Rate Now button
   const handleRateNow = (booking: any) => {
     if (booking.status !== 'completed') {
       Alert.alert('Cannot Rate', 'You can only rate completed ceremonies.');
@@ -90,16 +82,15 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     });
   };
 
-  // Handle View Details button
   const handleViewDetails = (booking: any) => {
-    navigation.navigate('BookingDetails', {
+    // navigate to the nested BookingDetails route inside bookings
+    navigation.navigate('bookings/BookingDetails', {
       booking: booking,
     });
   };
 
-  // Navigate to booking details when card is pressed
   const handleBookingPress = (booking: any) => {
-    navigation.navigate('BookingDetails', {
+    navigation.navigate('bookings/BookingDetails', {
       booking: booking,
     });
   };
@@ -112,7 +103,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       year: 'numeric',
     });
 
-  const getStatusColor = (status: string) => {
+    const getStatusColor = (status: string) => {
       switch (status) {
         case 'confirmed':
           return {
@@ -142,7 +133,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       }
     };
 
-  const statusStyle = getStatusColor(item.status || '');
+    const statusStyle = getStatusColor(item.status || '');
 
     return (
       <TouchableOpacity
@@ -310,7 +301,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>My Bookings</Text>
         <TouchableOpacity
@@ -430,13 +421,13 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
           <TouchableOpacity
             style={styles.bookNowButton}
-            onPress={() => navigation.navigate('DevoteeTabs', { screen: 'Home' })}
+            onPress={() => navigation.navigate('HomeScreen')}
           >
             <Text style={styles.bookNowText}>Find Priests</Text>
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 

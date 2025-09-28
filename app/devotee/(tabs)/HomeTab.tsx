@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Image,
@@ -12,9 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
-import { APP_COLORS } from "../../constants/Colors";
-import { RootState } from "../../redux/store";
-import devoteeService from "../../services/devoteeService";
+import { APP_COLORS } from "../../../constants/Colors";
+import { RootState } from "../../../redux/store";
+import devoteeService from "../../../services/devoteeService";
 // Platform.constants may be undefined in some environments; guard access
 const androidStatusBarHeight =
   (Platform as any).constants?.StatusBarHeight ?? 24;
@@ -30,17 +31,17 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     {
       id: "1",
       name: "Wedding",
-      image: require("../../assets/images/wedding.jpg"),
+      image: require("../../../assets/images/wedding.jpg"),
     },
     {
       id: "2",
       name: "Grih Pravesh",
-      image: require("../../assets/images/home-rituals.jpg"),
+      image: require("../../../assets/images/home-rituals.jpg"),
     },
     {
       id: "3",
       name: "Baby Naming",
-      image: require("../../assets/images/baby-naming.jpg"),
+      image: require("../../../assets/images/baby-naming.jpg"),
     },
   ];
 
@@ -96,20 +97,23 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   ];
 
   const handleSearch = () => {
-    navigation.navigate("PriestSearch", { searchQuery });
+    if (!searchQuery.trim()) return;
+    router.push(`/PriestSearch?query=${searchQuery}`);
+    // navigation.navigate("PriestSearch", { searchQuery });
   };
 
   const handleCeremonyPress = (ceremony: { id?: string; name: string }) => {
-    navigation.navigate("PriestSearch", { ceremony: ceremony.name });
+    router.push(`/PriestSearch?ceremony=${ceremony.name}`);
+    // navigation.navigate("PriestSearch", { ceremony: ceremony.name });
   };
 
   const handlePriestPress = (priest: any) => {
-    navigation.navigate("PriestDetails", { priestId: priest._id });
+    router.push(`/PriestDetails?priestId=${priest._id}`);
+    // navigation.navigate("PriestDetails", { priestId: priest._id });
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      {/* <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} /> */}
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -207,7 +211,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 source={
                   priest.profilePicture
                     ? { uri: priest.profilePicture }
-                    : require("../../assets/images/pandit1.jpg")
+                    : require("../../../assets/images/pandit1.jpg")
                 }
                 style={styles.priestImage}
               />

@@ -1,16 +1,17 @@
 // Moved from BookingsScreen.tsx
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    FlatList,
-    RefreshControl,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,10 +21,42 @@ import { AppDispatch, RootState } from '../../../redux/store';
 import { formatCurrency } from '../../../utils/formatUtlis';
 
 
-const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const { bookings, isLoading, error } = useSelector((state: RootState) => state.booking);
+
+  // Mock bookings fallback for development / demo
+  const mockBookings = [
+    {
+      _id: 'mock-1',
+      ceremonyType: 'Wedding',
+      priestName: 'Pandit Rajesh Sharma',
+      date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), // 1 week from now
+      startTime: '10:00 AM',
+      endTime: '12:00 PM',
+      location: { address: '123 Temple Street, Mumbai' },
+      basePrice: 5000,
+      status: 'confirmed',
+      paymentStatus: 'pending',
+      rated: false,
+    },
+    {
+      _id: 'mock-2',
+      ceremonyType: 'Grih Pravesh',
+      priestName: 'Pandit Suresh Gupta',
+      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), // 10 days ago
+      startTime: '2:00 PM',
+      endTime: '4:00 PM',
+      location: { address: '45 Residency Road, Delhi' },
+      basePrice: 3000,
+      status: 'completed',
+      paymentStatus: 'completed',
+      rated: true,
+    },
+  ];
+
+  const effectiveBookings = (bookings && bookings.length > 0) ? bookings : mockBookings;
 
   const [selectedFilter, setSelectedFilter] = useState<string>('upcoming');
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -84,9 +117,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
   const handleViewDetails = (booking: any) => {
     // navigate to the nested BookingDetails route inside bookings
-    navigation.navigate('bookings/BookingDetails', {
-      booking: booking,
-    });
+    router.push("/BookingDetails" as any)
   };
 
   const handleBookingPress = (booking: any) => {
@@ -259,7 +290,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   };
 
-  const filteredBookings = bookings.filter((booking: any) => {
+  const filteredBookings = effectiveBookings.filter((booking: any) => {
     const currentDate = new Date();
     const bookingDate = new Date(booking.date);
 
@@ -275,7 +306,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   });
 
   const getFilterCount = (filter: string) => {
-    return bookings.filter((booking: any) => {
+    return effectiveBookings.filter((booking: any) => {
       const currentDate = new Date();
       const bookingDate = new Date(booking.date);
 
@@ -333,7 +364,7 @@ const BookingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 selectedFilter === 'all' && styles.activeFilterText,
               ]}
             >
-              All ({bookings.length})
+              All ({effectiveBookings.length})
             </Text>
           </TouchableOpacity>
 
@@ -655,4 +686,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingsScreen;
+export default BookingsTabScreen;

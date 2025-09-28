@@ -26,11 +26,11 @@ export default function Authentication() {
           }
           // route based on userType
           if (userInfo?.userType === "priest") {
-            router.replace("/(priest)/HomeScreen" as any);
+            router.replace("/priest/HomeTab" as any);
             return;
           }
           if (userInfo?.userType === "devotee") {
-            router.replace("/(devotee)/HomeScreen" as any);
+            router.replace("/devotee/HomeTab" as any);
             return;
           }
         }

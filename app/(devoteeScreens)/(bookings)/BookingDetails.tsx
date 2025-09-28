@@ -1,6 +1,6 @@
-// Moved from BookingDetails.tsx
 import { Ionicons } from '@expo/vector-icons';
-import React, { useEffect, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import {
     Linking,
     ScrollView,
@@ -9,19 +9,20 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
 
 
-const BookingDetailsScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
+const BookingDetailsScreen: React.FC = () => {
   const [booking, setBooking] = useState<any | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    const bookingData = route.params?.booking || null;
+//   useEffect(() => {
+//     const bookingData = route.params?.booking || null;
 
-    setBooking(bookingData);
-    setLoading(false);
-  }, [route.params]);
+//     setBooking(bookingData);
+//     setLoading(false);
+//   }, [route.params]);
 
   const handleCallDevotee = () => {
     const phone = booking?.devotee?.phone;
@@ -44,6 +45,8 @@ const BookingDetailsScreen: React.FC<{ navigation: any; route: any }> = ({ navig
     }
   };
 
+  const insets = useSafeAreaInsets();
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -58,7 +61,7 @@ const BookingDetailsScreen: React.FC<{ navigation: any; route: any }> = ({ navig
         <Text style={styles.errorText}>Booking not found</Text>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.push('/devotee/BookingsTab')}
         >
           <Text style={styles.backButtonText}>Go Back</Text>
         </TouchableOpacity>
@@ -67,13 +70,13 @@ const BookingDetailsScreen: React.FC<{ navigation: any; route: any }> = ({ navig
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={["top","left","right"]}>
       {/* <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} /> */}
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity
           style={styles.backIcon}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.push("/devotee/BookingsTab")}
         >
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
         </TouchableOpacity>
@@ -81,19 +84,19 @@ const BookingDetailsScreen: React.FC<{ navigation: any; route: any }> = ({ navig
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
         </View>
 
         <TouchableOpacity
           style={styles.backToBookingsButton}
-          onPress={() => navigation.navigate('..')}
+          onPress={() => router.push('/devotee/BookingsTab')}
         >
           <Text style={styles.backToBookingsText}>Back to All Bookings</Text>
         </TouchableOpacity>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 };
 

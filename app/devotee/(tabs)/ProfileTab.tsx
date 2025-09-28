@@ -14,9 +14,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
-import { APP_COLORS } from '../../constants/Colors';
-import { loadUser, logout, updateProfile } from '../../redux/slices/authSlice';
-import { AppDispatch, RootState } from '../../redux/store';
+import { APP_COLORS } from '../../../constants/Colors';
+import { loadUser, logout, updateProfile } from '../../../redux/slices/authSlice';
+import { AppDispatch, RootState } from '../../../redux/store';
 
 // StatusBar.currentHeight is available on Android; fallback to 24
 import { StatusBar } from 'react-native';
@@ -26,7 +26,7 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
-  console.log('User Info:', userInfo);
+  // console.log('User Info:', userInfo);
 
   // Edit mode state
   const [isEditMode, setIsEditMode] = useState(false);
@@ -97,7 +97,7 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       {/* <ExpoStatusBar style="dark" backgroundColor={APP_COLORS.white} /> */}
       <View style={[styles.header, { paddingTop: HEADER_TOP_PADDING, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => navigation.navigate('Help')}>
+        <TouchableOpacity onPress={() => router.push('/Help')}>
           <Ionicons name="help-circle-outline" size={24} color={APP_COLORS.gray} />
         </TouchableOpacity>
       </View>
@@ -105,7 +105,7 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       <ScrollView style={styles.content}>
         <View style={styles.profileHeader}>
           <Image
-            source={require('../../assets/images/default-profile.png')}
+            source={require('../../../assets/images/default-profile.png')}
             style={styles.profileImage}
           />
           <Text style={styles.userName}>{userInfo?.name || 'User Name'}</Text>
@@ -176,22 +176,22 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.accountOption} onPress={() => navigation.navigate('SecurityPrivacy')}>
+          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/SecurityAndPrivacy' as any)}>
             <Ionicons name="shield-checkmark-outline" size={24} color={APP_COLORS.primary} />
             <Text style={styles.accountOptionText}>Security & Privacy</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.accountOption} onPress={() => navigation.navigate('PaymentMethods')}>
+          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/PaymentMethods')}>
             <Ionicons name="card-outline" size={24} color={APP_COLORS.primary} />
             <Text style={styles.accountOptionText}>Payment Methods</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.accountOption}
-            onPress={() => navigation.navigate('Help')}
+            onPress={() => router.push('/Help')}
           >
             <Ionicons name="help-circle-outline" size={24} color={APP_COLORS.primary} />
             <Text style={styles.accountOptionText}>Help & Support</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.accountOption} onPress={() => navigation.navigate('TermsAndConditions')}>
+          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/TermsAndConditions')}>
             <Ionicons name="document-text-outline" size={24} color={APP_COLORS.primary} />
             <Text style={styles.accountOptionText}>Terms & Conditions</Text>
           </TouchableOpacity>

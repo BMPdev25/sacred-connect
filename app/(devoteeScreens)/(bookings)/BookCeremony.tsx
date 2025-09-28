@@ -1,6 +1,4 @@
-// Moved from BookingScreen.tsx
 import { Ionicons } from '@expo/vector-icons';
-import { RouteProp } from '@react-navigation/native';
 import React, { useEffect, useState } from 'react';
 import {
     Alert,
@@ -10,16 +8,14 @@ import {
     TouchableOpacity,
     View
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 // @ts-ignore
+import { router } from "expo-router";
 import { APP_COLORS } from '../../../constants/Colors';
 import devoteeService from '../../../services/devoteeService';
 
-type BookingRouteProp = RouteProp<Record<string, object | undefined>, string> & {
-  params: { priestId: string };
-};
-
-const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({ navigation, route }) => {
-  const { priestId } = route.params;
+const BookingCeremony: React.FC = () => {
+  const { priestId } = { priestId: "123" };
   const [priest, setPriest] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
@@ -50,7 +46,7 @@ const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({
       } catch (error) {
         console.error('Error fetching priest details:', error);
         Alert.alert('Error', 'Could not load priest details. Please try again later.');
-        navigation.goBack();
+        router.push('/devotee/HomeTab') //check and change this
       } finally {
         setIsLoading(false);
       }
@@ -115,7 +111,8 @@ const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({
       totalAmount: totalAmount,
     };
 
-    navigation.navigate('Payment', { bookingDetails });
+    // navigation.navigate('Payment', { bookingDetails });
+    router.push('/devotee/HomeTab') //change this 
   };
 
   if (isLoading) {
@@ -143,12 +140,14 @@ const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({
 
   const calendarMarkedDates = { ...disabledDates, ...markedDates };
 
+  const insets = useSafeAreaInsets();
+
   return (
-    <View style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={["top","left","right"]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }] }>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.push('/devotee/HomeTab')}
         >
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
         </TouchableOpacity>
@@ -156,11 +155,11 @@ const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({
         <View style={styles.placeholder} />
       </View>
 
-      <ScrollView style={styles.contentContainer}>
+      <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
         {/* ...existing content... */}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
         <TouchableOpacity
           style={styles.continueButton}
           onPress={handleContinue}
@@ -169,7 +168,7 @@ const BookingScreen: React.FC<{ navigation: any; route: BookingRouteProp }> = ({
           <Ionicons name="arrow-forward" size={20} color={APP_COLORS.white} />
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -230,4 +229,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingScreen;
+export default BookingCeremony;

@@ -13,7 +13,7 @@ export default function PriestLayout() {
       }}
     >
       <Tabs.Screen
-        name="HomeScreen"
+        name="(tabs)/HomeTab"
         options={{
           title: "Home",
           tabBarIcon: ({ color, size }) => (
@@ -22,7 +22,7 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
-        name="BookingsScreen"
+        name="(tabs)/BookingsTab"
         options={{
           title: "Bookings",
           tabBarIcon: ({ color, size }) => (
@@ -31,7 +31,7 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
-        name="EarningsScreen"
+        name="(tabs)/EarningsTab"
         options={{
           title: "Earnings",
           tabBarIcon: ({ color, size }) => (
@@ -40,16 +40,7 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
-        name="ProfileScreen"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size || 20} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="NotificationsScreen"
+        name="(tabs)/NotificationsTab"
         options={{
           title: "Notifications",
           tabBarIcon: ({ color, size }) => (
@@ -58,6 +49,15 @@ export default function PriestLayout() {
               size={size || 20}
               color={color}
             />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(tabs)/ProfileTab"
+        options={{
+          title: "Profile",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size || 20} color={color} />
           ),
         }}
       />

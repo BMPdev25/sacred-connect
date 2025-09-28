@@ -62,9 +62,9 @@ export default function LoginScreen() {
 
       // Navigate to role-specific home
       if (user?.userType === 'priest') {
-        router.replace('/(priest)/HomeScreen' as any);
+        router.replace('/priest/HomeTab' as any);
       } else if (user?.userType === 'devotee') {
-        router.replace('/(devotee)/HomeScreen' as any);
+        router.replace('/devotee/HomeTab' as any);
       } else {
         // fallback to root or login
         router.replace('/' as any);

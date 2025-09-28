@@ -12,18 +12,20 @@ import store from "../redux/store";
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
-
+  const color = colorScheme === "light" ? "dark" : "light";
+  // console.log("ColorScheme: ",colorScheme)
+  // console.log("Color: ", color)
   return (
     <Provider store={store}>
       <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
         <>
-          <StatusBar style="auto" />
+          <StatusBar style={"auto"} />
           <Stack screenOptions={{ headerShown: false }}>
             {/* Register screens/stacks used by the app so routes are available */}
-            <Stack.Screen name="splash" options={{ headerShown: false }} />
-            <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-            <Stack.Screen name="(devotee)" options={{ headerShown: false }} />
-            <Stack.Screen name="(priest)" options={{ headerShown: false }} />
+            {/* <Stack.Screen name="splash" options={{ headerShown: false }} /> */}
+            {/* <Stack.Screen name="(auth)" options={{ headerShown: false }} /> */}
+            {/* <Stack.Screen name="(devotee)" options={{ headerShown: false }} /> */}
+            {/* <Stack.Screen name="(priest)" options={{ headerShown: false }} /> */}
           </Stack>
         </>
       </ThemeProvider>

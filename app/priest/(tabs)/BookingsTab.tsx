@@ -3,39 +3,48 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   FlatList,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from "../../../constants/Colors";
+import { AppDispatch, RootState } from '../../../redux/store';
 import PriestService from "../../../services/priestService";
 
-const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
-
 const BookingsScreen = () => {
+  const dispatch = useDispatch<AppDispatch>();
+  const { userInfo } = useSelector((state: RootState) => state.auth);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
-  const [selectedFilter, setSelectedFilter] = useState("upcoming");
+  const [selectedFilter, setSelectedFilter] = useState("");
 
   useEffect(() => {
     const fetchBookings = async () => {
+      setLoading(true);
+      setError(null);
       try {
-        const data = await PriestService.getBookings();
-        setBookings(data);
-      } catch (err) {
-        setError(err);
+        // console.log("Fetching bookings for priest:", userInfo?._id, "with filter:", selectedFilter);
+        const data = await PriestService.getBookings(userInfo?._id, selectedFilter);
+        // console.log("Fetched bookings (raw):", data);
+        // normalize response to an array
+        const arr = Array.isArray(data) ? data : data?.data || data?.bookings || [];
+        setBookings(arr);
+      } catch (err: any) {
+        setError(err?.toString?.() || err);
+        setBookings([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchBookings();
-  }, [selectedFilter]);
+    // only fetch when we have a priest id
+    if (userInfo?._id) fetchBookings();
+  }, [selectedFilter, userInfo?._id]);
 
   if (loading) {
     return (
@@ -64,10 +73,9 @@ const BookingsScreen = () => {
     return (
       <TouchableOpacity
         style={styles.bookingCard}
-        onPress={() => router.push("/BookingDetails")} //, { booking: item })}
-        // onPress={() => navigation.navigate('BookingDetails', { booking: item })}
+        onPress={() => router.push("/BookingDetails")}
       >
-        <SafeAreaView>
+        <View>
           <View style={styles.bookingHeader}>
             <Text style={styles.ceremonyType}>{item.ceremonyType}</Text>
             <View
@@ -100,48 +108,34 @@ const BookingsScreen = () => {
                   },
                 ]}
               >
-                {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
+                {item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "-"}
               </Text>
             </View>
           </View>
 
           <View style={styles.clientInfo}>
-            <Text style={styles.clientName}>
-              {item.devoteeId?.name || "Unknown Client"}
-            </Text>
+            <Text style={styles.clientName}>{item.devoteeId?.name || "Unknown Client"}</Text>
           </View>
 
           <View style={styles.bookingDetails}>
             <View style={styles.detailRow}>
-              <Ionicons
-                name="calendar-outline"
-                size={16}
-                color={APP_COLORS.gray}
-              />
+              <Ionicons name="calendar-outline" size={16} color={APP_COLORS.gray} />
               <Text style={styles.detailText}>{formattedDate}</Text>
             </View>
             <View style={styles.detailRow}>
               <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
-              <Text style={styles.detailText}>
-                {item.startTime} - {item.endTime}
-              </Text>
+              <Text style={styles.detailText}>{item.startTime || "N/A"} - {item.endTime || "N/A"}</Text>
             </View>
             <View style={styles.detailRow}>
-              <Ionicons
-                name="location-outline"
-                size={16}
-                color={APP_COLORS.gray}
-              />
-              <Text style={styles.detailText} numberOfLines={1}>
-                {item.location.address}
-              </Text>
+              <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
+              <Text style={styles.detailText} numberOfLines={1}>{item.location?.address || "-"}</Text>
             </View>
           </View>
 
           <View style={styles.bookingFooter}>
             <View style={styles.amountContainer}>
               <Text style={styles.amountLabel}>Amount:</Text>
-              <Text style={styles.amountValue}>₹{item.basePrice}</Text>
+              <Text style={styles.amountValue}>₹{item.basePrice ?? 0}</Text>
             </View>
             <View style={styles.actionsContainer}>
               {item.status === "pending" && (
@@ -161,19 +155,19 @@ const BookingsScreen = () => {
               )}
             </View>
           </View>
-        </SafeAreaView>
+        </View>
       </TouchableOpacity>
     );
   };
 
   return (
-    <SafeAreaView>
-      <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+      <View style={{ flex: 1 }}>
         <View
           style={[
             styles.header,
             {
-              paddingTop: HEADER_TOP_PADDING,
+              paddingTop: 24,
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.08,
@@ -260,7 +254,12 @@ const BookingsScreen = () => {
           data={bookings}
           renderItem={renderBookingItem}
           keyExtractor={(item) => item._id || item.id}
-          contentContainerStyle={styles.listContainer}
+          contentContainerStyle={[styles.listContainer, { flexGrow: 1 }]}
+          ListEmptyComponent={() => (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+              <Text style={{ color: APP_COLORS.gray }}>No bookings available</Text>
+            </View>
+          )}
           showsVerticalScrollIndicator={false}
         />
       </View>

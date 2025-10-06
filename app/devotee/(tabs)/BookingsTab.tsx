@@ -26,44 +26,14 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const { bookings, isLoading, error } = useSelector((state: RootState) => state.booking);
 
-  // Mock bookings fallback for development / demo
-  const mockBookings = [
-    {
-      _id: 'mock-1',
-      ceremonyType: 'Wedding',
-      priestName: 'Pandit Rajesh Sharma',
-      date: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7).toISOString(), // 1 week from now
-      startTime: '10:00 AM',
-      endTime: '12:00 PM',
-      location: { address: '123 Temple Street, Mumbai' },
-      basePrice: 5000,
-      status: 'confirmed',
-      paymentStatus: 'pending',
-      rated: false,
-    },
-    {
-      _id: 'mock-2',
-      ceremonyType: 'Grih Pravesh',
-      priestName: 'Pandit Suresh Gupta',
-      date: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10).toISOString(), // 10 days ago
-      startTime: '2:00 PM',
-      endTime: '4:00 PM',
-      location: { address: '45 Residency Road, Delhi' },
-      basePrice: 3000,
-      status: 'completed',
-      paymentStatus: 'completed',
-      rated: true,
-    },
-  ];
-
-  const effectiveBookings = (bookings && bookings.length > 0) ? bookings : mockBookings;
+  const effectiveBookings = (bookings && bookings.length > 0) ? bookings : [];
 
   const [selectedFilter, setSelectedFilter] = useState<string>('upcoming');
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
-    if (userInfo) {
-      dispatch(getBookings());
+    if (userInfo && userInfo._id) {
+      dispatch(getBookings({ devoteeId: userInfo._id }));
     }
   }, [dispatch, userInfo]);
 
@@ -76,8 +46,8 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (userInfo) {
-        await dispatch(getBookings());
+      if (userInfo && typeof userInfo._id === 'string') {
+        await dispatch(getBookings({ devoteeId: userInfo._id }));
       }
     } catch (error) {
       console.error('Refresh error:', error);
@@ -90,13 +60,11 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const paymentType = booking.paymentStatus === 'pending' ? 'advance' : 'remaining';
     const bookingWithPaymentType = {
       ...booking,
-      paymentType: paymentType,
+      paymentType,
       amount: booking.basePrice,
     };
-
-    navigation.navigate('Payment', {
-      booking: bookingWithPaymentType,
-    });
+    // Use expo-router to navigate and pass booking data as params
+    router.push({ pathname: '/Payment', params: { ...bookingWithPaymentType } });
   };
 
   const handleRateNow = (booking: any) => {
@@ -110,20 +78,22 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
       return;
     }
 
-    navigation.navigate('Rating', {
-      booking: booking,
-    });
+    router.push('/Ratings') //,params: {booking: booking,});
   };
 
   const handleViewDetails = (booking: any) => {
-    // navigate to the nested BookingDetails route inside bookings
-    router.push("/BookingDetails" as any)
+    // Use expo-router to navigate and send booking as a string param
+    console.log("here", booking)
+    if (booking && booking._id) {
+      router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
+    }
   };
 
   const handleBookingPress = (booking: any) => {
-    navigation.navigate('bookings/BookingDetails', {
-      booking: booking,
-    });
+    console.log("here in handle booking press")
+    if (booking && booking._id) {
+      router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
+    }
   };
 
   const renderBookingItem = ({ item }: { item: any }) => {
@@ -452,7 +422,7 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Text>
           <TouchableOpacity
             style={styles.bookNowButton}
-            onPress={() => navigation.navigate('HomeScreen')}
+            onPress={() => router.navigate('/PriestSearch')}
           >
             <Text style={styles.bookNowText}>Find Priests</Text>
           </TouchableOpacity>

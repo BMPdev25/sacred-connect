@@ -1,5 +1,7 @@
+import { Ionicons } from "@expo/vector-icons";
+import { router } from 'expo-router';
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
 
@@ -30,9 +32,9 @@ const PaymentMethods: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        {/* <TouchableOpacity onPress={() => router.push('/Payment')} style={styles.backButton}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.primary} />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Payment Methods</Text>
       </View>
       {paymentMethods.map((method) => (

@@ -22,6 +22,7 @@ const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state: RootState) => state.auth);
+  console.log("User Info:", userInfo);
   const profile = (userInfo as any)?.profile;
 
   // Calculate profile completion percentage
@@ -77,9 +78,23 @@ const ProfileScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView>
-      <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-        <View style={[styles.header, { paddingTop: HEADER_TOP_PADDING }]}>
+    <SafeAreaView style={styles.container}>
+      <View style={{ flex: 1 }}>
+        <View
+          style={[
+            styles.header,
+            {
+              paddingTop: HEADER_TOP_PADDING,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.08,
+              shadowRadius: 4,
+              elevation: 4,
+              borderBottomWidth: 1,
+              borderBottomColor: APP_COLORS.lightGray,
+            },
+          ]}
+        >
           <View style={styles.headerContent}>
             <Text style={styles.headerTitle}>Profile</Text>
             <TouchableOpacity onPress={() => router.push("/Help")}>
@@ -92,7 +107,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-        <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+  <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           <View style={styles.profileHeader}>
             <Image
               source={require("../../../assets/images/default-profile.png")}

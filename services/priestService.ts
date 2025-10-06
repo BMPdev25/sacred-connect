@@ -37,9 +37,10 @@ const priestService = {
    * @param {string} status - Filter bookings by status (optional)
    * @returns {Promise} Response from the API
    */
-  getBookings: async (status?: string): Promise<any> => {
+  getBookings: async (priestId?: string, status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/priest/bookings?status=${status}` : '/api/priest/bookings';
+      const url = status ? `/api/priest/bookings?status=${status}&priestId=${priestId}` : `/api/priest/bookings?priestId=${priestId}`;
+      // console.log("Fetching bookings from URL:", url);
       const response = await api.get(url);
       return response.data;
     } catch (error: any) {
@@ -81,9 +82,10 @@ const priestService = {
    * @param {string} period - The period for earnings (optional)
    * @returns {Promise} Response from the API
    */
-  getEarnings: async (period?: string): Promise<any> => {
+  getEarnings: async (priestId?: string, period?: string): Promise<any> => {
     try {
-      const url = period ? `/api/priest/earnings?period=${period}` : '/api/priest/earnings';
+      const url = period ? `/api/priest/earnings?period=${period}&priestId=${priestId}` : `/api/priest/earnings?priestId=${priestId}`;
+      // console.log("Fetching earnings from URL:", url);
       const response = await api.get(url);
       return response.data;
     } catch (error: any) {
@@ -170,9 +172,9 @@ const priestService = {
    * Get notifications for the priest
    * @returns {Promise} Response from the API
    */
-  getNotifications: async (): Promise<any> => {
+  getNotifications: async (priestId?: string): Promise<any> => {
     try {
-      const response = await api.get('/api/priest/notifications');
+      const response = await api.get(`/api/priest/notifications?priestId=${priestId}`);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch notifications. Please try again.';

@@ -1,3 +1,4 @@
-For the login and signup pages the battery, signal and wifi are merged - status bar
 Use the themedviews and other elements
-clean up of uncessary code is required
+clean up of uncessary code is required - in progress
+
+implement the share priest button in priest details later

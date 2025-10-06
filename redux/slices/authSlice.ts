@@ -12,6 +12,7 @@ interface UserInfo {
   userType: 'devotee' | 'priest';
   token: string;
   profileCompleted?: boolean;
+  _id?: string;
 }
 
 interface AuthState {
@@ -41,7 +42,9 @@ export const login = createAsyncThunk<UserInfo, LoginParams, { rejectValue: stri
 
       // Store token in AsyncStorage
       await AsyncStorage.setItem('userToken', response.data.token);
-      await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
+  // Ensure _id is present in userInfo for future use
+  const userInfoToStore = response.data._id ? { ...response.data, _id: response.data._id } : response.data;
+  await AsyncStorage.setItem('userInfo', JSON.stringify(userInfoToStore));
 
       return response.data;
     } catch (error: any) {
@@ -70,11 +73,12 @@ interface RegisterParams {
   phone: string;
   password: string;
   userType: 'devotee' | 'priest';
+  religiousTradition?: string;
 }
 
 export const register = createAsyncThunk<UserInfo, RegisterParams, { rejectValue: string }>(
   'auth/register',
-  async ({ name, email, phone, password, userType }, { rejectWithValue }) => {
+  async ({ name, email, phone, password, userType, religiousTradition }, { rejectWithValue }) => {
     try {
       console.log('Registration data:', { name, email, phone, userType });
       const response = await api.post('/api/auth/register', {
@@ -83,11 +87,14 @@ export const register = createAsyncThunk<UserInfo, RegisterParams, { rejectValue
         phone,
         password,
         userType,
+        religiousTradition
       });
 
       // Store token in AsyncStorage
       await AsyncStorage.setItem('userToken', response.data.token);
-      await AsyncStorage.setItem('userInfo', JSON.stringify(response.data));
+  // Ensure _id is present in userInfo for future use
+  const userInfoToStore = response.data._id ? { ...response.data, _id: response.data._id } : response.data;
+  await AsyncStorage.setItem('userInfo', JSON.stringify(userInfoToStore));
 
       return response.data;
     } catch (error: any) {

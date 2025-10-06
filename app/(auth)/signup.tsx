@@ -2,6 +2,8 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -56,7 +58,7 @@ export default function SignUpScreen() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  const { isLoading, error, userInfo } = useSelector((state: RootState) => state.auth);
 
   useEffect(() => {
     if (error) {
@@ -64,6 +66,16 @@ export default function SignUpScreen() {
       dispatch(clearError());
     }
   }, [error, dispatch]);
+
+  useEffect(() => {
+    if (userInfo) {
+      if (userInfo.userType === "devotee") {
+        router.replace("/devotee/HomeTab");
+      } else if (userInfo.userType === "priest") {
+        router.replace("/priest/HomeTab");
+      }
+    }
+  }, [userInfo]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -95,6 +107,11 @@ export default function SignUpScreen() {
 
   const handleSignUp = (): void => {
     if (validateForm()) {
+      // If priest, ensure religiousTradition is present
+      if (state.userType === "priest" && !state.religiousTradition) {
+        setErrors((prev) => ({ ...prev, religiousTradition: "Please select your religious tradition" }));
+        return;
+      }
       dispatch(
         register({
           name: state.name,
@@ -102,6 +119,7 @@ export default function SignUpScreen() {
           phone: state.phone,
           password: state.password,
           userType: state.userType,
+          ...(state.userType === "priest" ? { religiousTradition: state.religiousTradition } : {}),
         })
       );
     }
@@ -109,169 +127,176 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>BookMyPujari</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[styles.tabButton, styles.activeTabButton]}
-            >
-              <Text style={[styles.tabText, styles.activeTabText]}>
-                Sign Up
-              </Text>
-            </TouchableOpacity>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>BookMyPujari</Text>
           </View>
 
-          <View style={styles.userTypeContainer}>
-            <Text style={styles.sectionTitle}>I am a:</Text>
-            <View style={styles.userTypeButtons}>
+          <View style={styles.formContainer}>
+            <View style={styles.tabContainer}>
               <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  state.userType === "devotee" && styles.activeUserTypeButton,
-                ]}
-                onPress={() =>
-                  setState((prev) => ({ ...prev, userType: "devotee" }))
-                }
+                style={[styles.tabButton, styles.activeTabButton]}
               >
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    state.userType === "devotee" &&
-                      styles.activeUserTypeButtonText,
-                  ]}
-                >
-                  Devotee
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.userTypeButton,
-                  state.userType === "priest" && styles.activeUserTypeButton,
-                ]}
-                onPress={() =>
-                  setState((prev) => ({ ...prev, userType: "priest" }))
-                }
-              >
-                <Text
-                  style={[
-                    styles.userTypeButtonText,
-                    state.userType === "priest" &&
-                      styles.activeUserTypeButtonText,
-                  ]}
-                >
-                  Priest
+                <Text style={[styles.tabText, styles.activeTabText]}>
+                  Sign Up
                 </Text>
               </TouchableOpacity>
             </View>
-          </View>
 
-          <InputField
-            label="Full Name"
-            value={state.name}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, name: text }))
-            }
-            placeholder="Enter your full name"
-            error={errors.name}
-          />
+            <View style={styles.userTypeContainer}>
+              <Text style={styles.sectionTitle}>I am a:</Text>
+              <View style={styles.userTypeButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeButton,
+                    state.userType === "devotee" && styles.activeUserTypeButton,
+                  ]}
+                  onPress={() =>
+                    setState((prev) => ({ ...prev, userType: "devotee" }))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.userTypeButtonText,
+                      state.userType === "devotee" &&
+                        styles.activeUserTypeButtonText,
+                    ]}
+                  >
+                    Devotee
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeButton,
+                    state.userType === "priest" && styles.activeUserTypeButton,
+                  ]}
+                  onPress={() =>
+                    setState((prev) => ({ ...prev, userType: "priest" }))
+                  }
+                >
+                  <Text
+                    style={[
+                      styles.userTypeButtonText,
+                      state.userType === "priest" &&
+                        styles.activeUserTypeButtonText,
+                    ]}
+                  >
+                    Priest
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-          <InputField
-            label="Email"
-            value={state.email}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, email: text }))
-            }
-            placeholder="Enter your email address"
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email}
-          />
-
-          <InputField
-            label="Phone Number"
-            value={state.phone}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, phone: text }))
-            }
-            placeholder="Enter your phone number"
-            keyboardType="phone-pad"
-            error={errors.phone}
-          />
-
-          <InputField
-            label="Password"
-            value={state.password}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, password: text }))
-            }
-            placeholder="Create a password"
-            secureTextEntry={!state.showPassword}
-            showTogglePassword={true}
-            passwordVisible={state.showPassword}
-            onTogglePassword={() =>
-              setState((prev) => ({
-                ...prev,
-                showPassword: !prev.showPassword,
-              }))
-            }
-            error={errors.password}
-          />
-
-          <InputField
-            label="Confirm Password"
-            value={state.confirmPassword}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, confirmPassword: text }))
-            }
-            placeholder="Confirm your password"
-            secureTextEntry={!state.showPassword}
-            error={errors.confirmPassword}
-          />
-
-          {state.userType === "priest" && (
-            <ReligiousTraditionPicker
-              value={state.religiousTradition}
-              onChange={(value: string) =>
-                setState((prev) => ({ ...prev, religiousTradition: value }))
+            <InputField
+              label="Full Name"
+              value={state.name}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, name: text }))
               }
-              isVisible={state.showReligiousOptions}
-              onClose={() =>
+              placeholder="Enter your full name"
+              error={errors.name}
+            />
+
+            <InputField
+              label="Email"
+              value={state.email}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, email: text }))
+              }
+              placeholder="Enter your email address"
+              keyboardType="email-address"
+              autoCapitalize="none"
+              error={errors.email}
+            />
+
+            <InputField
+              label="Phone Number"
+              value={state.phone}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, phone: text }))
+              }
+              placeholder="Enter your phone number"
+              keyboardType="phone-pad"
+              error={errors.phone}
+            />
+
+            <InputField
+              label="Password"
+              value={state.password}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, password: text }))
+              }
+              placeholder="Create a password"
+              secureTextEntry={!state.showPassword}
+              showTogglePassword={true}
+              passwordVisible={state.showPassword}
+              onTogglePassword={() =>
                 setState((prev) => ({
                   ...prev,
-                  showReligiousOptions: !prev.showReligiousOptions,
+                  showPassword: !prev.showPassword,
                 }))
               }
+              error={errors.password}
             />
-          )}
 
-          <TouchableOpacity
-            style={styles.signUpButton}
-            onPress={handleSignUp}
-            disabled={isLoading}
-          >
-            <Text style={styles.signUpButtonText}>
-              {isLoading ? "Signing Up..." : "Sign Up"}
-            </Text>
-          </TouchableOpacity>
+            <InputField
+              label="Confirm Password"
+              value={state.confirmPassword}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, confirmPassword: text }))
+              }
+              placeholder="Confirm your password"
+              secureTextEntry={!state.showPassword}
+              error={errors.confirmPassword}
+            />
 
-          <Text style={styles.termsText}>
-            By signing up, you agree to our Terms of Service and Privacy Policy
-          </Text>
-          <View style={styles.authLinkContainer}>
-            <Text style={styles.authLinkText}>Already have an account? </Text>
-            <TouchableOpacity onPress={() => router.push("/login" as any)}>
-              <Text style={styles.authLinkAction}>Login</Text>
+            {state.userType === "priest" && (
+              <ReligiousTraditionPicker
+                value={state.religiousTradition}
+                onChange={(value: string) =>
+                  setState((prev) => ({ ...prev, religiousTradition: value }))
+                }
+                isVisible={state.showReligiousOptions}
+                onClose={() =>
+                  setState((prev) => ({
+                    ...prev,
+                    showReligiousOptions: !prev.showReligiousOptions,
+                  }))
+                }
+              />
+            )}
+
+            <TouchableOpacity
+              style={styles.signUpButton}
+              onPress={handleSignUp}
+              disabled={isLoading}
+            >
+              <Text style={styles.signUpButtonText}>
+                {isLoading ? "Signing Up..." : "Sign Up"}
+              </Text>
             </TouchableOpacity>
+
+            <Text style={styles.termsText}>
+              By signing up, you agree to our Terms of Service and Privacy Policy
+            </Text>
+            <View style={styles.authLinkContainer}>
+              <Text style={styles.authLinkText}>Already have an account? </Text>
+              <TouchableOpacity onPress={() => router.push("/login" as any)}>
+                <Text style={styles.authLinkAction}>Login</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

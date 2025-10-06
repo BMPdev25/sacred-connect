@@ -1,6 +1,6 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
   FlatList,
   Image,
@@ -10,10 +10,12 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { APP_COLORS } from '../../../constants/Colors';
-import devoteeService from '../../../services/devoteeService';
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { APP_COLORS } from "../../../constants/Colors";
+import devoteeService from "../../../services/devoteeService";
+
+
 type Priest = {
   _id?: string;
   profilePicture?: string;
@@ -25,43 +27,35 @@ type Priest = {
 };
 
 const PriestSearch: React.FC = () => {
-  const initialSearchQuery: string = 'Chari';
-  // const initialSearchQuery: string = route.params?.searchQuery || '';
-  const initialCeremony: string = '';
-//   const initialCeremony: string = route.params?.ceremony || '';
+  const params = useLocalSearchParams();
+  const initialSearchQuery: string =
+    typeof params.query === "string" ? params.query : "";
+  const initialCeremony: string =
+    typeof params.ceremony === "string" ? params.ceremony : "";
 
   const [searchQuery, setSearchQuery] = useState<string>(initialSearchQuery);
-  const [selectedCeremony, setSelectedCeremony] = useState<string>(initialCeremony);
-  const [selectedReligion, setSelectedReligion] = useState('');
-  const [selectedRating, setSelectedRating] = useState('');
+  const [selectedCeremony, setSelectedCeremony] =
+    useState<string>(initialCeremony);
+  const [selectedReligion, setSelectedReligion] = useState("");
+  const [selectedRating, setSelectedRating] = useState("");
   const [showFilters, setShowFilters] = useState(false);
 
   // Mock data for ceremonies
   const ceremonies = [
-    'Wedding',
-    'Grih Pravesh',
-    'Baby Naming',
-    'Satyanarayan Katha',
-    'Festival Pujas',
-    'Funeral Ceremony',
-    'All Ceremonies',
+    "Wedding",
+    "Grih Pravesh",
+    "Baby Naming",
+    "Satyanarayan Katha",
+    "Festival Pujas",
+    "Funeral Ceremony",
+    "All Ceremonies",
   ];
 
   // Mock data for religions
-  const religions = [
-    'Hinduism',
-    'Buddhism',
-    'Jainism',
-    'Sikhism',
-  ];
+  const religions = ["Hinduism", "Buddhism", "Jainism", "Sikhism"];
 
   // Mock data for ratings
-  const ratings = [
-    '4.5 & above',
-    '4.0 & above',
-    '3.5 & above',
-    'Any rating',
-  ];
+  const ratings = ["4.5 & above", "4.0 & above", "3.5 & above", "Any rating"];
 
   // Dynamic priest data from API
   const [priests, setPriests] = useState<Priest[]>([]);
@@ -71,29 +65,17 @@ const PriestSearch: React.FC = () => {
     const fetchPriests = async () => {
       try {
         setLoading(true);
-        console.log('PriestSearchScreen: Fetching priests...');
-        
+        // console.log('PriestSearchScreen: Fetching priests...');
+
         // Try debug endpoint first
-        const allPriestsResponse = await devoteeService.getAllPriests();
-        console.log('PriestSearchScreen: All priests response:', allPriestsResponse);
-        
+        // const allPriestsResponse = await devoteeService.getAllPriests();
+        // console.log('PriestSearchScreen: All priests response:', allPriestsResponse);
+
         const response = await devoteeService.searchPriests({ limit: 50 });
-        console.log('PriestSearchScreen: Search priests response:', response);
-        setPriests([
-          // mock data
-          {
-            _id: '1',
-            profilePicture: 'https://example.com/priest1.jpg',
-            name: 'Priest Chari',
-            religiousTradition: 'Hinduism',
-            experience: 10,
-            ratings: { average: 4.5, count: 100 },
-            ceremonies: ['Wedding', 'Grih Pravesh'],
-          },
-        ]);
-        // setPriests(response.priests || []);
+        // console.log('PriestSearchScreen: Search priests response:', response);
+        setPriests(response.priests || []);
       } catch (err) {
-        console.error('PriestSearchScreen: Error fetching priests:', err);
+        console.error("PriestSearchScreen: Error fetching priests:", err);
         setPriests([]);
       } finally {
         setLoading(false);
@@ -105,12 +87,15 @@ const PriestSearch: React.FC = () => {
   // Filter priests based on search criteria
   const filteredPriests = priests.filter((priest: Priest) => {
     // Filter by search query
-    if (searchQuery && !(priest.name || '').toLowerCase().includes(searchQuery.toLowerCase())) {
+    if (
+      searchQuery &&
+      !(priest.name || "").toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
       return false;
     }
 
     // Filter by ceremony
-    if (selectedCeremony && selectedCeremony !== 'All Ceremonies') {
+    if (selectedCeremony && selectedCeremony !== "All Ceremonies") {
       if (!priest.ceremonies?.includes(selectedCeremony)) {
         return false;
       }
@@ -124,9 +109,9 @@ const PriestSearch: React.FC = () => {
     // Filter by rating
     if (selectedRating) {
       let minRating = 0;
-      if (selectedRating === '4.5 & above') minRating = 4.5;
-      else if (selectedRating === '4.0 & above') minRating = 4.0;
-      else if (selectedRating === '3.5 & above') minRating = 3.5;
+      if (selectedRating === "4.5 & above") minRating = 4.5;
+      else if (selectedRating === "4.0 & above") minRating = 4.0;
+      else if (selectedRating === "3.5 & above") minRating = 3.5;
 
       if ((priest.ratings?.average || 0) < minRating) {
         return false;
@@ -141,12 +126,15 @@ const PriestSearch: React.FC = () => {
   };
 
   const handleCeremonySelect = (ceremony: string) => {
-    setSelectedCeremony(ceremony === selectedCeremony ? '' : ceremony);
+    setSelectedCeremony(ceremony === selectedCeremony ? "" : ceremony);
   };
 
   const handlePriestPress = (priest: Priest) => {
     if (!priest._id) return;
-    router.push('/PriestDetails') //, { priestId: priest._id });
+    router.push({
+      pathname: "/PriestDetails",
+      params: { priestId: priest._id },
+    });
     // navigation.navigate('PriestDetails', { priestId: priest._id });
   };
 
@@ -155,9 +143,13 @@ const PriestSearch: React.FC = () => {
       style={styles.priestCard}
       onPress={() => handlePriestPress(item)}
     >
-      <Image 
-  source={item.profilePicture ? { uri: item.profilePicture } : require('../../../assets/images/pandit1.jpg')} 
-        style={styles.priestImage} 
+      <Image
+        source={
+          item.profilePicture
+            ? { uri: item.profilePicture }
+            : require("../../../assets/images/pandit1.jpg")
+        }
+        style={styles.priestImage}
       />
       <View style={styles.priestInfo}>
         <Text style={styles.priestName}>{item.name}</Text>
@@ -172,33 +164,28 @@ const PriestSearch: React.FC = () => {
           </Text>
         </View>
         <View style={styles.specialtiesContainer}>
-          {item.ceremonies?.slice(0, 2).map((ceremony: string, index: number) => (
-            <View key={index} style={styles.specialtyBadge}>
-              <Text style={styles.specialtyText}>{ceremony}</Text>
-            </View>
-          ))}
-          {((item.ceremonies?.length || 0) > 2) && (
+          {item.ceremonies
+            ?.slice(0, 2)
+            .map((ceremony: string, index: number) => (
+              <View key={index} style={styles.specialtyBadge}>
+                <Text style={styles.specialtyText}>{ceremony}</Text>
+              </View>
+            ))}
+          {(item.ceremonies?.length || 0) > 2 && (
             <View style={styles.specialtyBadge}>
-              <Text style={styles.specialtyText}>+{(item.ceremonies?.length || 0) - 2} more</Text>
+              <Text style={styles.specialtyText}>
+                +{(item.ceremonies?.length || 0) - 2} more
+              </Text>
             </View>
           )}
         </View>
       </View>
       <View style={styles.priestStatus}>
-        <View style={[
-          styles.statusIndicator,
-          styles.availableIndicator
-        ]} />
-        <Text style={[
-          styles.statusText,
-          styles.availableText
-        ]}>
-          Available
-        </Text>
+        <View style={[styles.statusIndicator, styles.availableIndicator]} />
+        <Text style={[styles.statusText, styles.availableText]}>Available</Text>
         <TouchableOpacity
           style={styles.bookButton}
-          onPress={() => router.push('/BookCeremony') }//, { priestId: item._id })}
-        //   onPress={() => navigation.navigate('Booking', { priestId: item._id })}
+          onPress={() => router.push({pathname: "/[BookCeremony]", params: { BookCeremony: item._id ?? "", priestId: item._id ?? "" } })}
         >
           <Text style={styles.bookButtonText}>Book</Text>
         </TouchableOpacity>
@@ -238,7 +225,7 @@ const PriestSearch: React.FC = () => {
           {searchQuery.length > 0 && (
             <TouchableOpacity
               style={styles.clearButton}
-              onPress={() => setSearchQuery('')}
+              onPress={() => setSearchQuery("")}
             >
               <Ionicons name="close-circle" size={20} color={APP_COLORS.gray} />
             </TouchableOpacity>
@@ -266,7 +253,8 @@ const PriestSearch: React.FC = () => {
                 <Text
                   style={[
                     styles.filterChipText,
-                    selectedCeremony === ceremony && styles.selectedFilterChipText,
+                    selectedCeremony === ceremony &&
+                      styles.selectedFilterChipText,
                   ]}
                 >
                   {ceremony}
@@ -288,14 +276,20 @@ const PriestSearch: React.FC = () => {
                     key={religion}
                     style={[
                       styles.filterChip,
-                      selectedReligion === religion && styles.selectedFilterChip,
+                      selectedReligion === religion &&
+                        styles.selectedFilterChip,
                     ]}
-                    onPress={() => setSelectedReligion(religion === selectedReligion ? '' : religion)}
+                    onPress={() =>
+                      setSelectedReligion(
+                        religion === selectedReligion ? "" : religion
+                      )
+                    }
                   >
                     <Text
                       style={[
                         styles.filterChipText,
-                        selectedReligion === religion && styles.selectedFilterChipText,
+                        selectedReligion === religion &&
+                          styles.selectedFilterChipText,
                       ]}
                     >
                       {religion}
@@ -318,12 +312,15 @@ const PriestSearch: React.FC = () => {
                       styles.filterChip,
                       selectedRating === rating && styles.selectedFilterChip,
                     ]}
-                    onPress={() => setSelectedRating(rating === selectedRating ? '' : rating)}
+                    onPress={() =>
+                      setSelectedRating(rating === selectedRating ? "" : rating)
+                    }
                   >
                     <Text
                       style={[
                         styles.filterChipText,
-                        selectedRating === rating && styles.selectedFilterChipText,
+                        selectedRating === rating &&
+                          styles.selectedFilterChipText,
                       ]}
                     >
                       {rating}
@@ -338,9 +335,9 @@ const PriestSearch: React.FC = () => {
             <TouchableOpacity
               style={styles.clearFiltersButton}
               onPress={() => {
-                setSelectedCeremony('');
-                setSelectedReligion('');
-                setSelectedRating('');
+                setSelectedCeremony("");
+                setSelectedReligion("");
+                setSelectedRating("");
               }}
             >
               <Text style={styles.clearFiltersText}>Clear All</Text>
@@ -357,7 +354,8 @@ const PriestSearch: React.FC = () => {
 
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsText}>
-          {filteredPriests.length} {filteredPriests.length === 1 ? 'priest' : 'priests'} found
+          {filteredPriests.length}{" "}
+          {filteredPriests.length === 1 ? "priest" : "priests"} found
         </Text>
 
         <FlatList
@@ -388,9 +386,9 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: APP_COLORS.white,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
@@ -398,18 +396,18 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   filterButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchContainer: {
     padding: 16,
@@ -418,8 +416,8 @@ const styles = StyleSheet.create({
     borderBottomColor: APP_COLORS.lightGray,
   },
   searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: APP_COLORS.background,
     borderRadius: 8,
     padding: 12,
@@ -440,7 +438,7 @@ const styles = StyleSheet.create({
   },
   filterTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   filterScroll: {
@@ -465,19 +463,19 @@ const styles = StyleSheet.create({
   },
   selectedFilterChipText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   filterRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 8,
   },
   filterColumn: {
     flex: 1,
   },
   filterActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
     marginTop: 16,
     borderTopWidth: 1,
     borderTopColor: APP_COLORS.lightGray,
@@ -504,7 +502,7 @@ const styles = StyleSheet.create({
   applyFiltersText: {
     fontSize: 14,
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   resultsContainer: {
     flex: 1,
@@ -512,7 +510,7 @@ const styles = StyleSheet.create({
   },
   resultsText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 16,
   },
   priestsList: {
@@ -523,7 +521,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 16,
     padding: 16,
-    flexDirection: 'row',
+    flexDirection: "row",
     elevation: 2,
   },
   priestImage: {
@@ -537,11 +535,11 @@ const styles = StyleSheet.create({
   },
   priestName: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 4,
   },
   priestMeta: {
-    flexDirection: 'row',
+    flexDirection: "row",
     marginBottom: 4,
   },
   priestDetail: {
@@ -550,8 +548,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 8,
   },
   ratingText: {
@@ -560,11 +558,11 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   specialtiesContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
   },
   specialtyBadge: {
-    backgroundColor: APP_COLORS.primary + '20',
+    backgroundColor: APP_COLORS.primary + "20",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -576,8 +574,8 @@ const styles = StyleSheet.create({
     color: APP_COLORS.primary,
   },
   priestStatus: {
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+    justifyContent: "space-between",
+    alignItems: "flex-end",
   },
   statusIndicator: {
     width: 10,
@@ -609,25 +607,25 @@ const styles = StyleSheet.create({
   },
   bookButtonText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     fontSize: 12,
   },
   emptyContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     padding: 24,
   },
   emptyText: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginTop: 16,
     marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     color: APP_COLORS.gray,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });
 

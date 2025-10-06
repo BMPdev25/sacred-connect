@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from "react-redux";
 import InputField from "../../components/InputField";
-import ReligiousTraditionPicker from "../../components/ReligiousTraditionPicker";
 import { APP_COLORS } from "../../constants/Colors";
 import { clearError, login } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
@@ -141,30 +140,7 @@ export default function LoginScreen() {
         </TouchableOpacity>
         <View style={styles.divider}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>Additional Information</Text>
-          <View style={styles.dividerLine} />
         </View>
-        <ReligiousTraditionPicker
-          value={state.religiousTradition}
-          onChange={(value: string) =>
-            setState((prev) => ({ ...prev, religiousTradition: value }))
-          }
-          isVisible={state.showReligiousOptions}
-          onClose={() =>
-            setState((prev) => ({
-              ...prev,
-              showReligiousOptions: !prev.showReligiousOptions,
-            }))
-          }
-        />
-        <InputField
-          label="Temple Affiliation (Optional)"
-          value={state.templeAffiliation}
-          onChangeText={(text: string) =>
-            setState((prev) => ({ ...prev, templeAffiliation: text }))
-          }
-          placeholder="Enter your temple affiliation"
-        />
         <TouchableOpacity
           style={styles.forgotPasswordButton}
           onPress={() =>

@@ -12,12 +12,16 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
+import { RootState } from "../../../redux/store";
 import priestService from "../../../services/priestService";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
 const NotificationsScreen: React.FC = () => {
+  const { userInfo } = useSelector((state: RootState) => state.auth);
+  console.log("User Info in NotificationsScreen:", userInfo);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -29,7 +33,8 @@ const NotificationsScreen: React.FC = () => {
   const fetchNotifications = async () => {
     try {
       setLoading(true);
-      const data = await priestService.getNotifications();
+      const data = await priestService.getNotifications(userInfo?._id);
+      // console.log("Notifications fetched:", data);
       setNotifications(data || []);
     } catch (error) {
       console.error("Error fetching notifications:", error);
@@ -150,9 +155,11 @@ const NotificationsScreen: React.FC = () => {
     );
   };
 
+  console.log("Rendering NotificationsScreen with notifications:", notifications);
+
   return (
-    <SafeAreaView>
-      <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <SafeAreaView style={styles.container}>
+      <View style={{ flex: 1 }}>
         <View
           style={[
             styles.header,
@@ -223,11 +230,12 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   markAllText: {
-    color: APP_COLORS.primary,
+    color: APP_COLORS.white,
     fontWeight: "500",
   },
   notificationsList: {
     padding: 16,
+    backgroundColor: APP_COLORS.background,
   },
   notificationCard: {
     backgroundColor: APP_COLORS.white,
@@ -276,6 +284,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
+    backgroundColor: APP_COLORS.background,
   },
   emptyText: {
     fontSize: 18,

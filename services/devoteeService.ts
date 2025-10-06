@@ -56,9 +56,9 @@ const devoteeService = {
    */
   searchPriests: async (searchParams: Record<string, any>): Promise<any> => {
     try {
-      console.log('Calling searchPriests API with params:', searchParams);
+      // console.log('Calling searchPriests API with params:', searchParams);
       const response = await api.get('/api/devotee/priests', { params: searchParams });
-      console.log('searchPriests response:', response.data);
+      // console.log('searchPriests response:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('searchPriests error:', error);
@@ -133,8 +133,10 @@ const devoteeService = {
    * @returns {Promise} Response from the API
    */
   createBooking: async (bookingData: Record<string, any>): Promise<any> => {
+    console.log(bookingData)
     try {
       const response = await api.post('/api/devotee/bookings', bookingData);
+
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to create booking. Please try again.';

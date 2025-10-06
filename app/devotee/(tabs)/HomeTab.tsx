@@ -51,55 +51,33 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   useEffect(() => {
     const fetchRecommendedPriests = async () => {
       try {
-        console.log("Fetching recommended priests...");
+        // console.log("Fetching recommended priests...");
 
         // Try the regular search for priests
         const response = await devoteeService.searchPriests({ limit: 10 });
-        console.log("Search priests response:", response);
+        // console.log("Search priests response:", response);
 
-        if (response.length > 0 && response.priests) {
+        if (response && response.priests.length > 0) {
+          // console.log(response.priests)
           setRecommendedPriests(response.priests);
         } else {
           // Fallback to mock data if API fails
-          console.log("No priests found, using fallback data");
-          setRecommendedPriests(getMockPriests());
+          // console.log("No priests found, using fallback data");
+          setRecommendedPriests([]);
         }
       } catch (err) {
         console.error("Error fetching recommended priests:", err);
         // Set mock data if there's an error
         console.log("API failed, using mock data");
-        setRecommendedPriests(getMockPriests());
+        setRecommendedPriests([]);
       }
     };
     fetchRecommendedPriests();
   }, []);
 
-  // Mock data fallback
-  const getMockPriests = (): any[] => [
-    {
-      _id: "mock1",
-      name: "Pandit Rajesh Sharma",
-      experience: 25,
-      religiousTradition: "Hinduism",
-      ceremonies: ["Wedding", "Grih Pravesh", "Baby Naming"],
-      ratings: { average: 4.9, count: 120 },
-      profilePicture: null,
-    },
-    {
-      _id: "mock2",
-      name: "Pandit Suresh Gupta",
-      experience: 15,
-      religiousTradition: "Hinduism",
-      ceremonies: ["Satyanarayan Katha", "Housewarming"],
-      ratings: { average: 4.7, count: 85 },
-      profilePicture: null,
-    },
-  ];
-
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
     router.push(`/PriestSearch?query=${searchQuery}`);
-    // navigation.navigate("PriestSearch", { searchQuery });
   };
 
   const handleCeremonyPress = (ceremony: { id?: string; name: string }) => {
@@ -177,7 +155,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             ))}
             <TouchableOpacity
               style={[styles.ceremonyCard, styles.viewAllCard]}
-              onPress={() => navigation.navigate("PriestSearch")}
+              onPress={() => {}}
             >
               <View style={styles.viewAllContent}>
                 <Text style={styles.viewAllText}>View All</Text>
@@ -195,7 +173,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Recommended Priests</Text>
             <TouchableOpacity
-              onPress={() => navigation.navigate("PriestSearch")}
+              onPress={() => router.navigate("/PriestSearch")}
             >
               <Text style={styles.viewAllTextSmall}>View All</Text>
             </TouchableOpacity>
@@ -259,7 +237,7 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                 <TouchableOpacity
                   style={styles.bookNowButton}
                   onPress={() =>
-                    navigation.navigate("Booking", { priestId: priest._id })
+                    router.navigate(`/BookCeremony?priestId=${priest._id}`)
                   }
                 >
                   <Text style={styles.bookNowText}>Book Now</Text>
@@ -267,32 +245,6 @@ const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
               </View>
             </TouchableOpacity>
           ))}
-        </View>
-
-        <View style={styles.upcomingBookingsContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Your Bookings</Text>
-            <TouchableOpacity onPress={() => navigation.navigate("Bookings")}>
-              <Text style={styles.viewAllTextSmall}>View All</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={styles.upcomingBookingCard}
-            onPress={() => navigation.navigate("Bookings")}
-          >
-            <View style={styles.upcomingBookingContent}>
-              <Ionicons name="calendar" size={24} color={APP_COLORS.primary} />
-              <Text style={styles.upcomingBookingText}>
-                View your upcoming ceremonies
-              </Text>
-            </View>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={APP_COLORS.gray}
-            />
-          </TouchableOpacity>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,68 +1,70 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useState } from "react";
 import {
-    Alert,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
-import { APP_COLORS } from '../../../constants/Colors';
-import { getBookings } from '../../../redux/slices/bookingSlice';
-import { AppDispatch, RootState } from '../../../redux/store';
-import devoteeService from '../../../services/devoteeService';
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
+import { APP_COLORS } from "../../../constants/Colors";
+import { getBookings } from "../../../redux/slices/bookingSlice";
+import { AppDispatch, RootState } from "../../../redux/store";
+import devoteeService from "../../../services/devoteeService";
 
 const Payment: React.FC = () => {
-  const { bookingDetails } = {
-        bookingDetails: {
-        priestId: 123,
-        ceremonyType: '',
-        date: '',
-        startTime: '',
-        endTime: '',
-        notes: '',
-        basePrice: 50,
-        platformFee: 20,
-        totalAmount: 123,
-        priestName: 'Battu',
-        priestImage: '/path/to/image',
-        location:{
-            address: 'Address',
-            city: 'Khansar'
-        }
+  const params = useLocalSearchParams();
+  let bookingDetails: any = null;
+  if (params.bookingDetails) {
+    try {
+      bookingDetails =
+        typeof params.bookingDetails === "string"
+          ? JSON.parse(params.bookingDetails)
+          : params.bookingDetails;
+    } catch (e) {
+      bookingDetails = null;
     }
   }
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('upi');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [upiId, setUpiId] = useState('');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardExpiry, setCardExpiry] = useState("");
+  const [cardCvv, setCardCvv] = useState("");
+  const [cardName, setCardName] = useState("");
+  const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const formatDate = (dateString: string) => {
-    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    const options: Intl.DateTimeFormatOptions = {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    };
+    return new Date(dateString).toLocaleDateString("en-US", options);
   };
 
   const handlePayment = async () => {
     // Validate payment details
-    if (selectedPaymentMethod === 'card') {
+    if (selectedPaymentMethod === "card") {
       if (!cardNumber || !cardExpiry || !cardCvv || !cardName) {
-        Alert.alert('Error', 'Please enter all card details');
+        Alert.alert("Error", "Please enter all card details");
         return;
       }
-    } else if (selectedPaymentMethod === 'upi') {
+    } else if (selectedPaymentMethod === "upi") {
       if (!upiId) {
-        Alert.alert('Error', 'Please enter UPI ID');
+        Alert.alert("Error", "Please enter UPI ID");
         return;
       }
     }
@@ -73,51 +75,55 @@ const Payment: React.FC = () => {
       // Generate payment details
       const paymentDetails = {
         paymentMethod: selectedPaymentMethod,
-        paymentStatus: 'completed',
-        paymentId: 'PAY' + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        paymentStatus: "completed",
+        paymentId:
+          "PAY" + Math.random().toString(36).substring(2, 10).toUpperCase(),
         paymentDate: new Date().toISOString(),
       };
 
       // Create booking data for API
       const bookingData = {
+        devoteeId: userInfo?._id,
         priestId: bookingDetails.priestId,
         ceremonyType: bookingDetails.ceremonyType,
         date: new Date(bookingDetails.date),
         startTime: bookingDetails.startTime,
         endTime: bookingDetails.endTime,
         location: bookingDetails.location,
-        notes: bookingDetails.notes || '',
-        // notes: bookingDetails.requirements || '',
+        notes: bookingDetails.notes || "",
         basePrice: bookingDetails.basePrice,
         platformFee: bookingDetails.platformFee,
         totalAmount: bookingDetails.totalAmount,
-        ...paymentDetails
+        ...paymentDetails,
       };
-      console.log('Booking Data to be sent:', bookingData);
+      console.log("Booking Data to be sent:", bookingData);
 
       // Create booking via API
       const createdBooking = await devoteeService.createBooking(bookingData);
 
-  // Refresh bookings in Redux store
-  dispatch(getBookings());
+      // Refresh bookings in Redux store
+      dispatch(getBookings({ devoteeId: userInfo?._id ?? "" }));
 
       setIsProcessing(false);
 
       // Navigate to confirmation screen with actual booking data
-    //   navigation.navigate('BookingConfirmation', { 
-    //     booking: {
-    //       ...createdBooking,
-    //       priestName: bookingDetails.priestName,
-    //       priestImage: bookingDetails.priestImage
-    //     }
-    //   });
-    router.push('/BookingConfirmation')
+      router.push({
+        pathname: "/BookingConfirmation",
+        params: {
+          booking: JSON.stringify({
+            ...createdBooking,
+            priestName: bookingDetails.priestName,
+            priestImage: bookingDetails.priestImage,
+          }),
+        },
+      });
     } catch (error: unknown) {
       setIsProcessing(false);
-      console.error('Payment/Booking creation error:', error);
+      console.error("Payment/Booking creation error:", error);
       Alert.alert(
-        'Payment Failed', 
-        (error as any)?.message || 'An error occurred while processing your payment. Please try again.'
+        "Payment Failed",
+        (error as any)?.message ||
+          "An error occurred while processing your payment. Please try again."
       );
     }
   };
@@ -125,187 +131,235 @@ const Payment: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push('/PaymentMethods')}
-        >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Payment</Text>
-        <View style={styles.placeholder} />
-      </View>
-
-      <ScrollView style={styles.contentContainer} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-        <View style={styles.bookingSummaryContainer}>
-          <Text style={styles.sectionTitle}>Booking Summary</Text>
-          <View style={styles.bookingDetail}>
-            <Text style={styles.bookingLabel}>Ceremony</Text>
-            <Text style={styles.bookingValue}>{bookingDetails.ceremonyType || 'N/A'}</Text>
-          </View>
-          <View style={styles.bookingDetail}>
-            <Text style={styles.bookingLabel}>Priest</Text>
-            <Text style={styles.bookingValue}>{bookingDetails.priestName || 'N/A'}</Text>
-          </View>
-          <View style={styles.bookingDetail}>
-            <Text style={styles.bookingLabel}>Date</Text>
-            <Text style={styles.bookingValue}>{bookingDetails.date ? formatDate(bookingDetails.date) : 'N/A'}</Text>
-          </View>
-          <View style={styles.bookingDetail}>
-            <Text style={styles.bookingLabel}>Time</Text>
-            <Text style={styles.bookingValue}>{bookingDetails.startTime || 'N/A'} - {bookingDetails.endTime || 'N/A'}</Text>
-          </View>
-          <View style={styles.bookingDetail}>
-            <Text style={styles.bookingLabel}>Location</Text>
-            <Text style={styles.bookingValue}>{bookingDetails.location?.address || 'N/A'}, {bookingDetails.location?.city || 'N/A'}</Text>
-          </View>
-        </View>
-
-        <View style={styles.priceSummaryContainer}>
-          <Text style={styles.sectionTitle}>Price Details</Text>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>{bookingDetails.ceremonyType || 'N/A'} Ceremony</Text>
-            <Text style={styles.priceValue}>₹{bookingDetails.basePrice || '0'}</Text>
-          </View>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Platform Fee</Text>
-            <Text style={styles.priceValue}>₹{bookingDetails.platformFee || '0'}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total Amount</Text>
-            <Text style={styles.totalValue}>₹{bookingDetails.totalAmount || '0'}</Text>
-          </View>
-        </View>
-
-        <View style={styles.paymentMethodContainer}>
-          <Text style={styles.sectionTitle}>Payment Method</Text>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
+      >
+        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity
-            style={[
-              styles.paymentMethodOption,
-              selectedPaymentMethod === 'upi' && styles.selectedPaymentMethod,
-            ]}
-            onPress={() => setSelectedPaymentMethod('upi')}
+            style={styles.backButton}
+            onPress={() => router.push("/PaymentMethods")}
           >
-            <View style={styles.paymentMethodLeft}>
-              <View style={styles.radioButton}>
-                {selectedPaymentMethod === 'upi' && (
-                  <View style={styles.radioButtonInner} />
-                )}
-              </View>
-              <Text style={styles.paymentMethodText}>UPI</Text>
-            </View>
-            <Image source={require('../../../assets/images/upi-logo.png')} style={styles.paymentIcon} />
+            <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
           </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.paymentMethodOption,
-              selectedPaymentMethod === 'card' && styles.selectedPaymentMethod,
-            ]}
-            onPress={() => setSelectedPaymentMethod('card')}
-          >
-            <View style={styles.paymentMethodLeft}>
-              <View style={styles.radioButton}>
-                {selectedPaymentMethod === 'card' && (
-                  <View style={styles.radioButtonInner} />
-                )}
-              </View>
-              <Text style={styles.paymentMethodText}>Credit/Debit Card</Text>
-            </View>
-            <View style={styles.cardIcons}>
-              <Image source={require('../../../assets/images/visa-logo.png')} style={styles.cardIcon} />
-              <Image source={require('../../../assets/images/mastercard-logo.png')} style={styles.cardIcon} />
-            </View>
-          </TouchableOpacity>
-
-          {selectedPaymentMethod === 'upi' && (
-            <View style={styles.upiContainer}>
-              <Text style={styles.inputLabel}>UPI ID</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="username@upi"
-                value={upiId}
-                onChangeText={setUpiId}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-          )}
-
-          {selectedPaymentMethod === 'card' && (
-            <View style={styles.cardContainer}>
-              <Text style={styles.inputLabel}>Card Number</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="1234 5678 9012 3456"
-                value={cardNumber}
-                onChangeText={setCardNumber}
-                keyboardType="number-pad"
-                maxLength={19}
-              />
-
-              <View style={styles.cardDetailsRow}>
-                <View style={styles.cardDetailHalf}>
-                  <Text style={styles.inputLabel}>Expiry Date</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="MM/YY"
-                    value={cardExpiry}
-                    onChangeText={setCardExpiry}
-                    keyboardType="number-pad"
-                    maxLength={5}
-                  />
-                </View>
-                <View style={styles.cardDetailHalf}>
-                  <Text style={styles.inputLabel}>CVV</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="123"
-                    value={cardCvv}
-                    onChangeText={setCardCvv}
-                    keyboardType="number-pad"
-                    maxLength={3}
-                    secureTextEntry
-                  />
-                </View>
-              </View>
-
-              <Text style={styles.inputLabel}>Cardholder Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Enter name on card"
-                value={cardName}
-                onChangeText={setCardName}
-                autoCapitalize="words"
-              />
-            </View>
-          )}
+          <Text style={styles.headerTitle}>Payment</Text>
+          <View style={styles.placeholder} />
         </View>
 
-        <View style={styles.securityNote}>
-          <Ionicons name="shield-checkmark" size={20} color={APP_COLORS.success} />
-          <Text style={styles.securityText}>
-            Your payment information is securely encrypted. We do not store your card details.
-          </Text>
-        </View>
-      </ScrollView>
-
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalFooterLabel}>Total</Text>
-          <Text style={styles.totalFooterValue}>₹{bookingDetails.totalAmount || '0'}</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.payButton}
-          onPress={handlePayment}
-          disabled={isProcessing}
+        <ScrollView
+          style={styles.contentContainer}
+          contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}
         >
-          <Text style={styles.payButtonText}>
-            {isProcessing ? 'Processing...' : `Pay ₹${bookingDetails.totalAmount || '0'}`}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <View style={styles.bookingSummaryContainer}>
+            <Text style={styles.sectionTitle}>Booking Summary</Text>
+            <View style={styles.bookingDetail}>
+              <Text style={styles.bookingLabel}>Ceremony</Text>
+              <Text style={styles.bookingValue}>
+                {bookingDetails.ceremonyType || "N/A"}
+              </Text>
+            </View>
+            <View style={styles.bookingDetail}>
+              <Text style={styles.bookingLabel}>Priest</Text>
+              <Text style={styles.bookingValue}>
+                {bookingDetails.priestName || "N/A"}
+              </Text>
+            </View>
+            <View style={styles.bookingDetail}>
+              <Text style={styles.bookingLabel}>Date</Text>
+              <Text style={styles.bookingValue}>
+                {bookingDetails.date ? formatDate(bookingDetails.date) : "N/A"}
+              </Text>
+            </View>
+            <View style={styles.bookingDetail}>
+              <Text style={styles.bookingLabel}>Time</Text>
+              <Text style={styles.bookingValue}>
+                {bookingDetails.startTime || "N/A"} -{" "}
+                {bookingDetails.endTime || "N/A"}
+              </Text>
+            </View>
+            <View style={styles.bookingDetail}>
+              <Text style={styles.bookingLabel}>Location</Text>
+              <Text style={styles.bookingValue}>
+                {bookingDetails.location?.address || "N/A"},{" "}
+                {bookingDetails.location?.city || "N/A"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.priceSummaryContainer}>
+            <Text style={styles.sectionTitle}>Price Details</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>
+                {bookingDetails.ceremonyType || "N/A"} Ceremony
+              </Text>
+              <Text style={styles.priceValue}>
+                ₹{bookingDetails.basePrice || "0"}
+              </Text>
+            </View>
+            <View style={styles.priceRow}>
+              <Text style={styles.priceLabel}>Platform Fee</Text>
+              <Text style={styles.priceValue}>
+                ₹{bookingDetails.platformFee || "0"}
+              </Text>
+            </View>
+            <View style={styles.divider} />
+            <View style={styles.priceRow}>
+              <Text style={styles.totalLabel}>Total Amount</Text>
+              <Text style={styles.totalValue}>
+                ₹{bookingDetails.totalAmount || "0"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.paymentMethodContainer}>
+            <Text style={styles.sectionTitle}>Payment Method</Text>
+            <TouchableOpacity
+              style={[
+                styles.paymentMethodOption,
+                selectedPaymentMethod === "upi" && styles.selectedPaymentMethod,
+              ]}
+              onPress={() => setSelectedPaymentMethod("upi")}
+            >
+              <View style={styles.paymentMethodLeft}>
+                <View style={styles.radioButton}>
+                  {selectedPaymentMethod === "upi" && (
+                    <View style={styles.radioButtonInner} />
+                  )}
+                </View>
+                <Text style={styles.paymentMethodText}>UPI</Text>
+              </View>
+              <Image
+                source={require("../../../assets/images/upi-logo.png")}
+                style={styles.paymentIcon}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.paymentMethodOption,
+                selectedPaymentMethod === "card" &&
+                  styles.selectedPaymentMethod,
+              ]}
+              onPress={() => setSelectedPaymentMethod("card")}
+            >
+              <View style={styles.paymentMethodLeft}>
+                <View style={styles.radioButton}>
+                  {selectedPaymentMethod === "card" && (
+                    <View style={styles.radioButtonInner} />
+                  )}
+                </View>
+                <Text style={styles.paymentMethodText}>Credit/Debit Card</Text>
+              </View>
+              <View style={styles.cardIcons}>
+                <Image
+                  source={require("../../../assets/images/visa-logo.png")}
+                  style={styles.cardIcon}
+                />
+                <Image
+                  source={require("../../../assets/images/mastercard-logo.png")}
+                  style={styles.cardIcon}
+                />
+              </View>
+            </TouchableOpacity>
+
+            {selectedPaymentMethod === "upi" && (
+              <View style={styles.upiContainer}>
+                <Text style={styles.inputLabel}>UPI ID</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="username@upi"
+                  value={upiId}
+                  onChangeText={setUpiId}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+            )}
+
+            {selectedPaymentMethod === "card" && (
+              <View style={styles.cardContainer}>
+                <Text style={styles.inputLabel}>Card Number</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="1234 5678 9012 3456"
+                  value={cardNumber}
+                  onChangeText={setCardNumber}
+                  keyboardType="number-pad"
+                  maxLength={19}
+                />
+
+                <View style={styles.cardDetailsRow}>
+                  <View style={styles.cardDetailHalf}>
+                    <Text style={styles.inputLabel}>Expiry Date</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChangeText={setCardExpiry}
+                      keyboardType="number-pad"
+                      maxLength={5}
+                    />
+                  </View>
+                  <View style={styles.cardDetailHalf}>
+                    <Text style={styles.inputLabel}>CVV</Text>
+                    <TextInput
+                      style={styles.input}
+                      placeholder="123"
+                      value={cardCvv}
+                      onChangeText={setCardCvv}
+                      keyboardType="number-pad"
+                      maxLength={3}
+                      secureTextEntry
+                    />
+                  </View>
+                </View>
+
+                <Text style={styles.inputLabel}>Cardholder Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Enter name on card"
+                  value={cardName}
+                  onChangeText={setCardName}
+                  autoCapitalize="words"
+                />
+              </View>
+            )}
+          </View>
+
+          <View style={styles.securityNote}>
+            <Ionicons
+              name="shield-checkmark"
+              size={20}
+              color={APP_COLORS.success}
+            />
+            <Text style={styles.securityText}>
+              Your payment information is securely encrypted. We do not store
+              your card details.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.totalContainer}>
+            <Text style={styles.totalFooterLabel}>Total</Text>
+            <Text style={styles.totalFooterValue}>
+              ₹{bookingDetails.totalAmount || "0"}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.payButton}
+            onPress={handlePayment}
+            disabled={isProcessing}
+          >
+            <Text style={styles.payButtonText}>
+              {isProcessing
+                ? "Processing..."
+                : `Pay ₹${bookingDetails.totalAmount || "0"}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };
@@ -317,9 +371,9 @@ const styles = StyleSheet.create({
   },
   header: {
     backgroundColor: APP_COLORS.white,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
@@ -327,12 +381,12 @@ const styles = StyleSheet.create({
   backButton: {
     width: 40,
     height: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   placeholder: {
     width: 40,
@@ -349,12 +403,12 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 12,
   },
   bookingDetail: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 8,
   },
   bookingLabel: {
@@ -363,7 +417,7 @@ const styles = StyleSheet.create({
   },
   bookingValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   priceSummaryContainer: {
     backgroundColor: APP_COLORS.white,
@@ -372,8 +426,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   priceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 12,
   },
   priceLabel: {
@@ -382,7 +436,7 @@ const styles = StyleSheet.create({
   },
   priceValue: {
     fontSize: 14,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   divider: {
     height: 1,
@@ -391,11 +445,11 @@ const styles = StyleSheet.create({
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: APP_COLORS.primary,
   },
   paymentMethodContainer: {
@@ -405,9 +459,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   paymentMethodOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 16,
     paddingHorizontal: 12,
     borderWidth: 1,
@@ -417,11 +471,11 @@ const styles = StyleSheet.create({
   },
   selectedPaymentMethod: {
     borderColor: APP_COLORS.primary,
-    backgroundColor: APP_COLORS.primary + '10',
+    backgroundColor: APP_COLORS.primary + "10",
   },
   paymentMethodLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   radioButton: {
     width: 20,
@@ -429,8 +483,8 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     borderWidth: 2,
     borderColor: APP_COLORS.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   radioButtonInner: {
@@ -445,15 +499,15 @@ const styles = StyleSheet.create({
   paymentIcon: {
     width: 40,
     height: 20,
-    resizeMode: 'contain',
+    resizeMode: "contain",
   },
   cardIcons: {
-    flexDirection: 'row',
+    flexDirection: "row",
   },
   cardIcon: {
     width: 40,
     height: 25,
-    resizeMode: 'contain',
+    resizeMode: "contain",
     marginLeft: 8,
   },
   upiContainer: {
@@ -476,15 +530,15 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   cardDetailsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   cardDetailHalf: {
-    width: '48%',
+    width: "48%",
   },
   securityNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: APP_COLORS.white,
     borderRadius: 10,
     padding: 16,
@@ -498,8 +552,8 @@ const styles = StyleSheet.create({
   footer: {
     backgroundColor: APP_COLORS.white,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderTopWidth: 1,
     borderTopColor: APP_COLORS.lightGray,
   },
@@ -512,7 +566,7 @@ const styles = StyleSheet.create({
   },
   totalFooterValue: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: APP_COLORS.primary,
   },
   payButton: {
@@ -524,7 +578,7 @@ const styles = StyleSheet.create({
   payButtonText: {
     color: APP_COLORS.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

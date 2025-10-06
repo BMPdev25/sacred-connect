@@ -1,62 +1,75 @@
-import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useEffect, useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
-import { APP_COLORS } from '../../constants/Colors';
-import { updateProfile as updateUserProfile } from '../../redux/slices/authSlice';
-import { updateProfile } from '../../redux/slices/priestSlice';
+  Alert,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
+import { APP_COLORS } from "../../constants/Colors";
+import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
+import { updateProfile } from "../../redux/slices/priestSlice";
 
+const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
-const ProfileSetup = ({ navigation, route }: any) => {
+const ProfileSetup = ({ route }: any) => {
   const dispatch: any = useDispatch();
   const { userInfo } = useSelector((state: any) => state.auth);
-  
+
   // Get existing profile data from route params
   const existingProfile = route?.params?.profileData;
   const isEditing = route?.params?.isEditing;
 
   // Form state - pre-fill if editing
-  const [name, setName] = useState(userInfo?.name || '');
-  const [email, setEmail] = useState(userInfo?.email || '');
-  const [phone, setPhone] = useState(userInfo?.phone || '');
-  const [experience, setExperience] = useState(existingProfile?.experience?.toString() || '');
-  const [religiousTradition, setReligiousTradition] = useState(existingProfile?.religiousTradition || '');
-  const [description, setDescription] = useState(existingProfile?.description || '');
+  const [name, setName] = useState(userInfo?.name || "");
+  const [email, setEmail] = useState(userInfo?.email || "");
+  const [phone, setPhone] = useState(userInfo?.phone || "");
+  const [experience, setExperience] = useState(
+    existingProfile?.experience?.toString() || ""
+  );
+  const [religiousTradition, setReligiousTradition] = useState(
+    existingProfile?.religiousTradition || ""
+  );
+  const [description, setDescription] = useState(
+    existingProfile?.description || ""
+  );
   const [templesAffiliated, setTemplesAffiliated] = useState(
-    existingProfile?.templesAffiliated && existingProfile.templesAffiliated.length > 0
+    existingProfile?.templesAffiliated &&
+      existingProfile.templesAffiliated.length > 0
       ? existingProfile.templesAffiliated
-      : [{ name: '', address: '' }]
+      : [{ name: "", address: "" }]
   );
 
   // Services/ceremonies offered
   const [availableCeremonies, setAvailableCeremonies] = useState([
-    { id: '1', name: 'Wedding Ceremony', selected: false, price: '15000' },
-    { id: '2', name: 'Grih Pravesh', selected: false, price: '8000' },
-    { id: '3', name: 'Baby Naming', selected: false, price: '5000' },
-    { id: '4', name: 'Satyanarayan Katha', selected: false, price: '11000' },
-    { id: '5', name: 'Funeral Ceremony', selected: false, price: '12000' },
+    { id: "1", name: "Wedding Ceremony", selected: false, price: "15000" },
+    { id: "2", name: "Grih Pravesh", selected: false, price: "8000" },
+    { id: "3", name: "Baby Naming", selected: false, price: "5000" },
+    { id: "4", name: "Satyanarayan Katha", selected: false, price: "11000" },
+    { id: "5", name: "Funeral Ceremony", selected: false, price: "12000" },
   ]);
 
   // Availability
   const [availability, setAvailability] = useState({
-    monday: { available: true, startTime: '09:00', endTime: '18:00' },
-    tuesday: { available: true, startTime: '09:00', endTime: '18:00' },
-    wednesday: { available: true, startTime: '09:00', endTime: '18:00' },
-    thursday: { available: true, startTime: '09:00', endTime: '18:00' },
-    friday: { available: true, startTime: '09:00', endTime: '18:00' },
-    saturday: { available: true, startTime: '09:00', endTime: '18:00' },
-    sunday: { available: false, startTime: '09:00', endTime: '18:00' },
+    monday: { available: true, startTime: "09:00", endTime: "18:00" },
+    tuesday: { available: true, startTime: "09:00", endTime: "18:00" },
+    wednesday: { available: true, startTime: "09:00", endTime: "18:00" },
+    thursday: { available: true, startTime: "09:00", endTime: "18:00" },
+    friday: { available: true, startTime: "09:00", endTime: "18:00" },
+    saturday: { available: true, startTime: "09:00", endTime: "18:00" },
+    sunday: { available: false, startTime: "09:00", endTime: "18:00" },
   });
 
   // Form step
@@ -68,13 +81,14 @@ const ProfileSetup = ({ navigation, route }: any) => {
     if (isEditing && existingProfile) {
       // Pre-fill ceremonies and prices
       if (existingProfile.ceremonies && existingProfile.priceList) {
-        const updatedCeremonies = availableCeremonies.map(ceremony => {
+        const updatedCeremonies = availableCeremonies.map((ceremony) => {
           const isSelected = existingProfile.ceremonies.includes(ceremony.name);
-          const price = existingProfile.priceList[ceremony.name] || ceremony.price;
+          const price =
+            existingProfile.priceList[ceremony.name] || ceremony.price;
           return {
             ...ceremony,
             selected: isSelected,
-            price: price.toString()
+            price: price.toString(),
           };
         });
         setAvailableCeremonies(updatedCeremonies);
@@ -89,7 +103,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
 
   // Temple handlers
   const addTemple = () => {
-    setTemplesAffiliated([...templesAffiliated, { name: '', address: '' }]);
+    setTemplesAffiliated([...templesAffiliated, { name: "", address: "" }]);
   };
 
   const removeTemple = (index: number) => {
@@ -108,14 +122,16 @@ const ProfileSetup = ({ navigation, route }: any) => {
 
   // Ceremony handlers
   const toggleCeremony = (id: string) => {
-    const updatedCeremonies = availableCeremonies.map(ceremony =>
-      ceremony.id === id ? { ...ceremony, selected: !ceremony.selected } : ceremony
+    const updatedCeremonies = availableCeremonies.map((ceremony) =>
+      ceremony.id === id
+        ? { ...ceremony, selected: !ceremony.selected }
+        : ceremony
     );
     setAvailableCeremonies(updatedCeremonies);
   };
 
   const updateCeremonyPrice = (id: string, price: string) => {
-    const updatedCeremonies = availableCeremonies.map(ceremony =>
+    const updatedCeremonies = availableCeremonies.map((ceremony) =>
       ceremony.id === id ? { ...ceremony, price } : ceremony
     );
     setAvailableCeremonies(updatedCeremonies);
@@ -127,8 +143,8 @@ const ProfileSetup = ({ navigation, route }: any) => {
       ...availability,
       [day]: {
         ...availability[day as keyof typeof availability],
-        available: !availability[day as keyof typeof availability].available
-      }
+        available: !availability[day as keyof typeof availability].available,
+      },
     });
   };
 
@@ -137,8 +153,8 @@ const ProfileSetup = ({ navigation, route }: any) => {
       ...availability,
       [day]: {
         ...(availability as any)[day],
-        [field]: value
-      }
+        [field]: value,
+      },
     });
   };
 
@@ -146,17 +162,17 @@ const ProfileSetup = ({ navigation, route }: any) => {
   const handleSubmit = async () => {
     // Validate form
     if (!name || !email || !phone || !experience || !religiousTradition) {
-      Alert.alert('Validation Error', 'Please fill all required fields');
+      Alert.alert("Validation Error", "Please fill all required fields");
       return;
     }
 
     // Get selected ceremonies
     const selectedCeremonies = availableCeremonies
-      .filter(ceremony => ceremony.selected)
-      .map(ceremony => ceremony.name);
+      .filter((ceremony) => ceremony.selected)
+      .map((ceremony) => ceremony.name);
 
     if (selectedCeremonies.length === 0) {
-      Alert.alert('Validation Error', 'Please select at least one ceremony');
+      Alert.alert("Validation Error", "Please select at least one ceremony");
       return;
     }
 
@@ -168,75 +184,85 @@ const ProfileSetup = ({ navigation, route }: any) => {
         experience: parseInt(experience, 10),
         religiousTradition,
         description,
-  templesAffiliated: templesAffiliated.filter((temple: any) => temple.name && temple.address),
+        templesAffiliated: templesAffiliated.filter(
+          (temple: any) => temple.name && temple.address
+        ),
         ceremonies: selectedCeremonies,
         availability,
         priceList: availableCeremonies
-          .filter(ceremony => ceremony.selected)
+          .filter((ceremony) => ceremony.selected)
           .reduce((obj: Record<string, number>, ceremony) => {
             obj[ceremony.name] = parseInt(ceremony.price, 10);
             return obj;
           }, {} as Record<string, number>),
       };
 
-      console.log('Updating profile with data:', profileData);
-      console.log('Temples affiliated being sent:', profileData.templesAffiliated);
-      console.log('Ceremonies being sent:', profileData.ceremonies);
+      console.log("Updating profile with data:", profileData);
+      console.log(
+        "Temples affiliated being sent:",
+        profileData.templesAffiliated
+      );
+      console.log("Ceremonies being sent:", profileData.ceremonies);
 
       // Call Redux action to update profile
-  await (dispatch as any)(updateProfile(profileData as any));
-      console.log('Profile updated successfully via Redux');
+      await (dispatch as any)(updateProfile(profileData as any));
+      console.log("Profile updated successfully via Redux");
 
       // Also update user info (name, email, phone) via Redux if changed
-  const userUpdateData: any = {};
+      const userUpdateData: any = {};
       if (name !== userInfo?.name) userUpdateData.name = name;
       if (email !== userInfo?.email) userUpdateData.email = email;
       if (phone !== userInfo?.phone) userUpdateData.phone = phone;
-      
+
       if (Object.keys(userUpdateData).length > 0) {
-        (dispatch as any)(updateUserProfile({
-          ...userInfo,
-          ...userUpdateData,
-          profileCompleted: true
-        }));
+        (dispatch as any)(
+          updateUserProfile({
+            ...userInfo,
+            ...userUpdateData,
+            profileCompleted: true,
+          })
+        );
       }
 
       // Update AsyncStorage to persist user info changes
-      const userInfoString = await AsyncStorage.getItem('userInfo');
+      const userInfoString = await AsyncStorage.getItem("userInfo");
       if (userInfoString) {
         const parsedUserInfo = JSON.parse(userInfoString);
-        await AsyncStorage.setItem('userInfo', JSON.stringify({
-          ...parsedUserInfo,
-          ...userUpdateData,
-          profileCompleted: true
-        }));
+        await AsyncStorage.setItem(
+          "userInfo",
+          JSON.stringify({
+            ...parsedUserInfo,
+            ...userUpdateData,
+            profileCompleted: true,
+          })
+        );
       }
 
       // Show success message and navigate back
       Alert.alert(
-        'Profile Updated',
-        'Your profile has been updated successfully.',
+        "Profile Updated",
+        "Your profile has been updated successfully.",
         [
           {
-            text: 'Continue',
+            text: "Continue",
             onPress: () => {
-              console.log('Profile updated successfully, navigating back');
+              console.log("Profile updated successfully, navigating back");
               // Navigate back to profile screen with refresh parameter
-              navigation.goBack();
-              // Force a refresh of the profile screen
+              router.back();
+              // Force a refresh of the profile screen (using expo-router)
               setTimeout(() => {
-                navigation.setParams({ refresh: true });
+                router.replace({ params: { refresh: true } as any } as any);
               }, 100);
-            }
-          }
+            },
+          },
         ]
       );
     } catch (error) {
-      console.error('Profile update error:', error);
+      console.error("Profile update error:", error);
       Alert.alert(
-        'Update Failed',
-        'Failed to update your profile. Please try again.',
-        [{ text: 'OK' }]
+        "Update Failed",
+        "Failed to update your profile. Please try again.",
+        [{ text: "OK" }]
       );
     } finally {
       setIsSubmitting(false);
@@ -247,13 +273,15 @@ const ProfileSetup = ({ navigation, route }: any) => {
   const nextStep = () => {
     if (currentStep === 1) {
       if (!name || !email || !phone || !experience || !religiousTradition) {
-        Alert.alert('Validation Error', 'Please fill all required fields');
+        Alert.alert("Validation Error", "Please fill all required fields");
         return;
       }
     } else if (currentStep === 2) {
-      const selectedCeremonies = availableCeremonies.filter(ceremony => ceremony.selected);
+      const selectedCeremonies = availableCeremonies.filter(
+        (ceremony) => ceremony.selected
+      );
       if (selectedCeremonies.length === 0) {
-        Alert.alert('Validation Error', 'Please select at least one ceremony');
+        Alert.alert("Validation Error", "Please select at least one ceremony");
         return;
       }
     }
@@ -277,6 +305,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={name}
           onChangeText={setName}
           placeholder="Enter your full name"
+          placeholderTextColor={APP_COLORS.gray}
         />
       </View>
 
@@ -287,6 +316,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={email}
           onChangeText={setEmail}
           placeholder="Enter your email"
+          placeholderTextColor={APP_COLORS.gray}
           keyboardType="email-address"
           autoCapitalize="none"
         />
@@ -299,6 +329,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={phone}
           onChangeText={setPhone}
           placeholder="Enter your phone number"
+          placeholderTextColor={APP_COLORS.gray}
           keyboardType="phone-pad"
         />
       </View>
@@ -310,6 +341,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={experience}
           onChangeText={setExperience}
           placeholder="Enter years of experience"
+          placeholderTextColor={APP_COLORS.gray}
           keyboardType="numeric"
         />
       </View>
@@ -321,6 +353,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={religiousTradition}
           onChangeText={setReligiousTradition}
           placeholder="E.g., Hinduism, Buddhism, etc."
+          placeholderTextColor={APP_COLORS.gray}
         />
       </View>
 
@@ -331,6 +364,7 @@ const ProfileSetup = ({ navigation, route }: any) => {
           value={description}
           onChangeText={setDescription}
           placeholder="Describe your experience, specialties, and services"
+          placeholderTextColor={APP_COLORS.gray}
           multiline
           numberOfLines={4}
         />
@@ -341,9 +375,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
   const renderStep2 = () => (
     <View>
       <Text style={styles.stepTitle}>Services & Pricing</Text>
-      <Text style={styles.stepSubtitle}>Select the ceremonies you offer and set your pricing</Text>
+      <Text style={styles.stepSubtitle}>
+        Select the ceremonies you offer and set your pricing
+      </Text>
 
-      {availableCeremonies.map(ceremony => (
+      {availableCeremonies.map((ceremony) => (
         <View key={ceremony.id} style={styles.ceremonyItem}>
           <View style={styles.ceremonyHeader}>
             <View style={styles.checkboxContainer}>
@@ -355,7 +391,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
                 onPress={() => toggleCeremony(ceremony.id)}
               >
                 {ceremony.selected && (
-                  <Ionicons name="checkmark" size={16} color={APP_COLORS.white} />
+                  <Ionicons
+                    name="checkmark"
+                    size={16}
+                    color={APP_COLORS.white}
+                  />
                 )}
               </TouchableOpacity>
               <Text style={styles.ceremonyName}>{ceremony.name}</Text>
@@ -366,7 +406,9 @@ const ProfileSetup = ({ navigation, route }: any) => {
                 <TextInput
                   style={styles.priceInput}
                   value={ceremony.price}
-                  onChangeText={(value) => updateCeremonyPrice(ceremony.id, value)}
+                  onChangeText={(value) =>
+                    updateCeremonyPrice(ceremony.id, value)
+                  }
                   keyboardType="numeric"
                 />
               </View>
@@ -376,7 +418,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
       ))}
 
       <TouchableOpacity style={styles.addButton}>
-        <Ionicons name="add-circle-outline" size={20} color={APP_COLORS.primary} />
+        <Ionicons
+          name="add-circle-outline"
+          size={20}
+          color={APP_COLORS.primary}
+        />
         <Text style={styles.addButtonText}>Add Custom Ceremony</Text>
       </TouchableOpacity>
     </View>
@@ -385,9 +431,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
   const renderStep3 = () => (
     <View>
       <Text style={styles.stepTitle}>Temple Affiliation</Text>
-      <Text style={styles.stepSubtitle}>Add temples you are affiliated with</Text>
+      <Text style={styles.stepSubtitle}>
+        Add temples you are affiliated with
+      </Text>
 
-  { (templesAffiliated || []).map((temple: any, index: number) => (
+      {(templesAffiliated || []).map((temple: any, index: number) => (
         <View key={index} style={styles.templeItem}>
           <View style={styles.templeHeader}>
             <Text style={styles.templeIndex}>Temple {index + 1}</Text>
@@ -396,7 +444,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
                 onPress={() => removeTemple(index)}
                 style={styles.removeButton}
               >
-                <Ionicons name="close-circle" size={20} color={APP_COLORS.error} />
+                <Ionicons
+                  name="close-circle"
+                  size={20}
+                  color={APP_COLORS.error}
+                />
               </TouchableOpacity>
             )}
           </View>
@@ -406,8 +458,9 @@ const ProfileSetup = ({ navigation, route }: any) => {
             <TextInput
               style={styles.input}
               value={temple.name}
-              onChangeText={(value) => updateTemple(index, 'name', value)}
+              onChangeText={(value) => updateTemple(index, "name", value)}
               placeholder="Enter temple name"
+              placeholderTextColor={APP_COLORS.gray}
             />
           </View>
 
@@ -416,15 +469,20 @@ const ProfileSetup = ({ navigation, route }: any) => {
             <TextInput
               style={styles.input}
               value={temple.address}
-              onChangeText={(value) => updateTemple(index, 'address', value)}
+              onChangeText={(value) => updateTemple(index, "address", value)}
               placeholder="Enter temple address"
+              placeholderTextColor={APP_COLORS.gray}
             />
           </View>
         </View>
       ))}
 
       <TouchableOpacity style={styles.addButton} onPress={addTemple}>
-        <Ionicons name="add-circle-outline" size={20} color={APP_COLORS.primary} />
+        <Ionicons
+          name="add-circle-outline"
+          size={20}
+          color={APP_COLORS.primary}
+        />
         <Text style={styles.addButtonText}>Add Another Temple</Text>
       </TouchableOpacity>
     </View>
@@ -438,11 +496,16 @@ const ProfileSetup = ({ navigation, route }: any) => {
       {Object.entries(availability).map(([day, data]) => (
         <View key={day} style={styles.availabilityItem}>
           <View style={styles.availabilityDay}>
-            <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+            <Text style={styles.dayName}>
+              {day.charAt(0).toUpperCase() + day.slice(1)}
+            </Text>
             <Switch
               value={data.available}
               onValueChange={() => toggleDayAvailability(day)}
-              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + '80' }}
+              trackColor={{
+                false: APP_COLORS.lightGray,
+                true: APP_COLORS.primary + "80",
+              }}
               thumbColor={data.available ? APP_COLORS.primary : APP_COLORS.gray}
             />
           </View>
@@ -454,8 +517,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
                 <TextInput
                   style={styles.timeInput}
                   value={data.startTime}
-                  onChangeText={(value) => updateTimeSlot(day, 'startTime', value)}
+                  onChangeText={(value) =>
+                    updateTimeSlot(day, "startTime", value)
+                  }
                   placeholder="09:00"
+                  placeholderTextColor={APP_COLORS.gray}
                 />
               </View>
               <View style={styles.timeSlot}>
@@ -463,8 +529,11 @@ const ProfileSetup = ({ navigation, route }: any) => {
                 <TextInput
                   style={styles.timeInput}
                   value={data.endTime}
-                  onChangeText={(value) => updateTimeSlot(day, 'endTime', value)}
+                  onChangeText={(value) =>
+                    updateTimeSlot(day, "endTime", value)
+                  }
                   placeholder="18:00"
+                  placeholderTextColor={APP_COLORS.gray}
                 />
               </View>
             </View>
@@ -475,118 +544,141 @@ const ProfileSetup = ({ navigation, route }: any) => {
   );
 
   return (
-    <SafeAreaView>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={HEADER_TOP_PADDING + 24}
+      >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+          <View style={{ flex: 1 }}>
+            <View
+              style={[
+                styles.header,
+                {
+                  paddingTop: HEADER_TOP_PADDING,
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 4,
+                  elevation: 4,
+                },
+              ]}
+            >
+              <Text style={styles.headerTitle}>Complete Your Profile</Text>
+            </View>
 
-    <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Complete Your Profile</Text>
-      </View>
-
-      <View style={styles.progress}>
-        {[1, 2, 3, 4].map((step) => (
-          <View
-          key={step}
-            style={[
-                styles.progressStep,
-              currentStep === step && styles.activeProgressStep,
-              currentStep > step && styles.completedProgressStep,
-            ]}
-          >
-            {currentStep > step ? (
-              <Ionicons name="checkmark" size={16} color={APP_COLORS.white} />
-            ) : (
-              <Text
+            <View style={styles.progress}>
+              {[1, 2, 3, 4].map((step) => (
+                <View
+                  key={step}
+                  style={[
+                    styles.progressStep,
+                    currentStep === step && styles.activeProgressStep,
+                    currentStep > step && styles.completedProgressStep,
+                  ]}
+                >
+                  {currentStep > step ? (
+                    <Ionicons
+                      name="checkmark"
+                      size={16}
+                      color={APP_COLORS.white}
+                    />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.progressStepText,
+                        currentStep === step && styles.activeProgressStepText,
+                      ]}
+                    >
+                      {step}
+                    </Text>
+                  )}
+                </View>
+              ))}
+              <View
                 style={[
-                  styles.progressStepText,
-                  currentStep === step && styles.activeProgressStepText,
+                  styles.progressLine,
+                  { width: `${(currentStep - 1) * 33.33}%` },
                 ]}
-              >
-                {step}
-              </Text>
-            )}
+              />
+            </View>
+
+            <ScrollView style={styles.content}>
+              {currentStep === 1 && renderStep1()}
+              {currentStep === 2 && renderStep2()}
+              {currentStep === 3 && renderStep3()}
+              {currentStep === 4 && renderStep4()}
+            </ScrollView>
+
+            <View style={styles.footer}>
+              {currentStep > 1 && (
+                <TouchableOpacity
+                  style={[styles.button, styles.backButton]}
+                  onPress={prevStep}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.backButtonText}>Back</Text>
+                </TouchableOpacity>
+              )}
+
+              {currentStep < 4 ? (
+                <TouchableOpacity
+                  style={[styles.button, styles.nextButton]}
+                  onPress={nextStep}
+                >
+                  <Text style={styles.nextButtonText}>Next</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.button, styles.nextButton]}
+                  onPress={handleSubmit}
+                  disabled={isSubmitting}
+                >
+                  <Text style={styles.nextButtonText}>
+                    {isSubmitting ? "Submitting..." : "Complete"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-        ))}
-        <View
-          style={[
-              styles.progressLine,
-              { width: `${(currentStep - 1) * 33.33}%` },
-            ]}
-        />
-      </View>
-
-      <ScrollView style={styles.content}>
-        {currentStep === 1 && renderStep1()}
-        {currentStep === 2 && renderStep2()}
-        {currentStep === 3 && renderStep3()}
-        {currentStep === 4 && renderStep4()}
-      </ScrollView>
-
-      <View style={styles.footer}>
-        {currentStep > 1 && (
-          <TouchableOpacity
-          style={[styles.button, styles.backButton]}
-          onPress={prevStep}
-          disabled={isSubmitting}
-          >
-            <Text style={styles.backButtonText}>Back</Text>
-          </TouchableOpacity>
-        )}
-
-        {currentStep < 4 ? (
-          <TouchableOpacity
-          style={[styles.button, styles.nextButton]}
-          onPress={nextStep}
-          >
-            <Text style={styles.nextButtonText}>Next</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-          style={[styles.button, styles.nextButton]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}
-          >
-            <Text style={styles.nextButtonText}>
-              {isSubmitting ? 'Submitting...' : 'Complete'}
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-</SafeAreaView>
+        </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: APP_COLORS.background,
-    },
-    header: {
-        backgroundColor: APP_COLORS.white,
-        padding: 16,
+  container: {
+    flex: 1,
+    backgroundColor: APP_COLORS.background,
+  },
+  header: {
+    backgroundColor: APP_COLORS.white,
+    padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
   },
   progress: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 24,
     paddingVertical: 16,
     backgroundColor: APP_COLORS.white,
-    position: 'relative',
+    position: "relative",
   },
   progressLine: {
-    position: 'absolute',
+    position: "absolute",
     height: 3,
     backgroundColor: APP_COLORS.primary,
     left: 40,
-    top: '50%',
+    top: "50%",
     marginTop: -1.5,
   },
   progressStep: {
@@ -594,8 +686,8 @@ const styles = StyleSheet.create({
     height: 30,
     borderRadius: 15,
     backgroundColor: APP_COLORS.lightGray,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     zIndex: 1,
   },
   activeProgressStep: {
@@ -606,7 +698,7 @@ const styles = StyleSheet.create({
   },
   progressStepText: {
     color: APP_COLORS.gray,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   activeProgressStepText: {
     color: APP_COLORS.white,
@@ -617,7 +709,7 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     marginBottom: 8,
   },
   stepSubtitle: {
@@ -643,7 +735,7 @@ const styles = StyleSheet.create({
   },
   textArea: {
     minHeight: 100,
-    textAlignVertical: 'top',
+    textAlignVertical: "top",
   },
   ceremonyItem: {
     backgroundColor: APP_COLORS.white,
@@ -653,13 +745,13 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   ceremonyHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   checkbox: {
     width: 24,
@@ -668,19 +760,19 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: APP_COLORS.primary,
     marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   checkboxSelected: {
     backgroundColor: APP_COLORS.primary,
   },
   ceremonyName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   priceLabel: {
     fontSize: 14,
@@ -694,16 +786,16 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.lightGray,
     borderRadius: 4,
     padding: 8,
-    textAlign: 'right',
+    textAlign: "right",
   },
   addButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
   },
   addButtonText: {
     color: APP_COLORS.primary,
-    fontWeight: '600',
+    fontWeight: "600",
     marginLeft: 8,
   },
   templeItem: {
@@ -714,14 +806,14 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   templeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   templeIndex: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   removeButton: {
     padding: 4,
@@ -734,23 +826,23 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   availabilityDay: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   dayName: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
   },
   timeSlots: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   timeSlot: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '48%',
+    flexDirection: "row",
+    alignItems: "center",
+    width: "48%",
   },
   timeLabel: {
     width: 40,
@@ -766,7 +858,7 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   footer: {
-    flexDirection: 'row',
+    flexDirection: "row",
     padding: 16,
     backgroundColor: APP_COLORS.white,
     borderTopWidth: 1,
@@ -776,8 +868,8 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   backButton: {
     backgroundColor: APP_COLORS.white,
@@ -787,14 +879,14 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     color: APP_COLORS.gray,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   nextButton: {
     backgroundColor: APP_COLORS.primary,
   },
   nextButtonText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
 });
 

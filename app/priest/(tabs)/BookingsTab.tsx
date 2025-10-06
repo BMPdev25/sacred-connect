@@ -73,7 +73,7 @@ const BookingsScreen = () => {
     return (
       <TouchableOpacity
         style={styles.bookingCard}
-        onPress={() => router.push("/BookingDetails")}
+        onPress={() => router.push("/PriestBookingDetails")}
       >
         <View>
           <View style={styles.bookingHeader}>

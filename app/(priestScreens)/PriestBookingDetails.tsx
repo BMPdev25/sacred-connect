@@ -2,12 +2,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../constants/Colors";
@@ -68,12 +68,12 @@ const BookingDetails = () => {
   };
 
   return (
-    <SafeAreaView>
-      <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={{ flex: 1 }}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push("/priest/BookingsTab")}
+            onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
           </TouchableOpacity>
@@ -81,7 +81,7 @@ const BookingDetails = () => {
           <View style={styles.placeholder} />
         </View>
 
-        <ScrollView style={styles.content}>
+  <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
           <View style={styles.statusContainer}>
             <View
               style={[

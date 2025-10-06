@@ -13,8 +13,8 @@ const AvailableOffers = () => {
   };
 
   return (
-    <SafeAreaView>
-      <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.containerInner}>
         <Text style={styles.header}>Available Offers</Text>
         <Text style={styles.ceremonyName}>
           For: {ceremony?.name || "Ceremony"}
@@ -31,6 +31,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+  },
+  containerInner: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
     padding: 24,

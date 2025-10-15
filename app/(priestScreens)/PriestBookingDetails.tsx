@@ -1,44 +1,100 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../constants/Colors";
+import priestService from "../../services/priestService";
 
 const BookingDetails = () => {
-  const { booking } = {
-    booking: {
-      id: "1",
-      ceremonyType: "Wedding Ceremony",
-      clientName: "Sharma Family",
-      date: new Date("2024-06-10"),
-      startTime: "10:30 AM",
-      endTime: "1:30 PM",
-      location: {
-        address: "123 Main Street, Mumbai",
-        city: "Mumbai",
-      },
-      status: "confirmed",
-      basePrice: 8000,
-      platformFee: 500,
-      totalAmount: 8500,
-      paymentStatus: "Completed",
-      paymentMethod: "upi",
+  const params = useLocalSearchParams();
+
+  const defaultBooking = {
+    id: "1",
+    ceremonyType: "Wedding Ceremony",
+    clientName: "Sharma Family",
+    date: new Date("2024-06-10").toISOString(),
+    startTime: "10:30 AM",
+    endTime: "1:30 PM",
+    location: {
+      address: "123 Main Street, Mumbai",
+      city: "Mumbai",
     },
+    status: "confirmed",
+    basePrice: 8000,
+    platformFee: 500,
+    totalAmount: 8500,
+    paymentStatus: "Completed",
+    paymentMethod: "upi",
   };
 
-  const [currentStatus, setCurrentStatus] = useState(
-    booking.status || "confirmed"
-  );
+  const booking = useMemo(() => {
+    if (params?.booking || params?.notificationDetails) {
+      try {
+        const details = params.booking || params.notificationDetails;
+        const parsed = typeof details === "string" ? JSON.parse(details) : details;
+        // normalize date to ISO string if Date object
+        if (parsed?.date && parsed.date instanceof Date) {
+          parsed.date = parsed.date.toISOString();
+        }
+        return parsed;
+      } catch (err) {
+        console.warn("Failed to parse booking param, falling back to default", err);
+        return null;
+      }
+    }
+    return null;
+  }, [params]);
 
-  const bookingDate = new Date(booking.date);
+  const [fetchedBooking, setFetchedBooking] = useState<any | null>(null);
+  const [loadingBooking, setLoadingBooking] = useState<boolean>(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const bookingId = booking?.id;
+    if (!bookingId) return;
+
+    let mounted = true;
+    const load = async () => {
+      try {
+        setLoadingBooking(true);
+        setBookingError(null);
+        const data = await priestService.getBookingDetails(bookingId);
+        if (mounted) setFetchedBooking(data || null);
+      } catch (err: any) {
+        console.error('Failed to fetch booking details', err);
+        if (mounted) setBookingError(typeof err === 'string' ? err : err?.message || 'Failed to load booking');
+      } finally {
+        if (mounted) setLoadingBooking(false);
+      }
+    };
+
+    load();
+
+    return () => {
+      mounted = false;
+    };
+  }, [booking]);
+
+  const [currentStatus, setCurrentStatus] = useState<string>("confirmed");
+
+  const activeBooking = fetchedBooking || booking || defaultBooking;
+  console.log("Active Booking:", activeBooking);
+
+  useEffect(() => {
+    if (activeBooking && activeBooking.status) {
+      setCurrentStatus(activeBooking.status);
+    }
+  }, [activeBooking]);
+  const bookingDate = new Date(activeBooking.date);
   const formattedDate = bookingDate.toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
@@ -80,8 +136,18 @@ const BookingDetails = () => {
           <Text style={styles.headerTitle}>Booking Details</Text>
           <View style={styles.placeholder} />
         </View>
-
-  <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
+        {loadingBooking ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={APP_COLORS.primary} />
+            <Text style={styles.loadingText}>Loading booking...</Text>
+          </View>
+        ) : bookingError ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>Failed to load booking</Text>
+            <Text style={styles.emptySubtext}>{bookingError}</Text>
+          </View>
+        ) : (
+          <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
           <View style={styles.statusContainer}>
             <View
               style={[
@@ -130,7 +196,7 @@ const BookingDetails = () => {
             <Text style={styles.cardTitle}>Ceremony Details</Text>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Ceremony Type</Text>
-              <Text style={styles.detailValue}>{booking.ceremonyType}</Text>
+              <Text style={styles.detailValue}>{activeBooking.ceremonyType}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Date</Text>
@@ -139,7 +205,7 @@ const BookingDetails = () => {
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Time</Text>
               <Text style={styles.detailValue}>
-                {booking.startTime} - {booking.endTime}
+                {activeBooking.startTime} - {activeBooking.endTime}
               </Text>
             </View>
           </View>
@@ -148,7 +214,7 @@ const BookingDetails = () => {
             <Text style={styles.cardTitle}>Client Information</Text>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Client Name</Text>
-              <Text style={styles.detailValue}>{booking.clientName}</Text>
+              <Text style={styles.detailValue}>{activeBooking.clientName}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Phone Number</Text>
@@ -160,11 +226,11 @@ const BookingDetails = () => {
             <Text style={styles.cardTitle}>Location</Text>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Address</Text>
-              <Text style={styles.detailValue}>{booking.location.address}</Text>
+              <Text style={styles.detailValue}>{activeBooking.location?.address}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>City</Text>
-              <Text style={styles.detailValue}>{booking.location.city}</Text>
+              <Text style={styles.detailValue}>{activeBooking.location?.city}</Text>
             </View>
             <TouchableOpacity style={styles.mapButton}>
               <Ionicons
@@ -180,18 +246,18 @@ const BookingDetails = () => {
             <Text style={styles.cardTitle}>Payment Details</Text>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Base Price</Text>
-              <Text style={styles.detailValue}>₹{booking.basePrice}</Text>
+              <Text style={styles.detailValue}>₹{activeBooking.basePrice}</Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Platform Fee</Text>
               <Text style={styles.detailValue}>
-                ₹{booking.platformFee || 500}
+                ₹{activeBooking.platformFee || 500}
               </Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Total Amount</Text>
               <Text style={[styles.detailValue, styles.totalAmount]}>
-                ₹{booking.totalAmount || 8500}
+                ₹{activeBooking.totalAmount || 8500}
               </Text>
             </View>
             <View style={styles.detailRow}>
@@ -201,21 +267,21 @@ const BookingDetails = () => {
                   styles.paymentStatus,
                   {
                     color:
-                      booking.paymentStatus === "completed"
+                      activeBooking.paymentStatus === "completed"
                         ? APP_COLORS.success
                         : APP_COLORS.warning,
                   },
                 ]}
               >
-                {booking.paymentStatus === "completed" ? "Paid" : "Pending"}
+                {activeBooking.paymentStatus === "completed" ? "Paid" : "Pending"}
               </Text>
             </View>
             <View style={styles.detailRow}>
               <Text style={styles.detailLabel}>Payment Method</Text>
               <Text style={styles.detailValue}>
-                {booking.paymentMethod === "upi"
+                {activeBooking.paymentMethod === "upi"
                   ? "UPI"
-                  : booking.paymentMethod === "card"
+                  : activeBooking.paymentMethod === "card"
                   ? "Credit/Debit Card"
                   : "Not specified"}
               </Text>
@@ -248,6 +314,7 @@ const BookingDetails = () => {
             <Text style={styles.contactButtonText}>Contact Client</Text>
           </TouchableOpacity>
         </ScrollView>
+          )}
       </View>
     </SafeAreaView>
   );
@@ -382,6 +449,33 @@ const styles = StyleSheet.create({
     color: APP_COLORS.white,
     fontWeight: "bold",
     marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    color: APP_COLORS.gray,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    textAlign: 'center',
   },
 });
 

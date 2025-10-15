@@ -99,7 +99,7 @@ export default function Index() {
   return (
     <View style={styles.container}>
       {nextRoute ? <Redirect href={nextRoute as any} /> : null}
-      <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} />
+      <ExpoStatusBar style="auto" backgroundColor={APP_COLORS.primary} />
 
       {/* Logo */}
       <Animated.View

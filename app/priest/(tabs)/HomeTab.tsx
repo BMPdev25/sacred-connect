@@ -29,8 +29,8 @@ const HomeScreen: React.FC = () => {
   });
   const [notifications, setNotifications] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
-  const [showProfileBanner, setShowProfileBanner] = useState<boolean>(true);
-  const [isAvailable, setIsAvailable] = useState<boolean>(true);
+  // const [showProfileBanner, setShowProfileBanner] = useState<boolean>(true);
+  // const [isAvailable, setIsAvailable] = useState<boolean>(true);
 
   // Ceremonies examples
   const ceremonies = [
@@ -51,6 +51,9 @@ const HomeScreen: React.FC = () => {
     },
   ];
 
+  
+      // console.log("userInfo in HomeScreen:", userInfo);
+
   useEffect(() => {
     let mounted = true;
 
@@ -62,6 +65,7 @@ const HomeScreen: React.FC = () => {
       }
 
       setLoading(true);
+
 
       // Bookings
       try {
@@ -122,7 +126,7 @@ const HomeScreen: React.FC = () => {
             <View style={styles.headerRow}>
               <View style={styles.headerContent}>
                 <Text style={styles.welcomeText}>{`Welcome, ${
-                  userInfo?.name || "Pandit"
+                  userInfo?.name || "Pandi"
                 }`}</Text>
                 <Text style={styles.headerTitle}>Your Dashboard</Text>
                 <Text style={styles.headerSubtitle}>

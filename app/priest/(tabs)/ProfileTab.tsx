@@ -1,29 +1,53 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Alert,
   Image,
-  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { logout } from "../../../redux/slices/authSlice";
 import { RootState } from "../../../redux/store";
+import priestService from "../../../services/priestService";
 
-const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
+interface PriestProfile {
+  experience?: number;
+  religiousTradition?: string;
+  ceremonies?: any[];
+  [key: string]: any;
+}
+
+const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
 
 const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  console.log("User Info:", userInfo);
-  const profile = (userInfo as any)?.profile;
+  const [profile, setProfile] = useState<PriestProfile | null>(null);
+  const [profileCompletion, setProfileCompletion] = useState(0);
+  // console.log("Profile Info:", profile);
+  // console.log("User Info:", userInfo);
+
+  useEffect(() => {
+    getProfile();
+    setProfileCompletion(calculateProfileCompletion());
+  }, []);
+
+  const getProfile = async () => {
+    try {
+      const priestProfile = await priestService.getProfile();
+      setProfile(priestProfile);
+      // console.log("Fetched profile on mount:", priestProfile);
+    } catch (err) {
+      console.error("Error fetching profile on mount:", err);
+    }
+  };
 
   // Calculate profile completion percentage
   const calculateProfileCompletion = (): number => {
@@ -35,15 +59,12 @@ const ProfileScreen: React.FC = () => {
     if (userInfo.name) completed++;
     if (userInfo.email) completed++;
     if (userInfo.phone) completed++;
-    const profile = (userInfo as any)?.profile;
     if (profile?.experience) completed++;
     if (profile?.religiousTradition) completed++;
-    if (profile?.ceremonies && profile.ceremonies.length > 0) completed++;
+    if (profile?.ceremonies && profile?.ceremonies.length > 0) completed++;
 
     return Math.round((completed / totalFields) * 100);
   };
-
-  const profileCompletion = calculateProfileCompletion();
 
   const handleLogout = (): void => {
     Alert.alert(
@@ -74,25 +95,17 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleUpdateProfile = (): void => {
-    router.push("/ProfileSetup");
+    router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true } } as any);
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       <View style={{ flex: 1 }}>
         <View
           style={[
             styles.header,
-            {
-              paddingTop: HEADER_TOP_PADDING,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 4,
-              borderBottomWidth: 1,
-              borderBottomColor: APP_COLORS.lightGray,
-            },
+            styles.headerShadow,
+            { paddingTop: HEADER_TOP_PADDING },
           ]}
         >
           <View style={styles.headerContent}>
@@ -107,7 +120,7 @@ const ProfileScreen: React.FC = () => {
           </View>
         </View>
 
-  <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           <View style={styles.profileHeader}>
             <Image
               source={require("../../../assets/images/default-profile.png")}
@@ -115,7 +128,7 @@ const ProfileScreen: React.FC = () => {
             />
             <TouchableOpacity
               style={styles.editProfileButton}
-              onPress={handleUpdateProfile}
+              // onPress={handleUpdateProfile}
             >
               <Ionicons
                 name="camera-outline"
@@ -127,8 +140,7 @@ const ProfileScreen: React.FC = () => {
               {userInfo?.name || "Pandit Sharma"}
             </Text>
             <Text style={styles.userRole}>
-              Senior Priest • {(profile?.experience as any) || 12} years
-              experience
+              Priest • {(profile?.experience as any) || 0} years experience
             </Text>
 
             <View style={styles.completionContainer}>
@@ -150,12 +162,12 @@ const ProfileScreen: React.FC = () => {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Personal Details</Text>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.editButton}
               onPress={handleUpdateProfile}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <View style={styles.infoCard}>
@@ -167,22 +179,24 @@ const ProfileScreen: React.FC = () => {
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Years of Experience</Text>
-              <Text style={styles.infoValue}>12</Text>
+              <Text style={styles.infoValue}>{profile?.experience || 0}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Religious Tradition</Text>
-              <Text style={styles.infoValue}>Hinduism</Text>
+              <Text style={styles.infoValue}>
+                {profile?.religiousTradition || "Tradition"}
+              </Text>
             </View>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Verification Documents</Text>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.editButton}
               onPress={handleUpdateProfile}
             >
               <Text style={styles.editButtonText}>Upload</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <View style={styles.documentsCard}>
@@ -225,33 +239,47 @@ const ProfileScreen: React.FC = () => {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Temple Affiliation</Text>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.editButton}
               onPress={handleUpdateProfile}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Temple Name</Text>
-              <Text style={styles.infoValue}>Enter temple name</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Temple Address</Text>
-              <Text style={styles.infoValue}>Enter temple address</Text>
-            </View>
+            {profile?.templesAffiliated &&
+            profile.templesAffiliated.length > 0 ? (
+              profile.templesAffiliated.map((temple: any, idx: number) => (
+                <View style={styles.infoRow} key={`temple-${idx}`}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.infoLabel}>Temple {idx + 1}</Text>
+                    <Text style={[styles.infoLabel, styles.templeName]}>
+                      {temple.name || "Temple"}
+                    </Text>
+                    <Text style={[styles.infoValue, styles.templeAddress]}>
+                      {temple.address || "Address not provided"}
+                    </Text>
+                  </View>
+                </View>
+              ))
+            ) : (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoValue}>
+                  No temple affiliations added
+                </Text>
+              </View>
+            )}
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.editButton}
               onPress={handleUpdateProfile}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           <View style={styles.infoCard}>
@@ -270,12 +298,22 @@ const ProfileScreen: React.FC = () => {
           </View>
         </ScrollView>
 
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+          accessibilityHint="Opens Profile Setup to edit your profile"
+          onPress={handleUpdateProfile}
+          style={styles.editFab}
+        >
+          <Ionicons name="pencil" size={20} color={APP_COLORS.white} />
+        </TouchableOpacity>
+
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 
@@ -288,7 +326,15 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.primary,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    // Top padding is now handled dynamically
+  },
+  headerShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
   },
   headerContent: {
     flexDirection: "row",
@@ -396,8 +442,18 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
     marginBottom: 4,
   },
+  templeName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: APP_COLORS.black,
+    marginBottom: 2,
+  },
   infoValue: {
     fontSize: 16,
+  },
+  templeAddress: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
   },
   documentsCard: {
     backgroundColor: APP_COLORS.white,
@@ -459,6 +515,22 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: APP_COLORS.error,
     fontWeight: "bold",
+  },
+  editFab: {
+    position: "absolute",
+    right: 20,
+    bottom: 88,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
   },
 });
 

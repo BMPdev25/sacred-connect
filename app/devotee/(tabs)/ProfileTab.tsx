@@ -1,67 +1,96 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React, { useState } from 'react';
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+import React, { useState } from "react";
 import {
   Alert,
   Image,
-  Platform,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
-  View
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useDispatch, useSelector } from 'react-redux';
-import { APP_COLORS } from '../../../constants/Colors';
-import { loadUser, logout, updateProfile } from '../../../redux/slices/authSlice';
-import { AppDispatch, RootState } from '../../../redux/store';
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useDispatch, useSelector } from "react-redux";
+import { APP_COLORS } from "../../../constants/Colors";
+import { logout } from "../../../redux/slices/authSlice";
+import { updateNotificationPreferences } from "../../../redux/slices/userSlice";
+import { AppDispatch, RootState } from "../../../redux/store";
 
-// StatusBar.currentHeight is available on Android; fallback to 24
-import { StatusBar } from 'react-native';
-const HEADER_TOP_PADDING = Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44;
+const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
 
-const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
   // console.log('User Info:', userInfo);
 
   // Edit mode state
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [name, setName] = useState(userInfo?.name || '');
-  const [email, setEmail] = useState(userInfo?.email || '');
-  const [phone, setPhone] = useState(userInfo?.phone || '');
+  // const [isEditMode, setIsEditMode] = useState(false);
+  // const [name, setName] = useState(userInfo?.name || '');
+  // const [email, setEmail] = useState(userInfo?.email || '');
+  // const [phone, setPhone] = useState(userInfo?.phone || '');
 
-  // Notification preferences
-  const [notifyUpcomingBookings, setNotifyUpcomingBookings] = useState(true);
-  const [notifyBookingConfirmations, setNotifyBookingConfirmations] = useState(true);
-  const [notifyPromotions, setNotifyPromotions] = useState(false);
+  // Notification preferences (initialize from Redux user slice when available)
+  const authUserInfo = useSelector((state: RootState) => state.auth.userInfo);
+  const userNotifications = (authUserInfo as any)?.notifications || {
+    email: { bookingUpdates: true, promotions: false, reminders: true },
+    push: { bookingUpdates: true, promotions: false, reminders: true },
+  };
 
-  // Security & Privacy Modal
-  const [securityModalVisible, setSecurityModalVisible] = useState(false);
+  const [notifyUpcomingBookings, setNotifyUpcomingBookings] = useState<boolean>(
+    userNotifications.push?.bookingUpdates ?? true
+  );
+  const [notifyBookingConfirmations, setNotifyBookingConfirmations] =
+    useState<boolean>(userNotifications.push?.reminders ?? true);
+  const [notifyPromotions, setNotifyPromotions] = useState<boolean>(
+    userNotifications.push?.promotions ?? false
+  );
+
+  // Dispatch changes to the server when toggles change
+  const onToggleNotifyUpcomingBookings = (value: boolean) => {
+    setNotifyUpcomingBookings(value);
+    dispatch(
+      updateNotificationPreferences({ push: { bookingUpdates: value } } as any)
+    );
+  };
+
+  const onToggleNotifyBookingConfirmations = (value: boolean) => {
+    setNotifyBookingConfirmations(value);
+    dispatch(
+      updateNotificationPreferences({ push: { reminders: value } } as any)
+    );
+  };
+
+  const onToggleNotifyPromotions = (value: boolean) => {
+    setNotifyPromotions(value);
+    dispatch(
+      updateNotificationPreferences({ push: { promotions: value } } as any)
+    );
+  };
 
   const handleLogout = () => {
     Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
+      "Logout",
+      "Are you sure you want to logout?",
       [
         {
-          text: 'Cancel',
-          style: 'cancel',
+          text: "Cancel",
+          style: "cancel",
         },
         {
-          text: 'Logout',
+          text: "Logout",
           onPress: async () => {
             // dispatch logout thunk which clears AsyncStorage and auth state
             await dispatch(logout());
             // replace navigation stack to login
             try {
-              router.replace('/login' as any);
+              router.replace("/login" as any);
             } catch (e) {
               // fallback: attempt push
-              router.push('/login' as any);
+              router.push("/login" as any);
             }
           },
         },
@@ -70,45 +99,62 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     );
   };
 
-  const handleSaveProfile = () => {
-    if (!name || !email || !phone) {
-      Alert.alert('Error', 'Please fill all required fields');
-      return;
-    }
+  // const handleSaveProfile = () => {
+  //   if (!name || !email || !phone) {
+  //     Alert.alert('Error', 'Please fill all required fields');
+  //     return;
+  //   }
 
-    // In a real app, this would dispatch an API call to update the profile
-    // For now, we'll just update the local state
-    dispatch(updateProfile({
-      name,
-      email,
-      phone,
-    })).then((result) => {
-      if (!(result as any)?.error) {
-        // Ensures latest profile is loaded after update
-        dispatch(loadUser());
-        setIsEditMode(false);
-        Alert.alert('Success', 'Profile updated successfully');
-      }
-    });
-  };
+  //   // In a real app, this would dispatch an API call to update the profile
+  //   // For now, we'll just update the local state
+  //   dispatch(updateProfile({
+  //     name,
+  //     email,
+  //     phone,
+  //   })).then((result) => {
+  //     if (!(result as any)?.error) {
+  //       // Ensures latest profile is loaded after update
+  //       dispatch(loadUser());
+  //       setIsEditMode(false);
+  //       Alert.alert('Success', 'Profile updated successfully');
+  //     }
+  //   });
+  // };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* <ExpoStatusBar style="dark" backgroundColor={APP_COLORS.white} /> */}
-      <View style={[styles.header, { paddingTop: HEADER_TOP_PADDING, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
+      <View
+        style={[
+          styles.header,
+          {
+            paddingTop: HEADER_TOP_PADDING,
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 4,
+            elevation: 4,
+            borderBottomWidth: 1,
+            borderBottomColor: APP_COLORS.lightGray,
+          },
+        ]}
+      >
         <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => router.push('/Help')}>
-          <Ionicons name="help-circle-outline" size={24} color={APP_COLORS.gray} />
+        <TouchableOpacity onPress={() => router.push("/Help")}>
+          <Ionicons
+            name="help-circle-outline"
+            size={24}
+            color={APP_COLORS.gray}
+          />
         </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content}>
         <View style={styles.profileHeader}>
           <Image
-            source={require('../../../assets/images/default-profile.png')}
+            source={require("../../../assets/images/default-profile.png")}
             style={styles.profileImage}
           />
-          <Text style={styles.userName}>{userInfo?.name || 'User Name'}</Text>
+          <Text style={styles.userName}>{userInfo?.name || "User Name"}</Text>
         </View>
 
         <View style={styles.section}>
@@ -119,11 +165,15 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           <View style={styles.infoContainer}>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>{userInfo?.email || 'email@example.com'}</Text>
+              <Text style={styles.infoValue}>
+                {userInfo?.email || "email@example.com"}
+              </Text>
             </View>
             <View style={styles.infoItem}>
               <Text style={styles.infoLabel}>Phone</Text>
-              <Text style={styles.infoValue}>{userInfo?.phone || '+91 XXXXX XXXXX'}</Text>
+              <Text style={styles.infoValue}>
+                {userInfo?.phone || "+91 XXXXX XXXXX"}
+              </Text>
             </View>
           </View>
         </View>
@@ -139,23 +189,37 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
             <Switch
               value={notifyUpcomingBookings}
-              onValueChange={setNotifyUpcomingBookings}
-              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + '80' }}
-              thumbColor={notifyUpcomingBookings ? APP_COLORS.primary : APP_COLORS.gray}
+              onValueChange={onToggleNotifyUpcomingBookings}
+              trackColor={{
+                false: APP_COLORS.lightGray,
+                true: APP_COLORS.primary + "80",
+              }}
+              thumbColor={
+                notifyUpcomingBookings ? APP_COLORS.primary : APP_COLORS.gray
+              }
             />
           </View>
           <View style={styles.notificationItem}>
             <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Booking Confirmations</Text>
+              <Text style={styles.notificationTitle}>
+                Booking Confirmations
+              </Text>
               <Text style={styles.notificationDescription}>
                 Receive notifications for booking confirmations and updates
               </Text>
             </View>
             <Switch
               value={notifyBookingConfirmations}
-              onValueChange={setNotifyBookingConfirmations}
-              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + '80' }}
-              thumbColor={notifyBookingConfirmations ? APP_COLORS.primary : APP_COLORS.gray}
+              onValueChange={onToggleNotifyBookingConfirmations}
+              trackColor={{
+                false: APP_COLORS.lightGray,
+                true: APP_COLORS.primary + "80",
+              }}
+              thumbColor={
+                notifyBookingConfirmations
+                  ? APP_COLORS.primary
+                  : APP_COLORS.gray
+              }
             />
           </View>
           <View style={styles.notificationItem}>
@@ -167,40 +231,67 @@ const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             </View>
             <Switch
               value={notifyPromotions}
-              onValueChange={setNotifyPromotions}
-              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + '80' }}
-              thumbColor={notifyPromotions ? APP_COLORS.primary : APP_COLORS.gray}
+              onValueChange={onToggleNotifyPromotions}
+              trackColor={{
+                false: APP_COLORS.lightGray,
+                true: APP_COLORS.primary + "80",
+              }}
+              thumbColor={
+                notifyPromotions ? APP_COLORS.primary : APP_COLORS.gray
+              }
             />
           </View>
         </View>
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/SecurityAndPrivacy' as any)}>
-            <Ionicons name="shield-checkmark-outline" size={24} color={APP_COLORS.primary} />
+          <TouchableOpacity
+            style={styles.accountOption}
+            onPress={() => router.push("/SecurityAndPrivacy" as any)}
+          >
+            <Ionicons
+              name="shield-checkmark-outline"
+              size={24}
+              color={APP_COLORS.primary}
+            />
             <Text style={styles.accountOptionText}>Security & Privacy</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/PaymentMethods')}>
-            <Ionicons name="card-outline" size={24} color={APP_COLORS.primary} />
+          <TouchableOpacity
+            style={styles.accountOption}
+            onPress={() => router.push("/PaymentMethods")}
+          >
+            <Ionicons
+              name="card-outline"
+              size={24}
+              color={APP_COLORS.primary}
+            />
             <Text style={styles.accountOptionText}>Payment Methods</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.accountOption}
-            onPress={() => router.push('/Help')}
+            onPress={() => router.push("/Help")}
           >
-            <Ionicons name="help-circle-outline" size={24} color={APP_COLORS.primary} />
+            <Ionicons
+              name="help-circle-outline"
+              size={24}
+              color={APP_COLORS.primary}
+            />
             <Text style={styles.accountOptionText}>Help & Support</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.accountOption} onPress={() => router.push('/TermsAndConditions')}>
-            <Ionicons name="document-text-outline" size={24} color={APP_COLORS.primary} />
+          <TouchableOpacity
+            style={styles.accountOption}
+            onPress={() => router.push("/TermsAndConditions")}
+          >
+            <Ionicons
+              name="document-text-outline"
+              size={24}
+              color={APP_COLORS.primary}
+            />
             <Text style={styles.accountOptionText}>Terms & Conditions</Text>
           </TouchableOpacity>
         </View>
 
-        <TouchableOpacity
-          style={styles.logoutButton}
-          onPress={handleLogout}
-        >
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
@@ -221,23 +312,22 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: APP_COLORS.white,
     padding: 16,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
-    // Top padding is now handled dynamically
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   content: {
     flex: 1,
   },
   profileHeader: {
     backgroundColor: APP_COLORS.white,
-    alignItems: 'center',
+    alignItems: "center",
     padding: 24,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
@@ -249,30 +339,30 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   editProfileButton: {
-    position: 'absolute',
+    position: "absolute",
     top: 96,
-    right: '50%',
+    right: "50%",
     marginRight: -50,
     backgroundColor: APP_COLORS.primary,
     width: 36,
     height: 36,
     borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 3,
     borderColor: APP_COLORS.white,
   },
   userName: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   editNameContainer: {
-    width: '80%',
+    width: "80%",
   },
   editNameInput: {
     fontSize: 20,
-    fontWeight: 'bold',
-    textAlign: 'center',
+    fontWeight: "bold",
+    textAlign: "center",
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.primary,
     paddingVertical: 4,
@@ -286,25 +376,25 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   editButton: {
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: APP_COLORS.primary + '20',
+    backgroundColor: APP_COLORS.primary + "20",
   },
   editButtonText: {
     fontSize: 12,
     color: APP_COLORS.primary,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   infoContainer: {
     marginBottom: 8,
@@ -339,8 +429,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   editActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
+    flexDirection: "row",
+    justifyContent: "flex-end",
   },
   cancelButton: {
     paddingVertical: 8,
@@ -352,7 +442,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     color: APP_COLORS.gray,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   saveButton: {
     backgroundColor: APP_COLORS.primary,
@@ -362,12 +452,12 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     color: APP_COLORS.white,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   notificationItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
   },
   notificationInfo: {
@@ -376,7 +466,7 @@ const styles = StyleSheet.create({
   },
   notificationTitle: {
     fontSize: 16,
-    fontWeight: '500',
+    fontWeight: "500",
     marginBottom: 4,
   },
   notificationDescription: {
@@ -384,8 +474,8 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   accountOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
@@ -395,9 +485,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     marginTop: 16,
     marginHorizontal: 16,
     marginBottom: 24,
@@ -409,10 +499,10 @@ const styles = StyleSheet.create({
   logoutButtonText: {
     marginLeft: 8,
     color: APP_COLORS.error,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   versionInfo: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingBottom: 24,
   },
   versionText: {

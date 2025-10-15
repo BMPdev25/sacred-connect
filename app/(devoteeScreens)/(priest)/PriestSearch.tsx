@@ -196,13 +196,12 @@ const PriestSearch: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        {/* <TouchableOpacity
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.push('/devotee/(tabs)/HomeTab')}
-        //   onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Find Priests</Text>
         <TouchableOpacity
           style={styles.filterButton}

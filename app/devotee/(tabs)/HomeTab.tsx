@@ -22,7 +22,7 @@ const androidStatusBarHeight =
 const HEADER_TOP_PADDING =
   Platform.OS === "android" ? androidStatusBarHeight : 44;
 
-const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [searchQuery, setSearchQuery] = useState<string>("");
 

@@ -5,7 +5,7 @@ const userService = {
   // Profile Management
   getProfile: async (): Promise<any> => {
     try {
-      const response = await api.get('/user/profile');
+      const response = await api.get('/api/user/profile');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -14,7 +14,7 @@ const userService = {
 
   updateProfile: async (profileData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/user/profile', profileData);
+      const response = await api.put('/api/user/profile', profileData);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -69,7 +69,7 @@ const userService = {
 
   updateSecuritySettings: async (settings: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/user/security/settings', settings);
+      const response = await api.put('/api/user/security/settings', settings);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -79,7 +79,7 @@ const userService = {
   // Privacy Settings
   updatePrivacySettings: async (settings: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/user/privacy/settings', settings);
+      const response = await api.put('/api/user/privacy/settings', settings);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -89,7 +89,7 @@ const userService = {
   // Notification Preferences
   updateNotificationPreferences: async (preferences: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/user/notifications', preferences);
+      const response = await api.put('/api/user/notifications', preferences);
       return response.data;
     } catch (error: any) {
       throw error;

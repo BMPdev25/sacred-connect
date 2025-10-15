@@ -1,21 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as SecureStore from 'expo-secure-store';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Modal,
-    ScrollView,
-    StyleSheet,
-    Switch,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from '../../constants/Colors';
+import { loadUser } from '../../redux/slices/authSlice';
 import { AppDispatch, RootState } from '../../redux/store';
 import userService from '../../services/userService';
 
@@ -115,8 +117,20 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
   const handleSecurityToggle = async (setting: keyof typeof securitySettings, value: boolean) => {
     try {
       const updatedSettings = { ...securitySettings, [setting]: value };
-      await userService.updateSecuritySettings({ [setting]: value });
+      const resp = await userService.updateSecuritySettings({ [setting]: value });
       setSecuritySettings(updatedSettings);
+
+      // Refresh stored user info so other parts of the app get updated data
+      try {
+        const profileResp = await userService.getProfile();
+        if (profileResp.success) {
+          await SecureStore.setItemAsync('userInfo', JSON.stringify(profileResp.data));
+          // dispatch loadUser to refresh redux auth slice
+          (dispatch as any)(loadUser());
+        }
+      } catch (e) {
+        console.warn('Failed to refresh user profile after security update', e);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to update security settings');
     }
@@ -125,8 +139,19 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
   const handlePrivacyToggle = async (setting: keyof typeof privacySettings, value: any) => {
     try {
       const updatedSettings = { ...privacySettings, [setting]: value };
-      await userService.updatePrivacySettings({ [setting]: value });
+      const resp = await userService.updatePrivacySettings({ [setting]: value });
       setPrivacySettings(updatedSettings);
+
+      // Refresh stored user info
+      try {
+        const profileResp = await userService.getProfile();
+        if (profileResp.success) {
+          await SecureStore.setItemAsync('userInfo', JSON.stringify(profileResp.data));
+          (dispatch as any)(loadUser());
+        }
+      } catch (e) {
+        console.warn('Failed to refresh user profile after privacy update', e);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to update privacy settings');
     }
@@ -175,9 +200,9 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
   return (
       <SafeAreaView style={styles.container} edges={["top","left","right"]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }] }>
-        {/* <TouchableOpacity onPress={() => router.push('/devotee/ProfileTab')}>
+        <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.primary} />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Security & Privacy</Text>
       </View>
 
@@ -202,7 +227,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
             <Ionicons name="chevron-forward" size={20} color={APP_COLORS.gray} />
           </TouchableOpacity>
 
-          <View style={styles.menuItem}>
+          {/* <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="shield-checkmark-outline" size={24} color={APP_COLORS.primary} />
               <View style={styles.menuItemText}>
@@ -218,7 +243,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
               trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + '40' }}
               thumbColor={securitySettings.twoFactorEnabled ? APP_COLORS.primary : APP_COLORS.gray}
             />
-          </View>
+          </View> */}
         </View>
 
         {/* Privacy Section */}

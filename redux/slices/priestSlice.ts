@@ -77,6 +77,7 @@ export const updateProfile = createAsyncThunk<PriestProfile, Partial<PriestProfi
   'priest/updateProfile',
   async (profileData, { rejectWithValue }) => {
     try {
+      console.log("Updating profile with data:", profileData);
       const response = await api.put('/api/priest/profile', profileData);
       return response.data;
     } catch (error: any) {

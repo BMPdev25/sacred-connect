@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -9,12 +9,12 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  Switch,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -24,13 +24,41 @@ import { updateProfile } from "../../redux/slices/priestSlice";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
-const ProfileSetup = ({ route }: any) => {
+const ProfileSetup = () => {
   const dispatch: any = useDispatch();
   const { userInfo } = useSelector((state: any) => state.auth);
+  const params = useLocalSearchParams();
 
   // Get existing profile data from route params
-  const existingProfile = route?.params?.profileData;
-  const isEditing = route?.params?.isEditing;
+  // The caller sends: { profileData: JSON.stringify(profile), isEditing: true }
+  // So handle both the case where profileData is already an object or a JSON string.
+  let existingProfile: any = undefined;
+  try {
+    const raw = params?.profileData as any;
+    if (raw) {
+      existingProfile = typeof raw === "string" ? JSON.parse(raw) : raw;
+    }
+  } catch (err) {
+    console.warn("Failed to parse profileData route param:", err);
+    existingProfile = undefined;
+  }
+
+  // Normalize isEditing to boolean (route params can be strings or arrays)
+  let isEditing = false;
+  try {
+    const rawIsEditing: any = params?.isEditing;
+    if (rawIsEditing === true) {
+      isEditing = true;
+    } else if (typeof rawIsEditing === "string") {
+      isEditing = rawIsEditing === "true";
+    } else if (Array.isArray(rawIsEditing) && rawIsEditing.length > 0) {
+      isEditing = rawIsEditing[0] === "true";
+    }
+  } catch (err) {
+    isEditing = false;
+  }
+
+  console.log("Existing profile data:", existingProfile);
 
   // Form state - pre-fill if editing
   const [name, setName] = useState(userInfo?.name || "");
@@ -54,23 +82,29 @@ const ProfileSetup = ({ route }: any) => {
 
   // Services/ceremonies offered
   const [availableCeremonies, setAvailableCeremonies] = useState([
-    { id: "1", name: "Wedding Ceremony", selected: false, price: "15000" },
-    { id: "2", name: "Grih Pravesh", selected: false, price: "8000" },
-    { id: "3", name: "Baby Naming", selected: false, price: "5000" },
-    { id: "4", name: "Satyanarayan Katha", selected: false, price: "11000" },
-    { id: "5", name: "Funeral Ceremony", selected: false, price: "12000" },
+    { id: "1", name: "Default", selected: false, price: "0" },
+    { id: "2", name: "Default", selected: false, price: "0" },
+    { id: "3", name: "Default", selected: false, price: "0" },
+    { id: "4", name: "Default", selected: false, price: "0" },
+    { id: "5", name: "Default", selected: false, price: "0" },
   ]);
 
   // Availability
   const [availability, setAvailability] = useState({
-    monday: { available: true, startTime: "09:00", endTime: "18:00" },
-    tuesday: { available: true, startTime: "09:00", endTime: "18:00" },
-    wednesday: { available: true, startTime: "09:00", endTime: "18:00" },
-    thursday: { available: true, startTime: "09:00", endTime: "18:00" },
-    friday: { available: true, startTime: "09:00", endTime: "18:00" },
-    saturday: { available: true, startTime: "09:00", endTime: "18:00" },
-    sunday: { available: false, startTime: "09:00", endTime: "18:00" },
+    monday: { available: false, startTime: "", endTime: "" },
+    tuesday: { available: false, startTime: "", endTime: "" },
+    wednesday: { available: false, startTime: "", endTime: "" },
+    thursday: { available: false, startTime: "", endTime: "" },
+    friday: { available: false, startTime: "", endTime: "" },
+    saturday: { available: false, startTime: "", endTime: "" },
+    sunday: { available: false, startTime: "", endTime: "" },
   });
+
+  // Default times for quick set (editable in the UI)
+  const [defaultStart, setDefaultStart] = useState("09:00");
+  const [defaultEnd, setDefaultEnd] = useState("18:00");
+  // Per-day time validation errors
+  const [timeErrors, setTimeErrors] = useState<Record<string, string>>({});
 
   // Form step
   const [currentStep, setCurrentStep] = useState(1);
@@ -78,7 +112,7 @@ const ProfileSetup = ({ route }: any) => {
 
   // Pre-fill data when editing
   useEffect(() => {
-    if (isEditing && existingProfile) {
+    // if (isEditing && existingProfile) {
       // Pre-fill ceremonies and prices
       if (existingProfile.ceremonies && existingProfile.priceList) {
         const updatedCeremonies = availableCeremonies.map((ceremony) => {
@@ -96,10 +130,11 @@ const ProfileSetup = ({ route }: any) => {
 
       // Pre-fill availability if exists
       if (existingProfile.availability) {
+        console.log("setting availability");
         setAvailability(existingProfile.availability);
       }
-    }
-  }, [isEditing, existingProfile]);
+    // }
+  }, []);
 
   // Temple handlers
   const addTemple = () => {
@@ -139,23 +174,70 @@ const ProfileSetup = ({ route }: any) => {
 
   // Availability handlers
   const toggleDayAvailability = (day: string) => {
-    setAvailability({
-      ...availability,
-      [day]: {
-        ...availability[day as keyof typeof availability],
-        available: !availability[day as keyof typeof availability].available,
-      },
+    setAvailability((prev: any) => {
+      const currently = prev[day];
+      const nowAvailable = !currently.available;
+      const updatedDay = { ...currently, available: nowAvailable };
+      // If enabling and times empty, fill with defaults
+      if (nowAvailable && (!updatedDay.startTime || !updatedDay.endTime)) {
+        updatedDay.startTime = defaultStart;
+        updatedDay.endTime = defaultEnd;
+      }
+      return { ...prev, [day]: updatedDay };
     });
+    // clear any error for this day when toggling
+    setTimeErrors((prev) => ({ ...prev, [day]: "" }));
   };
 
   const updateTimeSlot = (day: string, field: string, value: string) => {
-    setAvailability({
-      ...availability,
-      [day]: {
-        ...(availability as any)[day],
-        [field]: value,
-      },
+    setAvailability((prev: any) => {
+      const updated = { ...prev };
+      updated[day] = { ...updated[day], [field]: value };
+      return updated;
     });
+
+    // Validate format and ordering
+    setTimeout(() => {
+      const updatedDay = (availability as any)[day] || {};
+      const newVal = field === "startTime" ? value : updatedDay.startTime;
+      const newEnd = field === "endTime" ? value : updatedDay.endTime;
+      const err = validateTimePair(newVal, newEnd);
+      setTimeErrors((prev) => ({ ...prev, [day]: err }));
+    }, 0);
+  };
+
+  // Time validation helpers
+  const isValidTimeFormat = (t: string) => /^(([01]\d|2[0-3]):([0-5]\d))$/.test(t);
+  const timeToMinutes = (t: string) => {
+    if (!isValidTimeFormat(t)) return NaN;
+    const [hh, mm] = t.split(":").map(Number);
+    return hh * 60 + mm;
+  };
+  const validateTimePair = (start: string, end: string) => {
+    if (!start && !end) return "";
+    if (!isValidTimeFormat(start)) return "Invalid start time";
+    if (!isValidTimeFormat(end)) return "Invalid end time";
+    if (timeToMinutes(start) >= timeToMinutes(end)) return "Start must be before end";
+    return "";
+  };
+
+  // UX helpers for availability
+  const setDefaultTimes = (start = "09:00", end = "18:00") => {
+    const updated: any = { ...availability };
+    Object.keys(updated).forEach((d) => {
+      updated[d] = { ...updated[d], startTime: start, endTime: end };
+    });
+    setAvailability(updated);
+  };
+
+  const applyToAllDays = (fromDay: string) => {
+    const source = (availability as any)[fromDay];
+    if (!source) return;
+    const updated: any = { ...availability };
+    Object.keys(updated).forEach((d) => {
+      updated[d] = { ...updated[d], startTime: source.startTime, endTime: source.endTime, available: source.available };
+    });
+    setAvailability(updated);
   };
 
   // Form submission
@@ -163,6 +245,21 @@ const ProfileSetup = ({ route }: any) => {
     // Validate form
     if (!name || !email || !phone || !experience || !religiousTradition) {
       Alert.alert("Validation Error", "Please fill all required fields");
+      return;
+    }
+
+    // Validate availability times before submit
+    const newErrors: Record<string, string> = {};
+    Object.entries(availability).forEach(([day, data]) => {
+      if (data.available) {
+        const err = validateTimePair(data.startTime, data.endTime);
+        if (err) newErrors[day] = err;
+      }
+    });
+
+    if (Object.keys(newErrors).length > 0) {
+      setTimeErrors(newErrors);
+      Alert.alert("Validation Error", "Please fix availability time errors before submitting.");
       return;
     }
 
@@ -224,11 +321,11 @@ const ProfileSetup = ({ route }: any) => {
         );
       }
 
-      // Update AsyncStorage to persist user info changes
-      const userInfoString = await AsyncStorage.getItem("userInfo");
+      // Persist user info changes using secure storage
+      const userInfoString = await SecureStore.getItemAsync("userInfo");
       if (userInfoString) {
         const parsedUserInfo = JSON.parse(userInfoString);
-        await AsyncStorage.setItem(
+        await SecureStore.setItemAsync(
           "userInfo",
           JSON.stringify({
             ...parsedUserInfo,
@@ -493,50 +590,89 @@ const ProfileSetup = ({ route }: any) => {
       <Text style={styles.stepTitle}>Availability</Text>
       <Text style={styles.stepSubtitle}>Set your weekly availability</Text>
 
+      {/* Defaults editor */}
+      <View style={styles.availabilityActions}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={{ marginRight: 8, color: APP_COLORS.gray }}>Defaults</Text>
+          <TextInput
+            style={[styles.timeInput, styles.smallTimeInput]}
+            value={defaultStart}
+            onChangeText={setDefaultStart}
+            placeholder="From"
+            placeholderTextColor={APP_COLORS.gray}
+          />
+          <TextInput
+            style={[styles.timeInput, styles.smallTimeInput, { marginLeft: 8 }]}
+            value={defaultEnd}
+            onChangeText={setDefaultEnd}
+            placeholder="To"
+            placeholderTextColor={APP_COLORS.gray}
+          />
+        </View>
+
+        <View style={{ flexDirection: "row" }}>
+          <TouchableOpacity
+            style={[styles.actionButton, { marginRight: 8 }]}
+            onPress={() => setDefaultTimes(defaultStart, defaultEnd)}
+          >
+            <Text style={styles.actionButtonText}>Apply defaults</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={() => applyToAllDays("monday")}
+          >
+            <Text style={styles.actionButtonText}>Copy Mon → all</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Per-day rows */}
       {Object.entries(availability).map(([day, data]) => (
         <View key={day} style={styles.availabilityItem}>
           <View style={styles.availabilityDay}>
-            <Text style={styles.dayName}>
-              {day.charAt(0).toUpperCase() + day.slice(1)}
-            </Text>
+            <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
             <Switch
-              value={data.available}
+              value={!!data.available}
               onValueChange={() => toggleDayAvailability(day)}
-              trackColor={{
-                false: APP_COLORS.lightGray,
-                true: APP_COLORS.primary + "80",
-              }}
+              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + "80" }}
               thumbColor={data.available ? APP_COLORS.primary : APP_COLORS.gray}
             />
           </View>
 
-          {data.available && (
+          {data.available ? (
             <View style={styles.timeSlots}>
               <View style={styles.timeSlot}>
                 <Text style={styles.timeLabel}>From</Text>
                 <TextInput
-                  style={styles.timeInput}
+                  style={[styles.timeInput, styles.smallTimeInput]}
                   value={data.startTime}
-                  onChangeText={(value) =>
-                    updateTimeSlot(day, "startTime", value)
-                  }
+                  onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
                   placeholder="09:00"
                   placeholderTextColor={APP_COLORS.gray}
                 />
+                {timeErrors[day] ? (
+                  <Text style={{ color: APP_COLORS.error, marginTop: 6 }}>{timeErrors[day]}</Text>
+                ) : null}
               </View>
               <View style={styles.timeSlot}>
                 <Text style={styles.timeLabel}>To</Text>
                 <TextInput
-                  style={styles.timeInput}
+                  style={[styles.timeInput, styles.smallTimeInput]}
                   value={data.endTime}
-                  onChangeText={(value) =>
-                    updateTimeSlot(day, "endTime", value)
-                  }
+                  onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
                   placeholder="18:00"
                   placeholderTextColor={APP_COLORS.gray}
                 />
               </View>
+              <TouchableOpacity
+                style={{ marginLeft: 12, alignSelf: "center" }}
+                onPress={() => applyToAllDays(day)}
+              >
+                <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all</Text>
+              </TouchableOpacity>
             </View>
+          ) : (
+            <Text style={{ color: APP_COLORS.gray, marginTop: 8 }}>You're marked unavailable on this day.</Text>
           )}
         </View>
       ))}
@@ -825,6 +961,13 @@ const styles = StyleSheet.create({
     padding: 12,
     elevation: 1,
   },
+  availabilityActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    paddingHorizontal: 4,
+  },
   availabilityDay: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -856,6 +999,24 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.lightGray,
     borderRadius: 4,
     padding: 8,
+  },
+  smallTimeInput: {
+    width: 90,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  actionButton: {
+    backgroundColor: APP_COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionButtonText: {
+    color: APP_COLORS.white,
+    fontWeight: "600",
+    fontSize: 13,
   },
   footer: {
     flexDirection: "row",

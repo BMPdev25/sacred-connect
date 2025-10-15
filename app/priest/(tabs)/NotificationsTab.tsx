@@ -21,7 +21,7 @@ const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
 const NotificationsScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  console.log("User Info in NotificationsScreen:", userInfo);
+  // console.log("User Info in NotificationsScreen:", userInfo);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
@@ -128,10 +128,10 @@ const NotificationsScreen: React.FC = () => {
           if (!item.read) {
             markAsRead(item._id);
           }
-
+          console.log("Notification tapped:", item);
           // Handle notification tap
           if (item.type === "booking") {
-            router.push("/priest/BookingsTab");
+            router.push({ pathname: "/PriestBookingDetails", params: { notificationDetails: JSON.stringify(item) } });
           } else if (item.type === "payment") {
             router.push("/priest/EarningsTab");
           }
@@ -154,8 +154,6 @@ const NotificationsScreen: React.FC = () => {
       </TouchableOpacity>
     );
   };
-
-  console.log("Rendering NotificationsScreen with notifications:", notifications);
 
   return (
     <SafeAreaView style={styles.container}>

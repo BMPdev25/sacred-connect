@@ -20,19 +20,11 @@ interface BookingState {
 }
 
 // Get user bookings
-export const getBookings = createAsyncThunk<Booking[], { devoteeId: string }, { state: RootState; rejectValue: string }>(
+export const getBookings = createAsyncThunk<Booking[], void, { state: RootState; rejectValue: string }>(
   'booking/getBookings',
-  async ({ devoteeId }, { rejectWithValue, getState }) => {
-    console.log("in service user id", devoteeId)
+  async (_, { rejectWithValue, getState }) => {
     try {
-      const state = getState();
-      const userToken = (state.auth as any)?.userToken;
-      // Pass devoteeId as query param to backend
-      const response = await api.get(`/api/devotee/bookings/${devoteeId}`,
-        {
-          headers: userToken ? { Authorization: `Bearer ${userToken}` } : undefined,
-        }
-      );
+      const response = await api.get('/api/devotee/bookings');
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');

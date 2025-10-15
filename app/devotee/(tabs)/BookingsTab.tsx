@@ -21,7 +21,7 @@ import { AppDispatch, RootState } from '../../../redux/store';
 import { formatCurrency } from '../../../utils/formatUtlis';
 
 
-const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+const BookingsTabScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const { bookings, isLoading, error } = useSelector((state: RootState) => state.booking);
@@ -32,8 +32,8 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
   useEffect(() => {
-    if (userInfo && userInfo._id) {
-      dispatch(getBookings({ devoteeId: userInfo._id }));
+    if (userInfo) {
+      dispatch(getBookings());
     }
   }, [dispatch, userInfo]);
 
@@ -46,8 +46,8 @@ const BookingsTabScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const onRefresh = async () => {
     setRefreshing(true);
     try {
-      if (userInfo && typeof userInfo._id === 'string') {
-        await dispatch(getBookings({ devoteeId: userInfo._id }));
+      if (userInfo) {
+        await dispatch(getBookings());
       }
     } catch (error) {
       console.error('Refresh error:', error);

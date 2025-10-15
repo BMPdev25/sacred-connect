@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import React from "react";
 import {
   ScrollView,
@@ -14,12 +15,12 @@ const HelpScreen: React.FC = () => {
   return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          {/* <TouchableOpacity
+          <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => router.back()}
         >
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
-        </TouchableOpacity> */}
+        </TouchableOpacity>
           <Text style={styles.headerTitle}>Help & Support</Text>
           <View style={styles.placeholder} />
         </View>

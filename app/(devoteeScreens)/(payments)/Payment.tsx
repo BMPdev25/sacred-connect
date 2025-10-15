@@ -102,7 +102,7 @@ const Payment: React.FC = () => {
       const createdBooking = await devoteeService.createBooking(bookingData);
 
       // Refresh bookings in Redux store
-      dispatch(getBookings({ devoteeId: userInfo?._id ?? "" }));
+      dispatch(getBookings());
 
       setIsProcessing(false);
 
@@ -139,7 +139,7 @@ const Payment: React.FC = () => {
         <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={() => router.push("/PaymentMethods")}
+            onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
           </TouchableOpacity>

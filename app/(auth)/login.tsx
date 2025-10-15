@@ -56,6 +56,7 @@ export default function LoginScreen() {
     }
 
     try {
+      console.log("Attempting login with phone:");
       // Await the login thunk and get the returned user info
       const user = await dispatch(login({ phone: state.phone, password: state.password })).unwrap();
 

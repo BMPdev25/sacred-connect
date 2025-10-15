@@ -1,5 +1,5 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useDispatch } from "react-redux";
@@ -12,7 +12,7 @@ export default function Authentication() {
     let mounted = true;
     (async () => {
       try {
-        const userInfoStr = await AsyncStorage.getItem("userInfo");
+        const userInfoStr = await SecureStore.getItemAsync("userInfo");
         if (!mounted) return;
 
         if (userInfoStr) {

@@ -1,39 +1,36 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
 import {
-    ScrollView,
-    Share,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ScrollView,
+  Share,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
 
 const BookingConfirmation: React.FC = () => {
-//   const { booking } = route.params || { booking: {} };
-  const { booking } = { booking: {
-    ceremonyType: 'Test',
-    priestName: 'Battu',
-    paymentId: '123',
-    date:'',
-    startTime: '',
-    endTime: '',
-    paymentMethod: 'UPI',
-    basePrice: 6,
-    platformFee: 20,
-    totalAmount: 500,
-    location: {
-        address: 'On Earth',
-        city: 'Khansar'
+  // Read booking passed via router params. The caller stringifies the booking object.
+  const params = useLocalSearchParams();
+  let booking: any = null;
+  try {
+    if (params?.booking) {
+      booking = JSON.parse(params.booking as string);
     }
-  } };
+  } catch (e) {
+    console.warn('Failed to parse booking param:', e);
+    booking = null;
+  }
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'TBD';
+    const d = new Date(dateString);
+    if (isNaN(d.getTime())) return 'TBD';
     const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date(dateString).toLocaleDateString('en-US', options);
+    return d.toLocaleDateString('en-US', options);
   };
 
   const handleShare = async () => {
@@ -80,7 +77,7 @@ const BookingConfirmation: React.FC = () => {
           <Text style={styles.sectionTitle}>Booking Details</Text>
           <View style={styles.bookingId}>
             <Text style={styles.bookingIdLabel}>Booking ID:</Text>
-            <Text style={styles.bookingIdValue}>{booking.paymentId.replace('PAY', 'BK')}</Text>
+            <Text style={styles.bookingIdValue}>{String(booking.paymentId || '').replace('PAY', 'BK') || 'N/A'}</Text>
           </View>
 
           <View style={styles.detailItem}>
@@ -100,12 +97,12 @@ const BookingConfirmation: React.FC = () => {
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Time</Text>
-            <Text style={styles.detailValue}>{booking.startTime} - {booking.endTime}</Text>
+            <Text style={styles.detailValue}>{(booking.startTime || 'TBD')} - {(booking.endTime || 'TBD')}</Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Venue</Text>
-            <Text style={styles.detailValue}>{booking.location.address}, {booking.location.city}</Text>
+            <Text style={styles.detailValue}>{booking.location?.address || 'TBD'}, {booking.location?.city || ''}</Text>
           </View>
         </View>
 
@@ -113,7 +110,7 @@ const BookingConfirmation: React.FC = () => {
           <Text style={styles.sectionTitle}>Payment Information</Text>
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Payment Method</Text>
-            <Text style={styles.detailValue}>{booking.paymentMethod === 'upi' ? 'UPI' : 'Credit/Debit Card'}</Text>
+            <Text style={styles.detailValue}>{String(booking.paymentMethod || '').toLowerCase() === 'upi' ? 'UPI' : 'Credit/Debit Card'}</Text>
           </View>
 
           <View style={styles.detailItem}>

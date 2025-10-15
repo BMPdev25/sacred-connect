@@ -343,16 +343,6 @@ const BookingDetailsScreen: React.FC = () => {
               </TouchableOpacity>
             </>
           )}
-          {booking?.status === "confirmed" && (
-            <TouchableOpacity
-              style={[styles.actionButton, styles.completeButton]}
-              onPress={() => {
-                /* handleUpdateStatus('completed') */
-              }}
-            >
-              <Text style={styles.actionButtonText}>Mark as Completed</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <TouchableOpacity

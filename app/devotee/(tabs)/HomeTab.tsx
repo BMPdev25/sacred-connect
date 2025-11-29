@@ -80,9 +80,8 @@ const HomeScreen: React.FC = () => {
     router.push(`/PriestSearch?query=${searchQuery}`);
   };
 
-  const handleCeremonyPress = (ceremony: { id?: string; name: string }) => {
-    router.push(`/PriestSearch?ceremony=${ceremony.name}`);
-    // navigation.navigate("PriestSearch", { ceremony: ceremony.name });
+  const handleCeremonyPress = (ceremony: { id: string; name: string }) => {
+    router.push(`/(devoteeScreens)/(pujas)/${ceremony.id}`);
   };
 
   const handlePriestPress = (priest: any) => {

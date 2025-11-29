@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
-  return 'http://192.168.7.101:5000'; // Updated to match backend port
+  return 'http://192.168.29.44:5000'; // Updated to match backend port
 };
 
 // Create axios instance with proper configuration

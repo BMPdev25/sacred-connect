@@ -17,6 +17,34 @@ const priestService = {
       throw error?.response?.data?.message || 'Failed to fetch profile. Please try again.';
     }
   },
+  /**
+   * Get pujaris who can perform a specific ceremony
+   * Supports optional radius + location filtering
+   * @param {Object} params - ceremonyId, lat?, lng?, radius?
+   */
+  getAvailablePujaris: async (params: {
+    ceremonyId: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+  }): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/available', {
+        params: {
+          ceremonyId: params.ceremonyId,
+          lat: params.lat,
+          lng: params.lng,
+          radius: params.radius ?? 10,
+        },
+      });
+      return response.data.pujaris;
+    } catch (error: any) {
+      throw (
+        error?.response?.data?.message ||
+        'Failed to fetch available pujaris. Please try again.'
+      );
+    }
+  },
 
   /**
    * Update priest profile

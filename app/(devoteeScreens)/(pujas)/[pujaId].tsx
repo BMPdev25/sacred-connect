@@ -3,7 +3,7 @@ import { View, Text, Image, ScrollView, StyleSheet, ActivityIndicator } from "re
 import { useQuery } from "@tanstack/react-query";
 import { fetchPujaById, fetchPujarisForPuja } from "../../../services/pujaApi";
 import PujariCard from "../../../components/PujariCard";
-
+import { APP_COLORS } from '../../../constants/Colors'
 export default function PujaDetail() {
   const { pujaId } = useLocalSearchParams<{ pujaId: string }>();
   const router = useRouter();
@@ -23,8 +23,9 @@ export default function PujaDetail() {
     return <ActivityIndicator size="large" />;
   }
   return (
-    <ScrollView style={styles.container}>
-      
+    <ScrollView style={{ flex: 1, backgroundColor: APP_COLORS.background }} 
+    contentContainerStyle={styles.container}>
+  
       {/* Header image */}
       <Image source={{ uri: puja.image }} style={styles.headerImage} />
 
@@ -65,10 +66,39 @@ export default function PujaDetail() {
 }
 
 const styles = StyleSheet.create({
-  container: { padding: 16 },
-  headerImage: { width: "100%", height: 220, borderRadius: 12 },
-  title: { fontSize: 26, fontWeight: "bold", marginTop: 12 },
-  sectionTitle: { fontSize: 20, fontWeight: "600", marginTop: 22 },
-  description: { fontSize: 15, color: "#444", marginTop: 6, lineHeight: 20 },
-  bullet: { fontSize: 15, marginTop: 4, color: "#333", marginLeft: 8 },
+  container: { 
+    padding: 16,
+    backgroundColor: APP_COLORS.background,
+    flexGrow: 1
+  },
+  headerImage: { 
+    width: "100%", 
+    height: 220, 
+    borderRadius: 12 
+  },
+  title: { 
+    fontSize: 26, 
+    fontWeight: "bold", 
+    marginTop: 12, 
+    color: APP_COLORS.black 
+  },
+  sectionTitle: { 
+    fontSize: 20, 
+    fontWeight: "600", 
+    marginTop: 22, 
+    color: APP_COLORS.black 
+  },
+  description: { 
+    fontSize: 15, 
+    color: APP_COLORS.gray, 
+    marginTop: 6, 
+    lineHeight: 20 
+  },
+  bullet: { 
+    fontSize: 15, 
+    marginTop: 4, 
+    color: APP_COLORS.gray, 
+    marginLeft: 8 
+  }
 });
+

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Platform,
   ScrollView,
@@ -13,9 +14,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
+import ceremonyService from "../../../services/ceremonyService";
+
 // Platform.constants may be undefined in some environments; guard access
 const androidStatusBarHeight =
   (Platform as any).constants?.StatusBarHeight ?? 24;
@@ -26,24 +30,12 @@ const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  // Ceremonies data with error handling for images
-  const ceremonies = [
-    {
-      id: "1",
-      name: "Wedding",
-      image: require("../../../assets/images/wedding.jpg"),
-    },
-    {
-      id: "2",
-      name: "Grih Pravesh",
-      image: require("../../../assets/images/home-rituals.jpg"),
-    },
-    {
-      id: "3",
-      name: "Baby Naming",
-      image: require("../../../assets/images/baby-naming.jpg"),
-    },
-  ];
+  // Fetch ceremonies from backend
+  const { data: ceremoniesData, isLoading: isLoadingCeremonies } = useQuery({
+    queryKey: ["ceremonies", "popular"],
+    queryFn: () => ceremonyService.getAllPujas({ limit: 5 }), // Using getAllPujas based on service wrapper
+    select: (data) => data.ceremonies || [],
+  });
 
   // Mock data for recommended priests
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
@@ -80,8 +72,8 @@ const HomeScreen: React.FC = () => {
     router.push(`/PriestSearch?query=${searchQuery}`);
   };
 
-  const handleCeremonyPress = (ceremony: { id: string; name: string }) => {
-    router.push(`/(devoteeScreens)/(pujas)/${ceremony.id}`);
+  const handleCeremonyPress = (ceremony: { _id: string; name: string }) => {
+    router.push(`/(devoteeScreens)/(pujas)/${ceremony._id}`);
   };
 
   const handlePriestPress = (priest: any) => {
@@ -136,36 +128,44 @@ const HomeScreen: React.FC = () => {
 
         <View style={styles.ceremoniesContainer}>
           <Text style={styles.sectionTitle}>Popular Ceremonies</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.ceremoniesScroll}
-          >
-            {ceremonies.map((ceremony) => (
-              <TouchableOpacity
-                key={ceremony.id}
-                style={styles.ceremonyCard}
-                onPress={() => handleCeremonyPress(ceremony)}
-              >
-                <Image source={ceremony.image} style={styles.ceremonyImage} />
-                <View style={styles.ceremonyOverlay} />
-                <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={[styles.ceremonyCard, styles.viewAllCard]}
-              onPress={() => {}}
+          {isLoadingCeremonies ? (
+            <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginLeft: 16, alignSelf: 'flex-start' }} />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.ceremoniesScroll}
             >
-              <View style={styles.viewAllContent}>
-                <Text style={styles.viewAllText}>View All</Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={20}
-                  color={APP_COLORS.primary}
-                />
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
+              {ceremoniesData?.map((ceremony: any) => (
+                <TouchableOpacity
+                  key={ceremony._id}
+                  style={styles.ceremonyCard}
+                  onPress={() => handleCeremonyPress(ceremony)}
+                >
+                  <Image
+                    source={{ uri: ceremony.image || "https://via.placeholder.com/150" }}
+                    style={styles.ceremonyImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.ceremonyOverlay} />
+                  <Text style={styles.ceremonyName} numberOfLines={2}>{ceremony.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.ceremonyCard, styles.viewAllCard]}
+                onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+              >
+                <View style={styles.viewAllContent}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={APP_COLORS.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.priestsContainer}>

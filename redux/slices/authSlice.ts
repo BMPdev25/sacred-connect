@@ -24,7 +24,7 @@ interface AuthState {
 
 // Login user
 interface LoginParams {
-  phone: string;
+  identifier: string;
   password: string;
 }
 
@@ -32,11 +32,11 @@ export const login = createAsyncThunk<
   UserInfo,
   LoginParams,
   { rejectValue: string }
->("auth/login", async ({ phone, password }, { rejectWithValue }) => {
+>("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
   try {
-    console.log("Attempting login with:", { phone });
+    console.log("Attempting login with:", { identifier });
     const response = await api.post("/api/auth/login", {
-      phone,
+      identifier,
       password,
     });
 
@@ -63,6 +63,55 @@ export const login = createAsyncThunk<
     } else if (error.request) {
       errorMessage =
         "Unable to reach the server. Please check your internet connection and make sure the server is running.";
+    } else {
+      errorMessage = `Request error: ${error.message}`;
+    }
+
+    return rejectWithValue(errorMessage);
+  }
+});
+
+// Firebase Login
+interface FirebaseLoginParams {
+  idToken: string;
+  userType?: "devotee" | "priest";
+}
+
+export const firebaseLogin = createAsyncThunk<
+  UserInfo,
+  FirebaseLoginParams,
+  { rejectValue: string }
+>("auth/firebaseLogin", async ({ idToken, userType }, { rejectWithValue }) => {
+  try {
+    console.log("Attempting firebase login with token");
+    const response = await api.post("/api/auth/firebase-login", {
+      idToken,
+      userType
+    });
+
+    console.log("Firebase Login successful");
+
+    // Store token in SecureStore
+    await SecureStore.setItemAsync("userToken", response.data.token);
+    // Ensure _id is present in userInfo for future use
+    const userInfoToStore = response.data._id
+      ? { ...response.data, _id: response.data._id }
+      : response.data;
+    await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfoToStore));
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error occurred during firebase login:", error);
+
+    // Create a user-friendly error message
+    let errorMessage = "An error occurred during login.";
+
+    if (error.response) {
+      errorMessage =
+        error.response.data.message || `Server error: ${error.response.status}`;
+    } else if (error.request) {
+      errorMessage =
+        "Unable to reach the server. Please check your internet connection.";
     } else {
       errorMessage = `Request error: ${error.message}`;
     }
@@ -285,6 +334,20 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error?.message || "Login failed";
+      })
+      // Firebase Login
+      .addCase(firebaseLogin.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(firebaseLogin.fulfilled, (state, action: PayloadAction<UserInfo>) => {
+        state.isLoading = false;
+        state.userInfo = action.payload;
+        state.userToken = action.payload.token;
+      })
+      .addCase(firebaseLogin.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error?.message || "Firebase login failed";
       })
       // Register
       .addCase(register.pending, (state) => {

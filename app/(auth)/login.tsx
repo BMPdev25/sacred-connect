@@ -12,28 +12,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from "react-redux";
 import InputField from "../../components/InputField";
 import { APP_COLORS } from "../../constants/Colors";
-import { clearError, login } from "../../redux/slices/authSlice";
+import { clearError, login, firebaseLogin } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
 
 interface LoginState {
-  phone: string;
+  identifier: string; // This can be phone or email
+  identifierType: "phone" | "email";
+  authMethod: "password" | "otp";
   password: string;
   showPassword: boolean;
-  religiousTradition: string;
-  templeAffiliation: string;
-  activeTab: "login" | "signup";
-  showReligiousOptions: boolean;
+  otp?: string;
+  confirmResult?: any;
+  activeTab: "login" | "signup"; // Keeps top level tab for login vs signup
 }
 
 export default function LoginScreen() {
   const [state, setState] = useState<LoginState>({
-    phone: "",
+    identifier: "",
+    identifierType: "phone", // Default to phone
+    authMethod: "password", // Default to password
     password: "",
     showPassword: false,
-    religiousTradition: "",
-    templeAffiliation: "",
     activeTab: "login",
-    showReligiousOptions: false,
   });
 
   const dispatch = useDispatch<AppDispatch>();
@@ -47,33 +47,55 @@ export default function LoginScreen() {
   }, [error, dispatch]);
 
   const handleLogin = async (): Promise<void> => {
-    if (!state.phone || !state.password) {
+    if (!state.identifier || !state.password) {
       Alert.alert(
         "Validation Error",
-        "Please enter your phone number and password"
+        `Please enter your ${state.identifierType} and password`
       );
       return;
     }
 
     try {
-      console.log("Attempting login with phone:");
+      console.log("Attempting login with:", state.identifier);
       // Await the login thunk and get the returned user info
-      const user = await dispatch(login({ phone: state.phone, password: state.password })).unwrap();
+      const user = await dispatch(login({ identifier: state.identifier, password: state.password })).unwrap();
 
-      // Navigate to role-specific home
-      if (user?.userType === 'priest') {
-        router.replace('/priest/HomeTab' as any);
-      } else if (user?.userType === 'devotee') {
-        router.replace('/devotee/HomeTab' as any);
-      } else {
-        // fallback to root or login
-        router.replace('/' as any);
-      }
+      navigateHome(user?.userType);
     } catch (err: any) {
-      // login thunk will have already set error in state; show a friendly alert if needed
       const message = err?.message || 'Login failed. Please try again.';
       Alert.alert('Login Error', message);
     }
+  };
+
+  const handleOTPLogin = async () => {
+    if (!state.otp) return;
+    // Simulate verify
+    // In real app, we verify OTP sent to state.identifier (email or phone)
+    const mockIdToken = `mock_token_${state.identifierType}_${state.identifier.replace(/[^a-zA-Z0-9]/g, '')}`;
+
+    try {
+      await dispatch(firebaseLogin({ idToken: mockIdToken, userType: 'devotee' })).unwrap(); // Defaulting to devotee for OTP login for now or need selector
+      navigateHome('devotee'); // Assume devotee for OTP flow or fetch profile
+    } catch (e: any) {
+      Alert.alert("Login Error", e.message || "Failed");
+    }
+  };
+
+  const navigateHome = (userType?: string) => {
+    if (userType === 'priest') {
+      router.replace('/priest/HomeTab' as any);
+    } else if (userType === 'devotee') {
+      router.replace('/devotee/HomeTab' as any);
+    } else {
+      router.replace('/' as any);
+    }
+  }
+
+  const sendOTP = () => {
+    if (!state.identifier) { Alert.alert("Error", `Enter ${state.identifierType}`); return; }
+    // Simulate sending OTP
+    Alert.alert("OTP Sent", `Code sent to ${state.identifier}`);
+    setState(prev => ({ ...prev, confirmResult: "mock_confirmation" }));
   };
 
   return (
@@ -87,79 +109,151 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.formContainer}>
-        <View style={styles.tabContainer}>
+          {/* Top Level Tab: Login vs Signup */}
+          <View style={styles.tabContainer}>
+            <TouchableOpacity
+              style={[
+                styles.tabButton,
+                state.activeTab === "login" && styles.activeTabButton,
+              ]}
+              onPress={() => setState((prev) => ({ ...prev, activeTab: "login" }))}
+            >
+              <Text style={[styles.tabText, state.activeTab === "login" && styles.activeTabText]}>
+                Login
+              </Text>
+            </TouchableOpacity>
+            {/* Signup Link - actually navigates */}
+            <TouchableOpacity
+              style={styles.tabButton}
+              onPress={() => router.push('/signup' as any)}
+            >
+              <Text style={styles.tabText}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 1. Identifier Type Toggle (Email vs Phone) */}
+          <View style={styles.typeToggleContainer}>
+            <TouchableOpacity
+              style={[styles.typeToggleButton, state.identifierType === 'phone' && styles.activeTypeToggleButton]}
+              onPress={() => setState(prev => ({ ...prev, identifierType: 'phone', identifier: '', validationError: undefined }))}
+            >
+              <Text style={[styles.typeToggleText, state.identifierType === 'phone' && styles.activeTypeToggleText]}>Phone</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.typeToggleButton, state.identifierType === 'email' && styles.activeTypeToggleButton]}
+              onPress={() => setState(prev => ({ ...prev, identifierType: 'email', identifier: '', validationError: undefined }))}
+            >
+              <Text style={[styles.typeToggleText, state.identifierType === 'email' && styles.activeTypeToggleText]}>Email</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* 2. Identifier Input */}
+          <InputField
+            label={state.identifierType === 'email' ? "Email Address" : "Phone Number"}
+            value={state.identifier}
+            onChangeText={(text: string) =>
+              setState((prev) => ({ ...prev, identifier: text }))
+            }
+            placeholder={state.identifierType === 'email' ? "Enter your email" : "Enter your phone"}
+            keyboardType={state.identifierType === 'email' ? "email-address" : "phone-pad"}
+            autoCapitalize="none"
+          />
+
+          {/* 3. Auth Method Selection (Password vs OTP) */}
+          <View style={styles.methodContainer}>
+            <Text style={styles.methodLabel}>Login using:</Text>
+            <View style={styles.methodToggle}>
+              <TouchableOpacity
+                style={[styles.methodButton, state.authMethod === 'password' && styles.activeMethodButton]}
+                onPress={() => setState(prev => ({ ...prev, authMethod: 'password' }))}
+              >
+                <Text style={[styles.methodButtonText, state.authMethod === 'password' && styles.activeMethodButtonText]}>Password</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.methodButton, state.authMethod === 'otp' && styles.activeMethodButton]}
+                onPress={() => setState(prev => ({ ...prev, authMethod: 'otp' }))}
+              >
+                <Text style={[styles.methodButtonText, state.authMethod === 'otp' && styles.activeMethodButtonText]}>OTP</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* 4. Conditional Rendering based on Method */}
+          {state.authMethod === 'password' ? (
+            <>
+              <InputField
+                label="Password"
+                value={state.password}
+                onChangeText={(text: string) =>
+                  setState((prev) => ({ ...prev, password: text }))
+                }
+                placeholder="Enter your password"
+                secureTextEntry={!state.showPassword}
+                showTogglePassword={true}
+                passwordVisible={state.showPassword}
+                onTogglePassword={() =>
+                  setState((prev) => ({ ...prev, showPassword: !prev.showPassword }))
+                }
+              />
+              <TouchableOpacity
+                style={styles.loginButton}
+                onPress={handleLogin}
+                disabled={isLoading}
+              >
+                <Text style={styles.loginButtonText}>
+                  {isLoading ? "Logging in..." : "Login"}
+                </Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <View style={styles.otpContainer}>
+              {!state.confirmResult ? (
+                <TouchableOpacity
+                  style={styles.sendOtpButton}
+                  onPress={sendOTP}
+                >
+                  <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                </TouchableOpacity>
+              ) : (
+                <>
+                  <Text style={styles.otpNote}>Code sent to {state.identifier}. Use 123456 for testing.</Text>
+                  <InputField
+                    label="Enter OTP"
+                    value={state.otp || ""}
+                    onChangeText={(text: string) =>
+                      setState((prev) => ({ ...prev, otp: text }))
+                    }
+                    placeholder="123456"
+                    keyboardType="number-pad"
+                  />
+                  <TouchableOpacity
+                    style={styles.loginButton}
+                    onPress={handleOTPLogin}
+                    disabled={isLoading}
+                  >
+                    <Text style={styles.loginButtonText}>
+                      {isLoading ? "Verifying..." : "Verify & Login"}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          )}
+
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+          </View>
           <TouchableOpacity
-            style={[
-              styles.tabButton,
-              state.activeTab === "login" && styles.activeTabButton,
-            ]}
+            style={styles.forgotPasswordButton}
             onPress={() =>
-              setState((prev) => ({ ...prev, activeTab: "login" }))
+              Alert.alert(
+                "Reset Password",
+                "Please contact support to reset your password."
+              )
             }
           >
-            <Text
-              style={[
-                styles.tabText,
-                state.activeTab === "login" && styles.activeTabText,
-              ]}
-            >
-              Login
-            </Text>
+            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
           </TouchableOpacity>
-        </View>
-        <InputField
-          label="Phone Number"
-          value={state.phone}
-          onChangeText={(text: string) =>
-            setState((prev) => ({ ...prev, phone: text }))
-          }
-          placeholder="Enter your phone number"
-          keyboardType="phone-pad"
-        />
-        <InputField
-          label="Password"
-          value={state.password}
-          onChangeText={(text: string) =>
-            setState((prev) => ({ ...prev, password: text }))
-          }
-          placeholder="Enter your password"
-          secureTextEntry={!state.showPassword}
-          showTogglePassword={true}
-          passwordVisible={state.showPassword}
-          onTogglePassword={() =>
-            setState((prev) => ({ ...prev, showPassword: !prev.showPassword }))
-          }
-  />
-        <TouchableOpacity
-          style={styles.loginButton}
-          onPress={handleLogin}
-          disabled={isLoading}
-        >
-          <Text style={styles.loginButtonText}>
-            {isLoading ? "Logging in..." : "Login"}
-          </Text>
-        </TouchableOpacity>
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-        </View>
-        <TouchableOpacity
-          style={styles.forgotPasswordButton}
-          onPress={() =>
-            Alert.alert(
-              "Reset Password",
-              "Please contact support to reset your password."
-            )
-          }
-        >
-          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
-
-        <View style={styles.authLinkContainer}>
-          <Text style={styles.authLinkText}>Don't have an account? </Text>
-          <TouchableOpacity onPress={() => router.push('/signup' as any)}>
-            <Text style={styles.authLinkAction}>Sign up</Text>
-          </TouchableOpacity>
-        </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -275,5 +369,82 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+  },
+  typeToggleContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: APP_COLORS.primary,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  typeToggleButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.white,
+  },
+  activeTypeToggleButton: {
+    backgroundColor: APP_COLORS.primary,
+  },
+  typeToggleText: {
+    color: APP_COLORS.primary,
+    fontWeight: 'bold',
+  },
+  activeTypeToggleText: {
+    color: APP_COLORS.white,
+  },
+  methodContainer: {
+    marginVertical: 12,
+  },
+  methodLabel: {
+    marginBottom: 8,
+    color: APP_COLORS.gray,
+    fontSize: 14,
+  },
+  methodToggle: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  methodButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: APP_COLORS.lightGray,
+    backgroundColor: APP_COLORS.background,
+  },
+  activeMethodButton: {
+    borderColor: APP_COLORS.primary,
+    backgroundColor: '#e6f0ff', // Hardcoded light primary for now
+  },
+  methodButtonText: {
+    color: APP_COLORS.gray,
+    fontSize: 14,
+  },
+  activeMethodButtonText: {
+    color: APP_COLORS.primary,
+    fontWeight: 'bold',
+  },
+  otpContainer: {
+    marginVertical: 10,
+  },
+  otpNote: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginBottom: 12,
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  sendOtpButton: {
+    backgroundColor: APP_COLORS.secondary || '#ff9900',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  sendOtpButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
   },
 });

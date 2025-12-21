@@ -7,8 +7,10 @@ import {
     Image,
     TouchableOpacity,
     ActivityIndicator,
+    TextInput,
 } from "react-native";
 import { useRouter, Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useQuery } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
 import ceremonyService from "../../../services/ceremonyService";
@@ -22,7 +24,16 @@ export default function AllPujasScreen() {
         queryFn: () => ceremonyService.getAllPujas({ limit: 50 }), // Fetch more for the list
     });
 
+    const [searchQuery, setSearchQuery] = React.useState("");
+
     const pujas = data?.ceremonies || [];
+    const filteredPujas = React.useMemo(() => {
+        if (!searchQuery) return pujas;
+        return pujas.filter((p: any) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [pujas, searchQuery]);
 
     const handlePujaPress = (pujaId: string) => {
         router.push(`/(devoteeScreens)/(pujas)/${pujaId}`);
@@ -74,15 +85,36 @@ export default function AllPujasScreen() {
 
     return (
         <View style={styles.container}>
+            <StatusBar style="light" />
             <Stack.Screen
                 options={{
                     headerShown: true,
                     title: "All Ceremonies",
-                    headerTintColor: APP_COLORS.black,
+                    headerTintColor: APP_COLORS.white,
+                    headerStyle: { backgroundColor: APP_COLORS.primary },
+                    headerTranslucent: false,
+                    headerShadowVisible: false,
                 }}
             />
+            <View style={styles.searchContainer}>
+                <View style={styles.searchBar}>
+                    <Ionicons name="search" size={20} color={APP_COLORS.gray} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search ceremonies..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        placeholderTextColor={APP_COLORS.gray}
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery("")}>
+                            <Ionicons name="close-circle" size={20} color={APP_COLORS.gray} />
+                        </TouchableOpacity>
+                    )}
+                </View>
+            </View>
             <FlatList
-                data={pujas}
+                data={filteredPujas}
                 renderItem={renderItem}
                 keyExtractor={(item) => item._id}
                 contentContainerStyle={styles.listContent}
@@ -106,6 +138,26 @@ const styles = StyleSheet.create({
     },
     listContent: {
         padding: 16,
+    },
+    searchContainer: {
+        backgroundColor: APP_COLORS.primary,
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+        paddingTop: 8,
+    },
+    searchBar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: APP_COLORS.white,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 8,
+        fontSize: 16,
+        color: APP_COLORS.black,
     },
     card: {
         backgroundColor: APP_COLORS.white,

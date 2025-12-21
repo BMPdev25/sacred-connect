@@ -296,6 +296,61 @@ const devoteeService = {
       throw error?.response?.data?.message || 'Failed to mark notification as read. Please try again.';
     }
   },
+  /**
+   * Get user addresses
+   */
+  getAddresses: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/devotee/addresses');
+      return response.data;
+    } catch (error: any) {
+        console.error("Error fetching addresses:", error);
+        throw error?.response?.data?.message || "Failed to fetch addresses.";
+    }
+  },
+
+  /**
+   * Add new address
+   * @param addressData address object
+   */
+  addAddress: async (addressData: any): Promise<any> => {
+    try {
+      const response = await api.post('/api/devotee/addresses', addressData);
+      return response.data;
+    } catch (error: any) {
+        console.error("Error adding address:", error);
+        throw error?.response?.data?.message || "Failed to add address.";
+    }
+  },
+
+  /**
+   * Update address
+   * @param addressId string
+   * @param addressData address object
+   */
+  updateAddress: async (addressId: string, addressData: any): Promise<any> => {
+    try {
+      const response = await api.put(`/api/devotee/addresses/${addressId}`, addressData);
+      return response.data;
+    } catch (error: any) {
+        console.error("Error updating address:", error);
+        throw error?.response?.data?.message || "Failed to update address.";
+    }
+  },
+
+  /**
+   * Delete address
+   * @param addressId string
+   */
+  deleteAddress: async (addressId: string): Promise<any> => {
+    try {
+      const response = await api.delete(`/api/devotee/addresses/${addressId}`);
+      return response.data;
+    } catch (error: any) {
+        console.error("Error deleting address:", error);
+        throw error?.response?.data?.message || "Failed to delete address.";
+    }
+  }
 };
 
 export default devoteeService;

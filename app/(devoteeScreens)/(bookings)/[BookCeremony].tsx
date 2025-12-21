@@ -215,35 +215,35 @@ const BookCeremony: React.FC = () => {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.ceremoniesContainer}
             >
-              {(priest.ceremonies || []).map((ceremony: string, index: number) => (
+              {(priest.ceremonies || []).map((ceremony: any, index: number) => (
                 <TouchableOpacity
                   key={index}
                   style={[
                     styles.ceremonyCard,
-                    selectedCeremony?.name === ceremony &&
-                      styles.selectedCeremonyCard,
+                    selectedCeremony?.name === ceremony.name &&
+                    styles.selectedCeremonyCard,
                   ]}
                   onPress={() =>
-                    handleCeremonySelect({ name: ceremony, price: 5000 })
+                    handleCeremonySelect(ceremony)
                   }
                 >
                   <Text
                     style={[
                       styles.ceremonyName,
-                      selectedCeremony?.name === ceremony &&
-                        styles.selectedCeremonyName,
+                      selectedCeremony?.name === ceremony.name &&
+                      styles.selectedCeremonyName,
                     ]}
                   >
-                    {ceremony}
+                    {ceremony.name}
                   </Text>
                   <Text
                     style={[
                       styles.ceremonyPrice,
-                      selectedCeremony?.name === ceremony &&
-                        styles.selectedCeremonyPrice,
+                      selectedCeremony?.name === ceremony.name &&
+                      styles.selectedCeremonyPrice,
                     ]}
                   >
-                    ₹5000
+                    ₹{ceremony.price}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -291,7 +291,7 @@ const BookCeremony: React.FC = () => {
                     style={[
                       styles.timeSlotCard,
                       selectedTime?.id === slot.id &&
-                        styles.selectedTimeSlotCard,
+                      styles.selectedTimeSlotCard,
                     ]}
                     onPress={() => handleTimeSelect(slot)}
                   >
@@ -299,7 +299,7 @@ const BookCeremony: React.FC = () => {
                       style={[
                         styles.timeSlotText,
                         selectedTime?.id === slot.id &&
-                          styles.selectedTimeSlotText,
+                        styles.selectedTimeSlotText,
                       ]}
                     >
                       {slot.startTime} - {slot.endTime}

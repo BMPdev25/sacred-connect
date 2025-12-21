@@ -10,6 +10,7 @@ import {
   Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import { useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
@@ -95,11 +96,15 @@ export default function PujaDetailScreen() {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       <Stack.Screen
         options={{
           headerShown: true,
           title: puja.name,
           headerTintColor: APP_COLORS.black,
+          headerStyle: { backgroundColor: APP_COLORS.white },
+          headerShadowVisible: true, // Visible shadow for separation
+          headerTranslucent: false, // Ensure it pushes content down
         }}
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -191,7 +196,7 @@ const styles = StyleSheet.create({
   },
   headerImage: {
     width: "100%",
-    height: 200,
+    height: 300,
   },
   detailsContainer: {
     padding: 16,

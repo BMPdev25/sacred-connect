@@ -69,7 +69,7 @@ const HomeScreen: React.FC = () => {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
-    router.push(`/PriestSearch?query=${searchQuery}`);
+    router.push(`/(devoteeScreens)/GlobalSearch?query=${searchQuery}`);
   };
 
   const handleCeremonyPress = (ceremony: { _id: string; name: string }) => {
@@ -114,16 +114,16 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
+          <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => router.push("/(devoteeScreens)/GlobalSearch")}
+            activeOpacity={1}
+          >
             <Ionicons name="search" size={20} color={APP_COLORS.gray} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search for priests, ceremonies"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
-            />
-          </View>
+            <Text style={[styles.searchInput, { color: APP_COLORS.gray, paddingTop: 4 }]}>
+              Search for priests, ceremonies...
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.ceremoniesContainer}>

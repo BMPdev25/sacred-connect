@@ -18,6 +18,8 @@ export interface Puja {
   basePrice?: number;
   category?: string;
 }
+
+export interface Priest {
   _id: string;
   name: string;
   profilePicture?: string;

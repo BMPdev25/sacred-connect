@@ -1,8 +1,10 @@
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
+import { APP_COLORS } from "../../constants/Colors";
 import { loadUser } from "../../redux/slices/authSlice";
 
 export default function Authentication() {
@@ -49,10 +51,10 @@ export default function Authentication() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#666" />
+    <SafeAreaView style={styles.container}>
+      <ActivityIndicator size="large" color={APP_COLORS.primary} />
       <Text style={styles.text}>Checking authentication...</Text>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -61,10 +63,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: APP_COLORS.background,
   },
   text: {
     marginTop: 12,
-    color: "#666",
+    color: APP_COLORS.gray,
   },
 });

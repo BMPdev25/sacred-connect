@@ -22,9 +22,18 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tabs)/BookingsTab"
+        name="(tabs)/RequestsTab"
         options={{
-          title: "Bookings",
+          title: "Requests",
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="checkbox-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(tabs)/ScheduleTab"
+        options={{
+          title: "Schedule",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size || 20} color={color} />
           ),
@@ -59,6 +68,12 @@ export default function PriestLayout() {
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person-outline" size={size || 20} color={color} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="(tabs)/BookingsTab"
+        options={{
+          href: null, // Hide this from tab bar, but keep route accessible if needed
         }}
       />
     </Tabs>

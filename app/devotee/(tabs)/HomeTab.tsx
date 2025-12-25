@@ -4,7 +4,6 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,7 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useSelector } from "react-redux";
 import { useQuery } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
@@ -20,15 +20,10 @@ import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
 import ceremonyService from "../../../services/ceremonyService";
 
-// Platform.constants may be undefined in some environments; guard access
-const androidStatusBarHeight =
-  (Platform as any).constants?.StatusBarHeight ?? 24;
-const HEADER_TOP_PADDING =
-  Platform.OS === "android" ? androidStatusBarHeight : 44;
-
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const insets = useSafeAreaInsets();
 
   // Fetch ceremonies from backend
   const { data: ceremoniesData, isLoading: isLoadingCeremonies } = useQuery({
@@ -43,24 +38,17 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     const fetchRecommendedPriests = async () => {
       try {
-        // console.log("Fetching recommended priests...");
-
         // Try the regular search for priests
         const response = await devoteeService.searchPriests({ limit: 10 });
-        // console.log("Search priests response:", response);
 
         if (response && response.priests.length > 0) {
-          // console.log(response.priests)
           setRecommendedPriests(response.priests);
         } else {
-          // Fallback to mock data if API fails
-          // console.log("No priests found, using fallback data");
           setRecommendedPriests([]);
         }
       } catch (err) {
         console.error("Error fetching recommended priests:", err);
         // Set mock data if there's an error
-        console.log("API failed, using mock data");
         setRecommendedPriests([]);
       }
     };
@@ -82,7 +70,8 @@ const HomeScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+      <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -91,7 +80,7 @@ const HomeScreen: React.FC = () => {
           style={[
             styles.header,
             {
-              paddingTop: HEADER_TOP_PADDING,
+              paddingTop: Math.max(insets.top, 24) + 16,
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.08,
@@ -246,7 +235,7 @@ const HomeScreen: React.FC = () => {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

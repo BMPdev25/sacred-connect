@@ -72,7 +72,11 @@ export default function SignUpScreen() {
       if (userInfo.userType === "devotee") {
         router.replace("/devotee/HomeTab");
       } else if (userInfo.userType === "priest") {
-        router.replace("/priest/HomeTab");
+        if (!userInfo.profileCompleted) {
+          router.replace("/priest/ProfileSetup");
+        } else {
+          router.replace("/priest/HomeTab");
+        }
       }
     }
   }, [userInfo]);
@@ -168,7 +172,7 @@ export default function SignUpScreen() {
                     style={[
                       styles.userTypeButtonText,
                       state.userType === "devotee" &&
-                        styles.activeUserTypeButtonText,
+                      styles.activeUserTypeButtonText,
                     ]}
                   >
                     Devotee
@@ -187,7 +191,7 @@ export default function SignUpScreen() {
                     style={[
                       styles.userTypeButtonText,
                       state.userType === "priest" &&
-                        styles.activeUserTypeButtonText,
+                      styles.activeUserTypeButtonText,
                     ]}
                   >
                     Priest

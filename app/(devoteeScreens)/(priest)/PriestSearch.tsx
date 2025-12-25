@@ -16,15 +16,7 @@ import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
 
 
-type Priest = {
-  _id?: string;
-  profilePicture?: string;
-  name?: string;
-  religiousTradition?: string;
-  experience?: number;
-  ratings?: { average?: number; count?: number };
-  ceremonies?: string[];
-};
+import { Priest } from "../../../types";
 
 const PriestSearch: React.FC = () => {
   const params = useLocalSearchParams();
@@ -126,7 +118,7 @@ const PriestSearch: React.FC = () => {
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={16} color="#FFD700" />
           <Text style={styles.ratingText}>
-            {item.ratings?.average || 0} ({item.ratings?.count || 0})
+            {item.rating?.average || 0} ({item.rating?.count || 0})
           </Text>
         </View>
         <View style={styles.specialtiesContainer}>
@@ -171,7 +163,7 @@ const PriestSearch: React.FC = () => {
   );
 
   // Keep track of timeout to clear it
-  const timeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleSearchTextChange = (text: string) => {
     setSearchQuery(text);

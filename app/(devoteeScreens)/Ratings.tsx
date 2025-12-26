@@ -2,17 +2,17 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Alert,
-    Image,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Alert,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from '../../constants/Colors';
@@ -25,7 +25,9 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 type Booking = {
   id?: string;
-  priest?: { id?: string; name?: string; image?: any; specialization?: string };
+  _id?: string; // Add Mongo ID
+  priestId?: string; // Add flat priestId
+  priest?: { id?: string; _id?: string; name?: string; image?: any; specialization?: string };
   ceremony?: { type?: string; name?: string };
   date?: string;
   time?: string;
@@ -57,23 +59,44 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
   });
 
   useEffect(() => {
-    const bookingData = route.params?.booking || {
-      id: 'BK001',
-      priest: {
-        id: 'P001',
-        name: 'Pandit Ram Sharma',
-  image: require('../../assets/images/pandit1.jpg'),
-        specialization: 'Wedding Ceremonies',
-      },
-      ceremony: {
-        type: 'Wedding Ceremony',
-        name: 'Hindu Wedding',
-      },
-      date: '2024-02-15',
-      time: '10:00 AM',
-      status: 'completed',
-      amount: 15000,
-    };
+    let bookingData: Booking | null = null;
+    try {
+      if (route.params?.booking) {
+        bookingData = typeof route.params.booking === 'string'
+          ? JSON.parse(route.params.booking)
+          : route.params.booking;
+      }
+    } catch (e) {
+      console.error("Error parsing booking data", e);
+    }
+
+    if (!bookingData) {
+      bookingData = {
+        id: 'BK001',
+        priest: {
+          id: 'P001',
+          name: 'Pandit Ram Sharma',
+          image: require('../../assets/images/pandit1.jpg'),
+          specialization: 'Wedding Ceremonies',
+        },
+        ceremony: {
+          type: 'Wedding Ceremony',
+          name: 'Hindu Wedding',
+        },
+        date: '2024-02-15',
+        time: '10:00 AM',
+        status: 'completed',
+        amount: 15000,
+      };
+    }
+
+    // Ensure id is set from _id if missing
+    if (bookingData._id && !bookingData.id) {
+      bookingData.id = bookingData._id;
+    }
+    if (bookingData.priest?._id && !bookingData.priest?.id) {
+      bookingData.priest.id = bookingData.priest._id;
+    }
 
     setBooking(bookingData);
   }, [route.params]);
@@ -151,8 +174,8 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
 
     try {
       const ratingData = {
-        bookingId: booking?.id,
-        priestId: booking?.priest?.id,
+        bookingId: booking?.id || booking?._id,
+        priestId: (typeof booking?.priestId === 'object' ? (booking?.priestId as any)._id : booking?.priestId) || booking?.priest?.id || booking?.priest?._id,
         rating: rating,
         categories: categories,
         review: review.trim(),
@@ -162,9 +185,9 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
       };
 
       // Dispatch rating submission action
-  const result = await dispatch(submitRating(ratingData) as any).unwrap();
+      const result = await dispatch(submitRating(ratingData) as any).unwrap();
 
-  if ((result as any).success) {
+      if ((result as any).success) {
         Alert.alert(
           'Thank You!',
           'Your rating and review have been submitted successfully.',
@@ -206,7 +229,7 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
   const insets = useSafeAreaInsets();
 
   return (
-    <SafeAreaView style={styles.container} edges={["top","left","right"]}>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -214,137 +237,137 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
 
         {/* Header */}
         <View style={[styles.header, { paddingTop: insets.top + 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
-        <TouchableOpacity
-          style={styles.backIcon}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Rate Your Experience</Text>
-        <View style={styles.placeholder} />
-      </View>
+          <TouchableOpacity
+            style={styles.backIcon}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Rate Your Experience</Text>
+          <View style={styles.placeholder} />
+        </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Booking Summary */}
-        <View style={styles.bookingSummary}>
-          <View style={styles.summaryCard}>
-            <View style={styles.priestInfo}>
-              <Image source={booking.priest?.image || require('../../assets/images/pandit1.jpg')} style={styles.priestImage} />
-              <View style={styles.priestDetails}>
-                <Text style={styles.priestName}>{booking.priest?.name || 'Priest'}</Text>
-                <Text style={styles.specialization}>{booking.priest?.specialization || ''}</Text>
-                <Text style={styles.ceremonyDetails}>
-                  {booking.ceremony?.name || ''} • {formatDate(booking.date || '')}
-                </Text>
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          {/* Booking Summary */}
+          <View style={styles.bookingSummary}>
+            <View style={styles.summaryCard}>
+              <View style={styles.priestInfo}>
+                <Image source={booking.priest?.image || require('../../assets/images/pandit1.jpg')} style={styles.priestImage} />
+                <View style={styles.priestDetails}>
+                  <Text style={styles.priestName}>{booking.priest?.name || 'Priest'}</Text>
+                  <Text style={styles.specialization}>{booking.priest?.specialization || ''}</Text>
+                  <Text style={styles.ceremonyDetails}>
+                    {booking.ceremony?.name || ''} • {formatDate(booking.date || '')}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
-        </View>
 
-        {/* Overall Rating */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Overall Rating</Text>
-          <View style={styles.overallRatingCard}>
-            <Text style={styles.ratingPrompt}>How was your overall experience?</Text>
-            {renderStars(rating, 'main', 40)}
-            <Text style={styles.ratingText}>
-              {rating === 0 ? 'Tap to rate' : rating + ' out of 5 stars'}
+          {/* Overall Rating */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Overall Rating</Text>
+            <View style={styles.overallRatingCard}>
+              <Text style={styles.ratingPrompt}>How was your overall experience?</Text>
+              {renderStars(rating, 'main', 40)}
+              <Text style={styles.ratingText}>
+                {rating === 0 ? 'Tap to rate' : rating + ' out of 5 stars'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Category Ratings */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rate Different Aspects</Text>
+            {ratingCategories.map((category) => (
+              <View key={category.key} style={styles.categoryCard}>
+                <View style={styles.categoryHeader}>
+                  <View style={styles.categoryTitleContainer}>
+                    <Ionicons name={category.icon as any} size={20} color={APP_COLORS.primary} />
+                    <View style={styles.categoryText}>
+                      <Text style={styles.categoryLabel}>{category.label}</Text>
+                      <Text style={styles.categoryDescription}>{category.description}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.categoryRating}>
+                    {categories[category.key as keyof Categories]}/5
+                  </Text>
+                </View>
+                {renderStars(categories[category.key as keyof Categories], category.key, 25)}
+              </View>
+            ))}
+          </View>
+
+          {/* Written Review */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Write a Review (Optional)</Text>
+            <View style={styles.reviewCard}>
+              <TextInput
+                style={styles.reviewInput}
+                placeholder="Share your detailed experience with other devotees..."
+                value={review}
+                onChangeText={setReview}
+                multiline
+                numberOfLines={5}
+                textAlignVertical="top"
+                maxLength={500}
+              />
+              <Text style={styles.characterCount}>{review.length}/500</Text>
+            </View>
+          </View>
+
+          {/* Rating Summary */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Rating Summary</Text>
+            <View style={styles.summaryRatingCard}>
+              <View style={styles.averageRating}>
+                <Text style={styles.averageRatingNumber}>
+                  {getAverageRating().toFixed(1)}
+                </Text>
+                <Text style={styles.averageRatingLabel}>Average Rating</Text>
+                {renderStars(Math.round(getAverageRating()), 'summary', 20)}
+              </View>
+
+              <View style={styles.ratingSummaryList}>
+                {ratingCategories.map((category) => (
+                  <View key={category.key} style={styles.summaryItem}>
+                    <Text style={styles.summaryItemLabel}>{category.label}:</Text>
+                    <View style={styles.summaryItemRating}>
+                      {renderStars(categories[category.key as keyof Categories], `summary_${category.key}`, 16)}
+
+                      <Text style={styles.summaryItemScore}>({categories[category.key]}/5)</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          {/* Tips */}
+          <View style={styles.tipsCard}>
+            <Ionicons name="information-circle" size={20} color={APP_COLORS.info} />
+            <Text style={styles.tipsText}>
+              Your honest feedback helps other devotees make informed decisions and helps priests improve their services.
             </Text>
           </View>
-        </View>
+        </ScrollView>
 
-        {/* Category Ratings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rate Different Aspects</Text>
-          {ratingCategories.map((category) => (
-            <View key={category.key} style={styles.categoryCard}>
-              <View style={styles.categoryHeader}>
-                <View style={styles.categoryTitleContainer}>
-                  <Ionicons name={category.icon as any} size={20} color={APP_COLORS.primary} />
-                  <View style={styles.categoryText}>
-                    <Text style={styles.categoryLabel}>{category.label}</Text>
-                    <Text style={styles.categoryDescription}>{category.description}</Text>
-                  </View>
-                </View>
-                <Text style={styles.categoryRating}>
-                  {categories[category.key as keyof Categories]}/5
-                </Text>
-              </View>
-              {renderStars(categories[category.key as keyof Categories], category.key, 25)}
-            </View>
-          ))}
-        </View>
-
-        {/* Written Review */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Write a Review (Optional)</Text>
-          <View style={styles.reviewCard}>
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Share your detailed experience with other devotees..."
-              value={review}
-              onChangeText={setReview}
-              multiline
-              numberOfLines={5}
-              textAlignVertical="top"
-              maxLength={500}
-            />
-            <Text style={styles.characterCount}>{review.length}/500</Text>
-          </View>
-        </View>
-
-        {/* Rating Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Rating Summary</Text>
-          <View style={styles.summaryRatingCard}>
-            <View style={styles.averageRating}>
-              <Text style={styles.averageRatingNumber}>
-                {getAverageRating().toFixed(1)}
-              </Text>
-              <Text style={styles.averageRatingLabel}>Average Rating</Text>
-              {renderStars(Math.round(getAverageRating()), 'summary', 20)}
-            </View>
-
-            <View style={styles.ratingSummaryList}>
-              {ratingCategories.map((category) => (
-                <View key={category.key} style={styles.summaryItem}>
-                  <Text style={styles.summaryItemLabel}>{category.label}:</Text>
-                  <View style={styles.summaryItemRating}>
-                    {renderStars(categories[category.key as keyof Categories], `summary_${category.key}`, 16)}
-
-                    <Text style={styles.summaryItemScore}>({categories[category.key]}/5)</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        </View>
-
-        {/* Tips */}
-        <View style={styles.tipsCard}>
-          <Ionicons name="information-circle" size={20} color={APP_COLORS.info} />
-          <Text style={styles.tipsText}>
-            Your honest feedback helps other devotees make informed decisions and helps priests improve their services.
-          </Text>
-        </View>
-      </ScrollView>
-
-      {/* Submit Button */}
-      <View style={styles.submitButtonContainer}>
-        <TouchableOpacity
-          style={[styles.submitButton, (submitting || isLoading) && styles.disabledButton]}
-          onPress={handleSubmitRating}
-          disabled={submitting || isLoading}
-        >
-          {submitting || isLoading ? (
-            <ActivityIndicator size="small" color={APP_COLORS.white} />
-          ) : (
-            <>
-              <Ionicons name="checkmark-circle" size={20} color={APP_COLORS.white} />
-              <Text style={styles.submitButtonText}>Submit Rating & Review</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {/* Submit Button */}
+        <View style={styles.submitButtonContainer}>
+          <TouchableOpacity
+            style={[styles.submitButton, (submitting || isLoading) && styles.disabledButton]}
+            onPress={handleSubmitRating}
+            disabled={submitting || isLoading}
+          >
+            {submitting || isLoading ? (
+              <ActivityIndicator size="small" color={APP_COLORS.white} />
+            ) : (
+              <>
+                <Ionicons name="checkmark-circle" size={20} color={APP_COLORS.white} />
+                <Text style={styles.submitButtonText}>Submit Rating & Review</Text>
+              </>
+            )}
+          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

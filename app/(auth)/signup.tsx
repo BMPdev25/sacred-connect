@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import { Ionicons } from "@expo/vector-icons";
 import InputField from "../../components/InputField";
 import ReligiousTraditionPicker from "../../components/ReligiousTraditionPicker";
 import { APP_COLORS } from "../../constants/Colors";
@@ -42,6 +43,11 @@ interface FormErrors {
 }
 
 export default function SignUpScreen() {
+  const params = useLocalSearchParams();
+  const initialUserType = (params.userType === 'devotee' || params.userType === 'priest')
+    ? (params.userType as UserType)
+    : 'devotee';
+
   const [state, setState] = useState<SignUpState>({
     name: "",
     email: "",
@@ -49,7 +55,7 @@ export default function SignUpScreen() {
     password: "",
     confirmPassword: "",
     showPassword: false,
-    userType: "devotee",
+    userType: initialUserType,
     religiousTradition: "",
     showReligiousOptions: false,
   });
@@ -141,20 +147,14 @@ export default function SignUpScreen() {
           contentContainerStyle={styles.contentContainer}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>BookMyPujari</Text>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+              <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Create Account</Text>
           </View>
 
           <View style={styles.formContainer}>
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tabButton, styles.activeTabButton]}
-              >
-                <Text style={[styles.tabText, styles.activeTabText]}>
-                  Sign Up
-                </Text>
-              </TouchableOpacity>
-            </View>
 
             <View style={styles.userTypeContainer}>
               <Text style={styles.sectionTitle}>I am a:</Text>
@@ -294,7 +294,7 @@ export default function SignUpScreen() {
             </Text>
             <View style={styles.authLinkContainer}>
               <Text style={styles.authLinkText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/login" as any)}>
+              <TouchableOpacity onPress={() => router.back()}>
                 <Text style={styles.authLinkAction}>Login</Text>
               </TouchableOpacity>
             </View>
@@ -313,20 +313,20 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: 20,
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 20,
+    marginTop: 10,
   },
-  logoText: {
-    fontFamily: "System",
-    fontSize: 36,
-    fontWeight: "bold",
+  backButton: {
+    padding: 8,
+    marginRight: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
     color: APP_COLORS.primary,
-    letterSpacing: 1,
-    textShadowColor: "rgba(0, 0, 0, 0.1)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
   },
   formContainer: {
     backgroundColor: APP_COLORS.white,
@@ -334,12 +334,6 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
     elevation: 2,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
   },
   tabButton: {
     flex: 1,

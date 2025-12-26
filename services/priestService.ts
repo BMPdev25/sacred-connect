@@ -84,7 +84,7 @@ const priestService = {
   getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/priest/bookings/${bookingId}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }

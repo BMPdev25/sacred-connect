@@ -12,7 +12,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   View,
   Switch,
 } from "react-native";
@@ -21,6 +20,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { APP_COLORS } from "../../constants/Colors";
 import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
 import { updateProfile } from "../../redux/slices/priestSlice";
+import { getAllCeremonies } from "../../api/ceremonyService";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
@@ -81,13 +81,8 @@ const ProfileSetup = () => {
   );
 
   // Services/ceremonies offered
-  const [availableCeremonies, setAvailableCeremonies] = useState([
-    { id: "1", name: "Default", selected: false, price: "0" },
-    { id: "2", name: "Default", selected: false, price: "0" },
-    { id: "3", name: "Default", selected: false, price: "0" },
-    { id: "4", name: "Default", selected: false, price: "0" },
-    { id: "5", name: "Default", selected: false, price: "0" },
-  ]);
+  const [availableCeremonies, setAvailableCeremonies] = useState<any[]>([]);
+  const [isLoadingCeremonies, setIsLoadingCeremonies] = useState(true);
 
   // Availability
   const [availability, setAvailability] = useState({
@@ -110,30 +105,93 @@ const ProfileSetup = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Custom navigation: Jump to specific step from profile screen
+  // If jumpToStep is provided, we treat it as "Edit Section" mode
+  const jumpToStepRaw = params?.jumpToStep;
+  const initialStep = jumpToStepRaw ? parseInt(jumpToStepRaw as string, 10) : 1;
+  const isSingleSectionMode = !!jumpToStepRaw;
+
+  // Initialize step on mount
+  useEffect(() => {
+    if (initialStep > 1 && initialStep <= 4) {
+      setCurrentStep(initialStep);
+    }
+  }, [initialStep]);
+
   // Pre-fill data when editing
   useEffect(() => {
-    // if (isEditing && existingProfile) {
-      // Pre-fill ceremonies and prices
-      if (existingProfile.ceremonies && existingProfile.priceList) {
-        const updatedCeremonies = availableCeremonies.map((ceremony) => {
-          const isSelected = existingProfile.ceremonies.includes(ceremony.name);
-          const price =
-            existingProfile.priceList[ceremony.name] || ceremony.price;
-          return {
-            ...ceremony,
-            selected: isSelected,
-            price: price.toString(),
-          };
-        });
-        setAvailableCeremonies(updatedCeremonies);
-      }
+    const fetchAndSetupData = async () => {
+      try {
+        setIsLoadingCeremonies(true);
+        // 1. Fetch all available ceremonies from backend
+        const response = await getAllCeremonies();
+        console.log("Ceremony API Response:", JSON.stringify(response, null, 2)); // keep logging for safety
 
-      // Pre-fill availability if exists
-      if (existingProfile.availability) {
-        console.log("setting availability");
-        setAvailability(existingProfile.availability);
+        let ceremoniesFromBackend = [];
+        if (Array.isArray(response)) {
+          ceremoniesFromBackend = response;
+        } else if (response?.ceremonies && Array.isArray(response.ceremonies)) {
+          ceremoniesFromBackend = response.ceremonies;
+        } else if (response?.data && Array.isArray(response.data)) {
+          ceremoniesFromBackend = response.data;
+        }
+
+        console.log("Parsed Ceremonies:", JSON.stringify(ceremoniesFromBackend, null, 2));
+
+        // 2. Map to local state format
+        let mappedCeremonies = ceremoniesFromBackend.map((c: any) => ({
+          id: c._id, // Store backend _id as id
+          name: c.name,
+          selected: false,
+          price: c.pricing?.basePrice?.toString() || "0",
+          duration: c.duration?.typical || 60,
+        }));
+
+        // 3. If editing, mark selected and update prices
+        if (existingProfile) {
+          if (existingProfile.services && existingProfile.services.length > 0) {
+            mappedCeremonies = mappedCeremonies.map((ceremony: any) => {
+              // Check if this ceremony is in the user's services (by ID or Name fallback)
+              const service = existingProfile.services.find((s: any) =>
+                (s.ceremonyId && (s.ceremonyId._id === ceremony.id || s.ceremonyId === ceremony.id)) ||
+                s.name === ceremony.name
+              );
+
+              return {
+                ...ceremony,
+                selected: !!service,
+                price: service ? service.price.toString() : ceremony.price,
+              };
+            });
+          } else if (existingProfile.ceremonies) {
+            // Legacy fallback
+            mappedCeremonies = mappedCeremonies.map((ceremony: any) => {
+              const isSelected = existingProfile.ceremonies.includes(ceremony.name);
+              const price = existingProfile.priceList?.[ceremony.name] || ceremony.price;
+              return {
+                ...ceremony,
+                selected: isSelected,
+                price: price.toString(),
+              };
+            });
+          }
+
+          // Availability
+          if (existingProfile.availability) {
+            setAvailability(existingProfile.availability);
+          }
+        }
+
+        setAvailableCeremonies(mappedCeremonies);
+      } catch (error) {
+        console.error("Failed to fetch ceremonies:", error);
+        Alert.alert("Error", "Failed to load ceremonies. Please check your connection.");
+      } finally {
+        setIsLoadingCeremonies(false);
       }
-    // }
+    };
+
+    fetchAndSetupData();
   }, []);
 
   // Temple handlers
@@ -284,14 +342,17 @@ const ProfileSetup = () => {
         templesAffiliated: templesAffiliated.filter(
           (temple: any) => temple.name && temple.address
         ),
-        ceremonies: selectedCeremonies,
         availability,
-        priceList: availableCeremonies
+        services: availableCeremonies
           .filter((ceremony) => ceremony.selected)
-          .reduce((obj: Record<string, number>, ceremony) => {
-            obj[ceremony.name] = parseInt(ceremony.price, 10);
-            return obj;
-          }, {} as Record<string, number>),
+          .map((ceremony) => ({
+            ceremonyId: ceremony.id, // Critical: Send the Ceremony Object ID
+            price: parseInt(ceremony.price, 10),
+            durationMinutes: ceremony.duration || 60,
+          })),
+        // Legacy fields removed
+        // ceremonies: ...
+        // priceList: ...
       };
 
       console.log("Updating profile with data:", profileData);
@@ -299,7 +360,7 @@ const ProfileSetup = () => {
         "Temples affiliated being sent:",
         profileData.templesAffiliated
       );
-      console.log("Ceremonies being sent:", profileData.ceremonies);
+      // console.log("Ceremonies being sent:", profileData.ceremonies); // removed logging of deprecated field
 
       // Call Redux action to update profile
       await (dispatch as any)(updateProfile(profileData as any));
@@ -686,24 +747,24 @@ const ProfileSetup = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={HEADER_TOP_PADDING + 24}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-          <View style={{ flex: 1 }}>
-            <View
-              style={[
-                styles.header,
-                {
-                  paddingTop: HEADER_TOP_PADDING,
-                  shadowColor: "#000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.08,
-                  shadowRadius: 4,
-                  elevation: 4,
-                },
-              ]}
-            >
-              <Text style={styles.headerTitle}>Complete Your Profile</Text>
-            </View>
+        <View style={{ flex: 1 }}>
+          <View
+            style={[
+              styles.header,
+              {
+                paddingTop: HEADER_TOP_PADDING,
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.08,
+                shadowRadius: 4,
+                elevation: 4,
+              },
+            ]}
+          >
+            <Text style={styles.headerTitle}>{isEditing ? "Edit Profile" : "Complete Your Profile"}</Text>
+          </View>
 
+          {!isSingleSectionMode && (
             <View style={styles.progress}>
               {[1, 2, 3, 4].map((step) => (
                 <View
@@ -739,48 +800,76 @@ const ProfileSetup = () => {
                 ]}
               />
             </View>
+          )}
 
-            <ScrollView style={styles.content}>
-              {currentStep === 1 && renderStep1()}
-              {currentStep === 2 && renderStep2()}
-              {currentStep === 3 && renderStep3()}
-              {currentStep === 4 && renderStep4()}
-            </ScrollView>
+          <ScrollView
+            style={styles.content}
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={{ flexGrow: 1 }}
+          >
+            {currentStep === 1 && renderStep1()}
+            {currentStep === 2 && renderStep2()}
+            {currentStep === 3 && renderStep3()}
+            {currentStep === 4 && renderStep4()}
+          </ScrollView>
 
-            <View style={styles.footer}>
-              {currentStep > 1 && (
+          <View style={styles.footer}>
+            {isSingleSectionMode ? (
+              <>
                 <TouchableOpacity
                   style={[styles.button, styles.backButton]}
-                  onPress={prevStep}
+                  onPress={() => router.back()}
                   disabled={isSubmitting}
                 >
-                  <Text style={styles.backButtonText}>Back</Text>
+                  <Text style={styles.backButtonText}>Cancel</Text>
                 </TouchableOpacity>
-              )}
 
-              {currentStep < 4 ? (
-                <TouchableOpacity
-                  style={[styles.button, styles.nextButton]}
-                  onPress={nextStep}
-                >
-                  <Text style={styles.nextButtonText}>Next</Text>
-                </TouchableOpacity>
-              ) : (
                 <TouchableOpacity
                   style={[styles.button, styles.nextButton]}
                   onPress={handleSubmit}
                   disabled={isSubmitting}
                 >
                   <Text style={styles.nextButtonText}>
-                    {isSubmitting ? "Submitting..." : "Complete"}
+                    {isSubmitting ? "Saving..." : "Save Changes"}
                   </Text>
                 </TouchableOpacity>
-              )}
-            </View>
+              </>
+            ) : (
+              <>
+                {currentStep > 1 && (
+                  <TouchableOpacity
+                    style={[styles.button, styles.backButton]}
+                    onPress={prevStep}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={styles.backButtonText}>Back</Text>
+                  </TouchableOpacity>
+                )}
+
+                {currentStep < 4 ? (
+                  <TouchableOpacity
+                    style={[styles.button, styles.nextButton]}
+                    onPress={nextStep}
+                  >
+                    <Text style={styles.nextButtonText}>Next</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.button, styles.nextButton]}
+                    onPress={handleSubmit}
+                    disabled={isSubmitting}
+                  >
+                    <Text style={styles.nextButtonText}>
+                      {isSubmitting ? "Submitting..." : "Complete"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            )}
           </View>
-        </TouchableWithoutFeedback>
+        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 };
 

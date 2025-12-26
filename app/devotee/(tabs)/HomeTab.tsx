@@ -199,23 +199,23 @@ const HomeScreen: React.FC = () => {
                   </Text>
                 </View>
                 <View style={styles.specialtiesContainer}>
-                  {priest.ceremonies
+                  {priest.services
                     ?.slice(0, 2)
-                    .map((ceremony: string, index: number) => (
+                    .map((service: any, index: number) => (
                       <View
-                        key={`${priest._id}-ceremony-${index}-${ceremony}`}
+                        key={`${priest._id}-ceremony-${index}-${service.name}`}
                         style={styles.specialtyBadge}
                       >
-                        <Text style={styles.specialtyText}>{ceremony}</Text>
+                        <Text style={styles.specialtyText}>{service.name}</Text>
                       </View>
                     ))}
-                  {priest.ceremonies?.length > 2 && (
+                  {priest.services?.length > 2 && (
                     <View
                       key={`${priest._id}-more-ceremonies`}
                       style={styles.specialtyBadge}
                     >
                       <Text style={styles.specialtyText}>
-                        +{priest.ceremonies.length - 2} more
+                        +{priest.services.length - 2} more
                       </Text>
                     </View>
                   )}

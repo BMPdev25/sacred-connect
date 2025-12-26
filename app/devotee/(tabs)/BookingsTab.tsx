@@ -78,7 +78,7 @@ const BookingsTabScreen: React.FC = () => {
       return;
     }
 
-    router.push('/Ratings') //,params: {booking: booking,});
+    router.push({ pathname: '/Ratings', params: { booking: JSON.stringify(booking) } });
   };
 
   const handleViewDetails = (booking: any) => {
@@ -270,7 +270,7 @@ const BookingsTabScreen: React.FC = () => {
       return booking.status === 'pending';
     } else if (selectedFilter === 'past') {
       return booking.status === 'completed' || booking.status === 'cancelled' ||
-             (bookingDate < currentDate && booking.status !== 'pending');
+        (bookingDate < currentDate && booking.status !== 'pending');
     }
     return true; // 'all' filter
   });
@@ -286,7 +286,7 @@ const BookingsTabScreen: React.FC = () => {
         return booking.status === 'pending';
       } else if (filter === 'past') {
         return booking.status === 'completed' || booking.status === 'cancelled' ||
-               (bookingDate < currentDate && booking.status !== 'pending');
+          (bookingDate < currentDate && booking.status !== 'pending');
       }
       return true;
     }).length;

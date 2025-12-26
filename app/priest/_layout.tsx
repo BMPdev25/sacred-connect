@@ -1,32 +1,114 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import React from "react";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Pressable, Platform } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../constants/Colors";
+import { NotificationProvider, useNotifications } from "../../context/NotificationContext";
 
-export default function PriestLayout() {
+const NotificationBell = ({ color }: { color: string }) => {
+  const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
+
+  return (
+    <TouchableOpacity
+      style={{ marginRight: 16, position: "relative" }}
+      onPress={toggleNotifications}
+    >
+      <Ionicons
+        name={showNotifications ? "notifications" : "notifications-outline"}
+        size={24}
+        color={color}
+      />
+      {unreadCount > 0 && (
+        <View style={styles.notificationBadge} />
+      )}
+    </TouchableOpacity>
+  );
+};
+
+const NotificationOverlay = () => {
+  const { showNotifications, closeNotifications, notifications } = useNotifications();
+  const insets = useSafeAreaInsets();
+
+  if (!showNotifications) return null;
+
+  // Calculate top position based on platform and safe area
+  // Header height is typically ~56-64dp depending on platform + status bar
+  const hasCustomHeader = false; // logic dependent on active tab, but simplified global
+  const topInset = insets.top + (Platform.OS === 'ios' ? 44 : 56);
+
+  const handleNotificationPress = (notification: any) => {
+    closeNotifications();
+    if (notification.type === 'booking' && notification.data) {
+      router.push({
+        pathname: "/PriestBookingDetails",
+        params: { booking: JSON.stringify(notification.data) }
+      });
+    } else if (notification.type === 'earnings') {
+      router.push("/priest/EarningsTab");
+    }
+  };
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {/* Transparent Backdrop to detect outside clicks */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={closeNotifications} />
+
+      {/* Modal Content */}
+      <View style={[styles.floatingNotificationContainer, { top: topInset }]}>
+        <View style={styles.notificationArrow} />
+        <View style={styles.notificationCard}>
+          <Text style={styles.notificationTitle}>Notifications</Text>
+          <ScrollView style={styles.notificationList} showsVerticalScrollIndicator={true}>
+            {notifications.length > 0 ? (
+              notifications.map((n) => (
+                <TouchableOpacity
+                  key={n.id}
+                  style={[styles.notificationItem, !n.read && styles.unreadNotification]}
+                  onPress={() => handleNotificationPress(n)}
+                >
+                  <View style={styles.notificationDot} />
+                  <Text style={styles.notificationMessage}>{n.message}</Text>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <Text style={styles.noNotificationsText}>No new notifications</Text>
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </View>
+  );
+};
+
+const PriestTabs = () => {
   return (
     <Tabs
       screenOptions={{
-        headerShown: false,
+        headerShown: true, // Default to true so standard tabs get headers
+        headerStyle: { backgroundColor: APP_COLORS.primary },
+        headerTintColor: APP_COLORS.white,
         tabBarActiveTintColor: APP_COLORS.primary,
         tabBarStyle: { backgroundColor: APP_COLORS.white },
+        headerRight: ({ tintColor }) => <NotificationBell color={tintColor || APP_COLORS.white} />, // ensure bell is white or matches text
       }}
     >
       <Tabs.Screen
         name="(tabs)/HomeTab"
         options={{
           title: "Home",
+          headerShown: false, // Home has custom header
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size || 20} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="(tabs)/RequestsTab"
+        name="(tabs)/BookingsTab"
         options={{
-          title: "Requests",
+          title: "Bookings",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="checkbox-outline" size={size || 20} color={color} />
+            <Ionicons name="calendar-outline" size={size || 20} color={color} />
           ),
         }}
       />
@@ -49,8 +131,20 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
+        name="(tabs)/ProfileTab"
+        options={{
+          title: "Profile",
+          headerRight: () => null, // No bell on Profile
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="person-outline" size={size || 20} color={color} />
+          ),
+        }}
+      />
+      {/* Hidden Tabs */}
+      <Tabs.Screen
         name="(tabs)/NotificationsTab"
         options={{
+          href: null,
           title: "Notifications",
           tabBarIcon: ({ color, size }) => (
             <Ionicons
@@ -62,20 +156,114 @@ export default function PriestLayout() {
         }}
       />
       <Tabs.Screen
-        name="(tabs)/ProfileTab"
+        name="(tabs)/RequestsTab"
         options={{
-          title: "Profile",
+          href: null,
+          title: "Requests",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size || 20} color={color} />
+            <Ionicons name="checkbox-outline" size={size || 20} color={color} />
           ),
-        }}
-      />
-      <Tabs.Screen
-        name="(tabs)/BookingsTab"
-        options={{
-          href: null, // Hide this from tab bar, but keep route accessible if needed
         }}
       />
     </Tabs>
   );
 }
+
+export default function PriestLayout() {
+  return (
+    <NotificationProvider>
+      <PriestTabs />
+      <NotificationOverlay />
+    </NotificationProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  notificationBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: APP_COLORS.error,
+    borderWidth: 1,
+    borderColor: APP_COLORS.white,
+  },
+  floatingNotificationContainer: {
+    position: 'absolute',
+    right: 16,
+    // Top is set dynamically
+    zIndex: 2000, // Higher than everything
+    width: '55%',
+    maxHeight: '55%',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+    alignItems: 'flex-end',
+  },
+  notificationArrow: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: APP_COLORS.white,
+    marginRight: 10,
+  },
+  notificationCard: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 12,
+    width: '100%',
+    maxHeight: '100%',
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: APP_COLORS.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
+    paddingBottom: 4,
+  },
+  notificationList: {
+    maxHeight: 250,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: APP_COLORS.lightGray,
+  },
+  unreadNotification: {
+    backgroundColor: '#f0f9ff',
+  },
+  notificationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: APP_COLORS.primary,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  notificationMessage: {
+    fontSize: 13,
+    color: APP_COLORS.black,
+    flex: 1,
+    lineHeight: 18,
+  },
+  noNotificationsText: {
+    textAlign: 'center',
+    color: APP_COLORS.gray,
+    fontSize: 13,
+    padding: 10,
+  },
+});

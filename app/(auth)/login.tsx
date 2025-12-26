@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import React, { useEffect, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -23,7 +25,7 @@ interface LoginState {
   showPassword: boolean;
   otp?: string;
   confirmResult?: any;
-  activeTab: "login" | "signup"; // Keeps top level tab for login vs signup
+  userType: "devotee" | "priest"; // Added user type selection
 }
 
 export default function LoginScreen() {
@@ -33,7 +35,7 @@ export default function LoginScreen() {
     authMethod: "password", // Default to password
     password: "",
     showPassword: false,
-    activeTab: "login",
+    userType: "devotee", // Default
   });
 
   const dispatch = useDispatch<AppDispatch>();
@@ -99,162 +101,191 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
       >
-        <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>BookMyPujari</Text>
-        </View>
-
-        <View style={styles.formContainer}>
-          {/* Top Level Tab: Login vs Signup */}
-          <View style={styles.tabContainer}>
-            <TouchableOpacity
-              style={[
-                styles.tabButton,
-                state.activeTab === "login" && styles.activeTabButton,
-              ]}
-              onPress={() => setState((prev) => ({ ...prev, activeTab: "login" }))}
-            >
-              <Text style={[styles.tabText, state.activeTab === "login" && styles.activeTabText]}>
-                Login
-              </Text>
-            </TouchableOpacity>
-            {/* Signup Link - actually navigates */}
-            <TouchableOpacity
-              style={styles.tabButton}
-              onPress={() => router.push('/signup' as any)}
-            >
-              <Text style={styles.tabText}>Sign Up</Text>
-            </TouchableOpacity>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.contentContainer}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.logoContainer}>
+            <Text style={styles.logoText}>BookMyPujari</Text>
+            <Text style={styles.subtitleText}>Your gateway to divine blessings</Text>
           </View>
 
-          {/* 1. Identifier Type Toggle (Email vs Phone) */}
-          <View style={styles.typeToggleContainer}>
-            <TouchableOpacity
-              style={[styles.typeToggleButton, state.identifierType === 'phone' && styles.activeTypeToggleButton]}
-              onPress={() => setState(prev => ({ ...prev, identifierType: 'phone', identifier: '', validationError: undefined }))}
-            >
-              <Text style={[styles.typeToggleText, state.identifierType === 'phone' && styles.activeTypeToggleText]}>Phone</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.typeToggleButton, state.identifierType === 'email' && styles.activeTypeToggleButton]}
-              onPress={() => setState(prev => ({ ...prev, identifierType: 'email', identifier: '', validationError: undefined }))}
-            >
-              <Text style={[styles.typeToggleText, state.identifierType === 'email' && styles.activeTypeToggleText]}>Email</Text>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.formContainer}>
 
-          {/* 2. Identifier Input */}
-          <InputField
-            label={state.identifierType === 'email' ? "Email Address" : "Phone Number"}
-            value={state.identifier}
-            onChangeText={(text: string) =>
-              setState((prev) => ({ ...prev, identifier: text }))
-            }
-            placeholder={state.identifierType === 'email' ? "Enter your email" : "Enter your phone"}
-            keyboardType={state.identifierType === 'email' ? "email-address" : "phone-pad"}
-            autoCapitalize="none"
-          />
-
-          {/* 3. Auth Method Selection (Password vs OTP) */}
-          <View style={styles.methodContainer}>
-            <Text style={styles.methodLabel}>Login using:</Text>
-            <View style={styles.methodToggle}>
-              <TouchableOpacity
-                style={[styles.methodButton, state.authMethod === 'password' && styles.activeMethodButton]}
-                onPress={() => setState(prev => ({ ...prev, authMethod: 'password' }))}
-              >
-                <Text style={[styles.methodButtonText, state.authMethod === 'password' && styles.activeMethodButtonText]}>Password</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.methodButton, state.authMethod === 'otp' && styles.activeMethodButton]}
-                onPress={() => setState(prev => ({ ...prev, authMethod: 'otp' }))}
-              >
-                <Text style={[styles.methodButtonText, state.authMethod === 'otp' && styles.activeMethodButtonText]}>OTP</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* 4. Conditional Rendering based on Method */}
-          {state.authMethod === 'password' ? (
-            <>
-              <InputField
-                label="Password"
-                value={state.password}
-                onChangeText={(text: string) =>
-                  setState((prev) => ({ ...prev, password: text }))
-                }
-                placeholder="Enter your password"
-                secureTextEntry={!state.showPassword}
-                showTogglePassword={true}
-                passwordVisible={state.showPassword}
-                onTogglePassword={() =>
-                  setState((prev) => ({ ...prev, showPassword: !prev.showPassword }))
-                }
-              />
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={handleLogin}
-                disabled={isLoading}
-              >
-                <Text style={styles.loginButtonText}>
-                  {isLoading ? "Logging in..." : "Login"}
-                </Text>
-              </TouchableOpacity>
-            </>
-          ) : (
-            <View style={styles.otpContainer}>
-              {!state.confirmResult ? (
+            {/* User Type Selection */}
+            <View style={styles.userTypeContainer}>
+              <Text style={styles.label}>I am a:</Text>
+              <View style={styles.userTypeToggle}>
                 <TouchableOpacity
-                  style={styles.sendOtpButton}
-                  onPress={sendOTP}
+                  style={[
+                    styles.userTypeButton,
+                    state.userType === 'devotee' && styles.activeUserTypeButton
+                  ]}
+                  onPress={() => setState(prev => ({ ...prev, userType: 'devotee' }))}
                 >
-                  <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                  <Text style={[
+                    styles.userTypeButtonText,
+                    state.userType === 'devotee' && styles.activeUserTypeButtonText
+                  ]}>Devotee</Text>
                 </TouchableOpacity>
-              ) : (
-                <>
-                  <Text style={styles.otpNote}>Code sent to {state.identifier}. Use 123456 for testing.</Text>
-                  <InputField
-                    label="Enter OTP"
-                    value={state.otp || ""}
-                    onChangeText={(text: string) =>
-                      setState((prev) => ({ ...prev, otp: text }))
-                    }
-                    placeholder="123456"
-                    keyboardType="number-pad"
-                  />
-                  <TouchableOpacity
-                    style={styles.loginButton}
-                    onPress={handleOTPLogin}
-                    disabled={isLoading}
-                  >
-                    <Text style={styles.loginButtonText}>
-                      {isLoading ? "Verifying..." : "Verify & Login"}
-                    </Text>
-                  </TouchableOpacity>
-                </>
-              )}
+                <TouchableOpacity
+                  style={[
+                    styles.userTypeButton,
+                    state.userType === 'priest' && styles.activeUserTypeButton
+                  ]}
+                  onPress={() => setState(prev => ({ ...prev, userType: 'priest' }))}
+                >
+                  <Text style={[
+                    styles.userTypeButtonText,
+                    state.userType === 'priest' && styles.activeUserTypeButtonText
+                  ]}>Priest</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          )}
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
+            {/* 1. Identifier Type Toggle (Email vs Phone) */}
+            <View style={styles.typeToggleContainer}>
+              <TouchableOpacity
+                style={[styles.typeToggleButton, state.identifierType === 'phone' && styles.activeTypeToggleButton]}
+                onPress={() => setState(prev => ({ ...prev, identifierType: 'phone', identifier: '', validationError: undefined }))}
+              >
+                <Text style={[styles.typeToggleText, state.identifierType === 'phone' && styles.activeTypeToggleText]}>Phone</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.typeToggleButton, state.identifierType === 'email' && styles.activeTypeToggleButton]}
+                onPress={() => setState(prev => ({ ...prev, identifierType: 'email', identifier: '', validationError: undefined }))}
+              >
+                <Text style={[styles.typeToggleText, state.identifierType === 'email' && styles.activeTypeToggleText]}>Email</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* 2. Identifier Input */}
+            <InputField
+              label={state.identifierType === 'email' ? "Email Address" : "Phone Number"}
+              value={state.identifier}
+              onChangeText={(text: string) =>
+                setState((prev) => ({ ...prev, identifier: text }))
+              }
+              placeholder={state.identifierType === 'email' ? "Enter your email" : "Enter your phone"}
+              keyboardType={state.identifierType === 'email' ? "email-address" : "phone-pad"}
+              autoCapitalize="none"
+            />
+
+            {/* 3. Auth Method Selection (Password vs OTP) */}
+            <View style={styles.methodContainer}>
+              <Text style={styles.methodLabel}>Login using:</Text>
+              <View style={styles.methodToggle}>
+                <TouchableOpacity
+                  style={[styles.methodButton, state.authMethod === 'password' && styles.activeMethodButton]}
+                  onPress={() => setState(prev => ({ ...prev, authMethod: 'password' }))}
+                >
+                  <Text style={[styles.methodButtonText, state.authMethod === 'password' && styles.activeMethodButtonText]}>Password</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.methodButton, state.authMethod === 'otp' && styles.activeMethodButton]}
+                  onPress={() => setState(prev => ({ ...prev, authMethod: 'otp' }))}
+                >
+                  <Text style={[styles.methodButtonText, state.authMethod === 'otp' && styles.activeMethodButtonText]}>OTP</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* 4. Conditional Rendering based on Method */}
+            {state.authMethod === 'password' ? (
+              <>
+                <InputField
+                  label="Password"
+                  value={state.password}
+                  onChangeText={(text: string) =>
+                    setState((prev) => ({ ...prev, password: text }))
+                  }
+                  placeholder="Enter your password"
+                  secureTextEntry={!state.showPassword}
+                  showTogglePassword={true}
+                  passwordVisible={state.showPassword}
+                  onTogglePassword={() =>
+                    setState((prev) => ({ ...prev, showPassword: !prev.showPassword }))
+                  }
+                />
+                <TouchableOpacity
+                  style={styles.loginButton}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? "Logging in..." : "Login"}
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <View style={styles.otpContainer}>
+                {!state.confirmResult ? (
+                  <TouchableOpacity
+                    style={styles.sendOtpButton}
+                    onPress={sendOTP}
+                  >
+                    <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <Text style={styles.otpNote}>Code sent to {state.identifier}. Use 123456 for testing.</Text>
+                    <InputField
+                      label="Enter OTP"
+                      value={state.otp || ""}
+                      onChangeText={(text: string) =>
+                        setState((prev) => ({ ...prev, otp: text }))
+                      }
+                      placeholder="123456"
+                      keyboardType="number-pad"
+                    />
+                    <TouchableOpacity
+                      style={styles.loginButton}
+                      onPress={handleOTPLogin}
+                      disabled={isLoading}
+                    >
+                      <Text style={styles.loginButtonText}>
+                        {isLoading ? "Verifying..." : "Verify & Login"}
+                      </Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.footerActions}>
+              <TouchableOpacity
+                style={styles.forgotPasswordButton}
+                onPress={() =>
+                  Alert.alert(
+                    "Reset Password",
+                    "Please contact support to reset your password."
+                  )
+                }
+              >
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+
+              <View style={styles.authLinkContainer}>
+                <Text style={styles.authLinkText}>Don't have an account? </Text>
+                <TouchableOpacity onPress={() => router.push({ pathname: '/signup', params: { userType: state.userType } })}>
+                  <Text style={styles.authLinkAction}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
           </View>
-          <TouchableOpacity
-            style={styles.forgotPasswordButton}
-            onPress={() =>
-              Alert.alert(
-                "Reset Password",
-                "Please contact support to reset your password."
-              )
-            }
-          >
-            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -266,11 +297,12 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingBottom: 40,
   },
   logoContainer: {
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 20,
+    marginTop: 40,
+    marginBottom: 30,
   },
   logoText: {
     fontFamily: "System",
@@ -282,36 +314,59 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-  formContainer: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: APP_COLORS.primary,
-  },
-  tabText: {
+  subtitleText: {
     fontSize: 16,
     color: APP_COLORS.gray,
+    marginTop: 8,
   },
-  activeTabText: {
-    fontSize: 16,
-    fontWeight: "bold",
+  formContainer: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 16,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+  },
+  userTypeContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  userTypeToggle: {
+    flexDirection: 'row',
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 8,
+    padding: 4,
+  },
+  userTypeButton: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 6,
+  },
+  activeUserTypeButton: {
+    backgroundColor: APP_COLORS.white,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  userTypeButtonText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    fontWeight: '500',
+  },
+  activeUserTypeButtonText: {
     color: APP_COLORS.primary,
+    fontWeight: 'bold',
   },
   loginButton: {
     backgroundColor: APP_COLORS.primary,
@@ -320,6 +375,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginVertical: 16,
+    elevation: 2,
   },
   loginButtonText: {
     color: APP_COLORS.white,
@@ -336,24 +392,22 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: APP_COLORS.lightGray,
   },
-  dividerText: {
-    marginHorizontal: 10,
-    color: APP_COLORS.gray,
-    fontSize: 14,
+  footerActions: {
+    alignItems: 'center',
+    gap: 16,
   },
   forgotPasswordButton: {
     alignItems: "center",
-    marginTop: 8,
   },
   forgotPasswordText: {
-    color: APP_COLORS.primary,
+    color: APP_COLORS.gray,
     fontSize: 14,
+    textDecorationLine: 'underline',
   },
   authLinkContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 8,
   },
   authLinkText: {
     color: APP_COLORS.gray,
@@ -361,7 +415,7 @@ const styles = StyleSheet.create({
   },
   authLinkAction: {
     color: APP_COLORS.primary,
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
     marginLeft: 6,
   },

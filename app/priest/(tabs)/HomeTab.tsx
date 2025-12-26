@@ -16,10 +16,12 @@ import { useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import priestService from "../../../services/priestService";
+import { useNotifications } from "../../../context/NotificationContext";
 
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const insets = useSafeAreaInsets();
+  const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
@@ -28,7 +30,6 @@ const HomeScreen: React.FC = () => {
     growthPercentage: 0,
     availableBalance: 0,
   });
-  const [notifications, setNotifications] = useState<any[]>([]);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
 
   // Ceremonies examples
@@ -62,12 +63,14 @@ const HomeScreen: React.FC = () => {
 
       setLoading(true);
 
+      let allBookings: any[] = [];
+
       // Bookings
       try {
         const bookings = await priestService.getBookings(priestId);
         if (!mounted) return;
-        const arr = Array.isArray(bookings) ? bookings : bookings?.data || [];
-        setUpcomingBookings(arr.slice(0, 3));
+        allBookings = Array.isArray(bookings) ? bookings : bookings?.data || [];
+        setUpcomingBookings(allBookings.slice(0, 3));
       } catch (err) {
         console.warn("bookings fetch failed", err);
         if (!mounted) return;
@@ -87,11 +90,6 @@ const HomeScreen: React.FC = () => {
         setEarnings({ thisMonth: 0, growthPercentage: 0, availableBalance: 0 });
       }
 
-      // Notifications & Reviews - default examples
-      setNotifications([
-        { id: "1", message: "New booking request from Rahul", read: false },
-        { id: "2", message: "Your earnings have been updated", read: true },
-      ]);
       setRecentReviews([
         { id: "1", devotee: "Anita", rating: 5, comment: "Excellent service!" },
       ]);
@@ -105,8 +103,6 @@ const HomeScreen: React.FC = () => {
       mounted = false;
     };
   }, [userInfo?._id]);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const visibleBookings = useMemo(
     () => upcomingBookings.filter((b) => b && b.category !== "completed"),
@@ -130,192 +126,195 @@ const HomeScreen: React.FC = () => {
 
             <TouchableOpacity
               style={styles.notificationBell}
-              onPress={() => router.push("/priest/NotificationsTab")}
+              onPress={toggleNotifications}
             >
               <Ionicons
-                name="notifications-outline"
+                name={showNotifications ? "notifications" : "notifications-outline"}
                 size={28}
                 color={APP_COLORS.white}
               />
               {unreadCount > 0 && <View style={styles.notificationBadge} />}
             </TouchableOpacity>
+
           </View>
         </View>
 
-        {loading ? (
-          <View style={{ padding: 24, alignItems: "center" }}>
-            <ActivityIndicator size="large" color={APP_COLORS.primary} />
-          </View>
-        ) : (
-          <View>
-            {/* Earnings Card */}
-            <View style={styles.earningsCard}>
-              <View style={styles.earningsInfo}>
-                <Text style={styles.earningsLabel}>Earnings This Month</Text>
-                <View style={styles.earningsRow}>
-                  <Text style={styles.earningsAmount}>
-                    ₹{(earnings?.thisMonth ?? 0).toLocaleString("en-IN")}
-                  </Text>
-                  {earnings?.growthPercentage !== undefined &&
-                    earnings.growthPercentage !== 0 && (
-                      <View style={styles.earningsTrend}>
-                        <Ionicons
-                          name={
-                            earnings.growthPercentage >= 0
-                              ? "arrow-up"
-                              : "arrow-down"
-                          }
-                          size={16}
-                          color={
-                            earnings.growthPercentage >= 0
-                              ? APP_COLORS.success
-                              : APP_COLORS.error
-                          }
-                        />
-                        <Text
-                          style={[
-                            styles.earningsTrendText,
-                            {
-                              color:
-                                earnings.growthPercentage >= 0
-                                  ? APP_COLORS.success
-                                  : APP_COLORS.error,
-                            },
-                          ]}
-                        >
-                          {earnings.growthPercentage >= 0 ? "+" : ""}
-                          {Math.abs(earnings.growthPercentage)}%
-                        </Text>
-                      </View>
-                    )}
+        {
+          loading ? (
+            <View style={{ padding: 24, alignItems: "center" }}>
+              <ActivityIndicator size="large" color={APP_COLORS.primary} />
+            </View>
+          ) : (
+            <View>
+              {/* Earnings Card */}
+              <View style={styles.earningsCard}>
+                <View style={styles.earningsInfo}>
+                  <Text style={styles.earningsLabel}>Earnings This Month</Text>
+                  <View style={styles.earningsRow}>
+                    <Text style={styles.earningsAmount}>
+                      ₹{(earnings?.thisMonth ?? 0).toLocaleString("en-IN")}
+                    </Text>
+                    {earnings?.growthPercentage !== undefined &&
+                      earnings.growthPercentage !== 0 && (
+                        <View style={styles.earningsTrend}>
+                          <Ionicons
+                            name={
+                              earnings.growthPercentage >= 0
+                                ? "arrow-up"
+                                : "arrow-down"
+                            }
+                            size={16}
+                            color={
+                              earnings.growthPercentage >= 0
+                                ? APP_COLORS.success
+                                : APP_COLORS.error
+                            }
+                          />
+                          <Text
+                            style={[
+                              styles.earningsTrendText,
+                              {
+                                color:
+                                  earnings.growthPercentage >= 0
+                                    ? APP_COLORS.success
+                                    : APP_COLORS.error,
+                              },
+                            ]}
+                          >
+                            {earnings.growthPercentage >= 0 ? "+" : ""}
+                            {Math.abs(earnings.growthPercentage)}%
+                          </Text>
+                        </View>
+                      )}
+                  </View>
                 </View>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.withdrawButton,
-                  (!earnings?.availableBalance ||
-                    earnings.availableBalance === 0) &&
-                  styles.withdrawButtonDisabled,
-                ]}
-                onPress={() => router.push("/priest/EarningsTab")}
-                disabled={
-                  !earnings?.availableBalance ||
-                  earnings.availableBalance === 0
-                }
-              >
-                <Text
+                <TouchableOpacity
                   style={[
-                    styles.withdrawButtonText,
+                    styles.withdrawButton,
                     (!earnings?.availableBalance ||
                       earnings.availableBalance === 0) &&
-                    styles.withdrawButtonTextDisabled,
+                    styles.withdrawButtonDisabled,
                   ]}
-                >
-                  {!earnings?.availableBalance ||
+                  onPress={() => router.push("/priest/EarningsTab")}
+                  disabled={
+                    !earnings?.availableBalance ||
                     earnings.availableBalance === 0
-                    ? "No Earnings"
-                    : "Withdraw"}
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Ceremonies */}
-            <View style={styles.ceremoniesContainer}>
-              <Text style={styles.sectionTitle}>Your Ceremonies</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.ceremoniesScroll}
-              >
-                {ceremonies.map((c) => (
-                  <TouchableOpacity
-                    key={c.id}
-                    style={styles.ceremonyCard}
-                    onPress={() => router.push("/AvailableOffers")}
-                  >
-                    <Image source={c.image} style={styles.ceremonyImage} />
-                    <View style={styles.ceremonyOverlay} />
-                    <Text style={styles.ceremonyName}>{c.name}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-            </View>
-
-            {/* Upcoming Bookings */}
-            <View style={styles.upcomingBookingsContainer}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
-                <TouchableOpacity
-                  onPress={() => router.push("/priest/BookingsTab")}
+                  }
                 >
-                  <Text style={styles.viewAllTextSmall}>View All</Text>
+                  <Text
+                    style={[
+                      styles.withdrawButtonText,
+                      (!earnings?.availableBalance ||
+                        earnings.availableBalance === 0) &&
+                      styles.withdrawButtonTextDisabled,
+                    ]}
+                  >
+                    {!earnings?.availableBalance ||
+                      earnings.availableBalance === 0
+                      ? "No Earnings"
+                      : "Withdraw"}
+                  </Text>
                 </TouchableOpacity>
               </View>
 
-              {visibleBookings.length ? (
-                visibleBookings.map((b, idx) => (
-                  <View
-                    key={b._id || b.id || `booking-${idx}`}
-                    style={styles.upcomingBookingCard}
+              {/* Ceremonies */}
+              <View style={styles.ceremoniesContainer}>
+                <Text style={styles.sectionTitle}>Your Ceremonies</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.ceremoniesScroll}
+                >
+                  {ceremonies.map((c) => (
+                    <TouchableOpacity
+                      key={c.id}
+                      style={styles.ceremonyCard}
+                      onPress={() => router.push("/AvailableOffers")}
+                    >
+                      <Image source={c.image} style={styles.ceremonyImage} />
+                      <View style={styles.ceremonyOverlay} />
+                      <Text style={styles.ceremonyName}>{c.name}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Upcoming Bookings */}
+              <View style={styles.upcomingBookingsContainer}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Upcoming Bookings</Text>
+                  <TouchableOpacity
+                    onPress={() => router.push("/priest/BookingsTab")}
                   >
-                    <View style={styles.upcomingBookingContent}>
-                      <Ionicons
-                        name="calendar"
-                        size={24}
-                        color={APP_COLORS.primary}
-                      />
-                      <View style={{ flex: 1, flexWrap: "wrap" }}>
-                        <Text
-                          style={styles.upcomingBookingText}
-                          numberOfLines={3}
-                          ellipsizeMode="tail"
-                        >
-                          {b.ceremonyType || b.ceremony} for{" "}
-                          {b.devoteeId?.name || b.devotee} on{" "}
-                          {b.date
-                            ? new Date(b.date).toLocaleDateString()
-                            : ""}{" "}
-                          at {b.startTime || b.time}
-                        </Text>
+                    <Text style={styles.viewAllTextSmall}>View All</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {visibleBookings.length ? (
+                  visibleBookings.map((b, idx) => (
+                    <View
+                      key={b._id || b.id || `booking-${idx}`}
+                      style={styles.upcomingBookingCard}
+                    >
+                      <View style={styles.upcomingBookingContent}>
+                        <Ionicons
+                          name="calendar"
+                          size={24}
+                          color={APP_COLORS.primary}
+                        />
+                        <View style={{ flex: 1, flexWrap: "wrap" }}>
+                          <Text
+                            style={styles.upcomingBookingText}
+                            numberOfLines={3}
+                            ellipsizeMode="tail"
+                          >
+                            {b.ceremonyType || b.ceremony} for{" "}
+                            {b.devoteeId?.name || b.devotee} on{" "}
+                            {b.date
+                              ? new Date(b.date).toLocaleDateString()
+                              : ""}{" "}
+                            at {b.startTime || b.time}
+                          </Text>
+                        </View>
                       </View>
                     </View>
+                  ))
+                ) : (
+                  <View style={styles.noBookingsContainer}>
+                    <Text style={styles.noBookingsText}>
+                      No bookings available
+                    </Text>
                   </View>
-                ))
-              ) : (
-                <View style={styles.noBookingsContainer}>
-                  <Text style={styles.noBookingsText}>
-                    No bookings available
-                  </Text>
+                )}
+              </View>
+
+              {/* Recent Reviews */}
+              {recentReviews.length > 0 && (
+                <View style={styles.reviewsContainer}>
+                  <Text style={styles.sectionTitle}>Recent Reviews</Text>
+                  {recentReviews.map((r) => (
+                    <View key={r.id} style={styles.reviewItem}>
+                      <Text style={styles.reviewDevotee}>
+                        {r.devotee || r.reviewer}
+                      </Text>
+                      <View style={styles.reviewStars}>
+                        {[...Array(5)].map((_, i) => (
+                          <Ionicons
+                            key={i}
+                            name={i < (r.rating || 0) ? "star" : "star-outline"}
+                            size={16}
+                            color={APP_COLORS.primary}
+                          />
+                        ))}
+                      </View>
+                      <Text style={styles.reviewComment}>{r.comment}</Text>
+                    </View>
+                  ))}
                 </View>
               )}
             </View>
-
-            {/* Recent Reviews */}
-            {recentReviews.length > 0 && (
-              <View style={styles.reviewsContainer}>
-                <Text style={styles.sectionTitle}>Recent Reviews</Text>
-                {recentReviews.map((r) => (
-                  <View key={r.id} style={styles.reviewItem}>
-                    <Text style={styles.reviewDevotee}>
-                      {r.devotee || r.reviewer}
-                    </Text>
-                    <View style={styles.reviewStars}>
-                      {[...Array(5)].map((_, i) => (
-                        <Ionicons
-                          key={i}
-                          name={i < (r.rating || 0) ? "star" : "star-outline"}
-                          size={16}
-                          color={APP_COLORS.primary}
-                        />
-                      ))}
-                    </View>
-                    <Text style={styles.reviewComment}>{r.comment}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
-          </View>
-        )}
+          )
+        }
       </ScrollView>
     </View>
   );
@@ -513,6 +512,83 @@ const styles = StyleSheet.create({
     elevation: 1,
   },
   notificationPreviewText: { color: APP_COLORS.info, fontSize: 13, flex: 1 },
+
+  floatingNotificationContainer: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    zIndex: 1000,
+    width: '55%',
+    maxHeight: '55%',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+    alignItems: 'flex-end',
+  },
+  notificationArrow: {
+    width: 0,
+    height: 0,
+    backgroundColor: 'transparent',
+    borderStyle: 'solid',
+    borderLeftWidth: 8,
+    borderRightWidth: 8,
+    borderBottomWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderBottomColor: APP_COLORS.white,
+    marginRight: 10,
+  },
+  notificationCard: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 12,
+    width: '100%',
+    maxHeight: '100%',
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 8,
+    color: APP_COLORS.primary,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
+    paddingBottom: 4,
+  },
+  notificationList: {
+    maxHeight: 250,
+  },
+  notificationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: APP_COLORS.lightGray,
+  },
+  unreadNotification: {
+    backgroundColor: '#f0f9ff',
+  },
+  notificationDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: APP_COLORS.primary,
+    marginRight: 8,
+    marginTop: 2,
+  },
+  notificationMessage: {
+    fontSize: 13,
+    color: APP_COLORS.black,
+    flex: 1,
+    lineHeight: 18,
+  },
+  noNotificationsText: {
+    textAlign: 'center',
+    color: APP_COLORS.gray,
+    fontSize: 13,
+    padding: 10,
+  },
 });
 
 export default HomeScreen;

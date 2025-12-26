@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { router } from 'expo-router';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Calendar, DateData } from 'react-native-calendars';
@@ -8,6 +9,9 @@ import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+
 export default function ScheduleTab() {
     const { userInfo } = useSelector((state: RootState) => state.auth);
     const [bookings, setBookings] = useState<any[]>([]);
@@ -15,9 +19,11 @@ export default function ScheduleTab() {
     const [loading, setLoading] = useState(false);
     const [markedDates, setMarkedDates] = useState<any>({});
 
-    useEffect(() => {
-        loadBookings();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadBookings();
+        }, [])
+    );
 
     const loadBookings = async () => {
         if (!userInfo?._id) return;
@@ -72,7 +78,13 @@ export default function ScheduleTab() {
     });
 
     const renderBooking = ({ item }: { item: any }) => (
-        <View style={styles.card}>
+        <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push({
+                pathname: "/PriestBookingDetails",
+                params: { booking: JSON.stringify(item) }
+            })}
+        >
             <View style={styles.timeStripe}>
                 <Text style={styles.timeText}>{item.startTime || item.time}</Text>
             </View>
@@ -86,14 +98,12 @@ export default function ScheduleTab() {
                     </Text>
                 </View>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>My Schedule</Text>
-            </View>
+
 
             <Calendar
                 onDayPress={onDayPress}

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   ScrollView,
   StyleSheet,
@@ -15,36 +16,65 @@ import { APP_COLORS } from "../../../constants/Colors";
 import { AppDispatch, RootState } from '../../../redux/store';
 import PriestService from "../../../services/priestService";
 
+import { useFocusEffect } from 'expo-router';
+import { useCallback } from 'react';
+
 const BookingsScreen = () => {
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  const [bookings, setBookings] = useState([]);
+  const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<any>(null);
-  const [selectedFilter, setSelectedFilter] = useState("");
+  const [selectedFilter, setSelectedFilter] = useState("all");
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        // console.log("Fetching bookings for priest:", userInfo?._id, "with filter:", selectedFilter);
-        const data = await PriestService.getBookings(userInfo?._id, selectedFilter);
-        // console.log("Fetched bookings (raw):", data);
-        // normalize response to an array
-        const arr = Array.isArray(data) ? data : data?.data || data?.bookings || [];
-        setBookings(arr);
-      } catch (err: any) {
-        setError(err?.toString?.() || err);
-        setBookings([]);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const handleStatusUpdate = async (bookingId: string, newStatus: string) => {
+    Alert.alert(
+      "Confirm Action",
+      `Are you sure you want to ${newStatus === 'confirmed' ? 'accept' : 'decline'} this request?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Confirm",
+          onPress: async () => {
+            try {
+              await PriestService.updateBookingStatus(bookingId, newStatus);
+              // Refresh requests
+              const response = await PriestService.getBookings(userInfo?._id, selectedFilter);
+              const arr = Array.isArray(response) ? response : response?.data || response?.bookings || [];
+              setBookings(arr);
+            } catch (err: any) {
+              Alert.alert("Error", err?.message || "Failed to update status");
+            }
+          }
+        }
+      ]
+    );
+  };
 
-    // only fetch when we have a priest id
-    if (userInfo?._id) fetchBookings();
-  }, [selectedFilter, userInfo?._id]);
+  useFocusEffect(
+    useCallback(() => {
+      const fetchBookings = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+          // console.log("Fetching bookings for priest:", userInfo?._id, "with filter:", selectedFilter);
+          const data = await PriestService.getBookings(userInfo?._id, selectedFilter);
+          // console.log("Fetched bookings (raw):", data);
+          // normalize response to an array
+          const arr = Array.isArray(data) ? data : data?.data || data?.bookings || [];
+          setBookings(arr);
+        } catch (err: any) {
+          setError(err?.toString?.() || err);
+          setBookings([]);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      // only fetch when we have a priest id
+      if (userInfo?._id) fetchBookings();
+    }, [selectedFilter, userInfo?._id])
+  );
 
   if (loading) {
     return (
@@ -73,7 +103,10 @@ const BookingsScreen = () => {
     return (
       <TouchableOpacity
         style={styles.bookingCard}
-        onPress={() => router.push("/PriestBookingDetails")}
+        onPress={() => router.push({
+          pathname: "/PriestBookingDetails",
+          params: { booking: JSON.stringify(item) }
+        })}
       >
         <View>
           <View style={styles.bookingHeader}>
@@ -86,10 +119,10 @@ const BookingsScreen = () => {
                     item.status === "confirmed"
                       ? "#e6f7e6"
                       : item.status === "completed"
-                      ? "#e6f0ff"
-                      : item.status === "cancelled"
-                      ? "#ffe6e6"
-                      : "#fff9e6",
+                        ? "#e6f0ff"
+                        : item.status === "cancelled"
+                          ? "#ffe6e6"
+                          : "#fff9e6",
                 },
               ]}
             >
@@ -101,10 +134,10 @@ const BookingsScreen = () => {
                       item.status === "confirmed"
                         ? APP_COLORS.success
                         : item.status === "completed"
-                        ? APP_COLORS.info
-                        : item.status === "cancelled"
-                        ? APP_COLORS.error
-                        : APP_COLORS.warning,
+                          ? APP_COLORS.info
+                          : item.status === "cancelled"
+                            ? APP_COLORS.error
+                            : APP_COLORS.warning,
                   },
                 ]}
               >
@@ -140,10 +173,16 @@ const BookingsScreen = () => {
             <View style={styles.actionsContainer}>
               {item.status === "pending" && (
                 <>
-                  <TouchableOpacity style={styles.acceptButton}>
+                  <TouchableOpacity
+                    style={styles.acceptButton}
+                    onPress={() => handleStatusUpdate(item._id || item.id, 'confirmed')}
+                  >
                     <Text style={styles.acceptButtonText}>Accept</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity style={styles.declineButton}>
+                  <TouchableOpacity
+                    style={styles.declineButton}
+                    onPress={() => handleStatusUpdate(item._id || item.id, 'cancelled')}
+                  >
                     <Text style={styles.declineButtonText}>Decline</Text>
                   </TouchableOpacity>
                 </>
@@ -161,25 +200,8 @@ const BookingsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
       <View style={{ flex: 1 }}>
-        <View
-          style={[
-            styles.header,
-            {
-              paddingTop: 24,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 4,
-              borderBottomWidth: 1,
-              borderBottomColor: APP_COLORS.lightGray,
-            },
-          ]}
-        >
-          <Text style={styles.headerTitle}>Bookings</Text>
-        </View>
 
         <View style={styles.filterContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -263,7 +285,7 @@ const BookingsScreen = () => {
           showsVerticalScrollIndicator={false}
         />
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
   Image,
@@ -37,33 +37,30 @@ const ProfileScreen: React.FC = () => {
   const [profile, setProfile] = useState<PriestProfile | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
 
-  // ... existing useEffect ...
-  useEffect(() => {
-    getProfile();
-    setProfileCompletion(calculateProfileCompletion());
-  }, []);
+  // Refresh profile when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      getProfile();
+    }, [])
+  );
 
   const getProfile = async () => {
     try {
       const priestProfile = await priestService.getProfile();
+      console.log("ProfileTab - Fetched profile:", JSON.stringify(priestProfile, null, 2));
       setProfile(priestProfile);
+
+      // Fetch profile completion from backend
+      try {
+        const completion = await priestService.getProfileCompletion();
+        setProfileCompletion(completion?.completionPercentage || 0);
+      } catch (err) {
+        console.warn("Profile completion fetch failed:", err);
+        setProfileCompletion(0);
+      }
     } catch (err) {
       console.error("Error fetching profile on mount:", err);
     }
-  };
-
-  // ... existing profile completion calc ...
-  const calculateProfileCompletion = (): number => {
-    if (!userInfo) return 0;
-    let completed = 0;
-    const totalFields = 6;
-    if (userInfo.name) completed++;
-    if (userInfo.email) completed++;
-    if (userInfo.phone) completed++;
-    if (profile?.experience) completed++;
-    if (profile?.religiousTradition) completed++;
-    if ((profile?.services && profile.services.length > 0) || (profile?.ceremonies && profile.ceremonies.length > 0)) completed++;
-    return Math.round((completed / totalFields) * 100);
   };
 
   const handleLogout = (): void => {
@@ -85,7 +82,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleUpdateProfile = (): void => {
-    router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true } } as any);
+    router.push({ pathname: "/ProfileSetup", params: { isEditing: true } } as any);
   };
 
   const handleFileUpload = async (type: "government_id" | "religious_certificate") => {
@@ -138,7 +135,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Personal Details</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true, jumpToStep: 1 } } as any)}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 1, section: 'personalDetails' } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
@@ -157,6 +154,14 @@ const ProfileScreen: React.FC = () => {
               <Text style={styles.infoLabel}>Religious Tradition</Text>
               <Text style={styles.infoValue}>{profile?.religiousTradition || "Tradition"}</Text>
             </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Languages Spoken</Text>
+              <Text style={styles.infoValue}>
+                {userInfo?.languagesSpoken && userInfo.languagesSpoken.length > 0
+                  ? userInfo.languagesSpoken.join(', ')
+                  : 'Not specified'}
+              </Text>
+            </View>
           </View>
 
           {/* Services & Pricing */}
@@ -164,7 +169,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Services & Pricing</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true, jumpToStep: 2 } } as any)}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 2 } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
@@ -203,7 +208,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Availability</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true, jumpToStep: 4 } } as any)}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 4 } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
@@ -287,7 +292,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Temple Affiliation</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true, jumpToStep: 3 } } as any)}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 3 } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
@@ -322,7 +327,7 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Contact Information</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true, jumpToStep: 1 } } as any)}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 1, section: 'contactInfo' } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>

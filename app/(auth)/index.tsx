@@ -15,32 +15,48 @@ export default function Authentication() {
     (async () => {
       try {
         const userInfoStr = await SecureStore.getItemAsync("userInfo");
+        const userToken = await SecureStore.getItemAsync("userToken");
+
         if (!mounted) return;
 
-        if (userInfoStr) {
+        // Check if both userInfo and token exist
+        if (userInfoStr && userToken) {
           const userInfo = JSON.parse(userInfoStr);
-          // populate redux auth state from AsyncStorage
+
+          // Try to load user data to validate token
           try {
             await dispatch(loadUser() as any);
-          } catch (e) {
-            // ignore load errors; we'll still route based on stored value
-            console.warn("loadUser failed during boot:", e);
-          }
-          // route based on userType
-          if (userInfo?.userType === "priest") {
-            router.replace("/priest/HomeTab" as any);
-            return;
-          }
-          if (userInfo?.userType === "devotee") {
-            router.replace("/devotee/HomeTab" as any);
+
+            // If loadUser succeeds, token is valid - route to appropriate screen
+            if (userInfo?.userType === "priest") {
+              router.replace("/priest/HomeTab" as any);
+              return;
+            }
+            if (userInfo?.userType === "devotee") {
+              router.replace("/devotee/HomeTab" as any);
+              return;
+            }
+          } catch (e: any) {
+            // If loadUser fails (likely 401), clear credentials and go to login
+            console.log("Token validation failed - clearing credentials");
+            await SecureStore.deleteItemAsync("userToken");
+            await SecureStore.deleteItemAsync("userInfo");
+            router.replace("/login" as any);
             return;
           }
         }
 
-        // not authenticated -> go to login
+        // No credentials or incomplete credentials -> go to login
         router.replace("/login" as any);
       } catch (e) {
         console.error("Error checking auth on boot:", e);
+        // Clear potentially corrupted credentials
+        try {
+          await SecureStore.deleteItemAsync("userToken");
+          await SecureStore.deleteItemAsync("userInfo");
+        } catch (clearError) {
+          console.error("Error clearing credentials:", clearError);
+        }
         router.replace("/login" as any);
       }
     })();

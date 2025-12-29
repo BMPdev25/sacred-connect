@@ -210,6 +210,7 @@ interface UpdateProfileParams {
   name?: string;
   email?: string;
   phone?: string;
+  languagesSpoken?: string[];
   password?: string;
   userType?: "devotee" | "priest";
   profileCompleted?: boolean;
@@ -231,13 +232,8 @@ export const updateProfile = createAsyncThunk<
       return rejectWithValue("Authentication required");
     }
 
-    // Get user type to determine correct endpoint
-    const userInfo = state.auth.userInfo;
-    const userType = userInfo?.userType || "devotee";
-
-    // Use the correct endpoint based on user type
-    const endpoint =
-      userType === "priest" ? "/api/priest/profile" : "/api/devotee/profile";
+    // Use the user profile endpoint for user-level data (name, email, phone, languages)
+    const endpoint = "/api/users/profile";
 
     // Make API call to update profile
     const response = await api.put(endpoint, profileData, {

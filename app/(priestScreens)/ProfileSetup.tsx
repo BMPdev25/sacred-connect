@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
   Keyboard,
@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
   Switch,
+  FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
@@ -21,29 +22,74 @@ import { APP_COLORS } from "../../constants/Colors";
 import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
 import { updateProfile } from "../../redux/slices/priestSlice";
 import { getAllCeremonies } from "../../api/ceremonyService";
+import priestService from "../../services/priestService"; // Import service
+import LanguagePicker from "../../components/LanguagePicker";
+import api from "../../api";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
+
+// Memoized Ceremony Item Component to prevent re-renders
+const CeremonyItem = React.memo(({ ceremony, onToggle, onUpdatePrice }: any) => {
+  return (
+    <View style={styles.ceremonyItem}>
+      <View style={styles.ceremonyHeader}>
+        <View style={styles.checkboxContainer}>
+          <TouchableOpacity
+            style={[
+              styles.checkbox,
+              ceremony.selected && styles.checkboxSelected,
+            ]}
+            onPress={() => onToggle(ceremony.id)}
+          >
+            {ceremony.selected && (
+              <Ionicons
+                name="checkmark"
+                size={16}
+                color={APP_COLORS.white}
+              />
+            )}
+          </TouchableOpacity>
+          <Text style={styles.ceremonyName}>{ceremony.name}</Text>
+        </View>
+        {ceremony.selected && (
+          <View style={styles.priceContainer}>
+            <Text style={styles.priceLabel}>Price (₹)</Text>
+            <TextInput
+              style={styles.priceInput}
+              value={ceremony.price}
+              onChangeText={(value) => onUpdatePrice(ceremony.id, value)}
+              keyboardType="numeric"
+            />
+          </View>
+        )}
+      </View>
+    </View>
+  );
+});
 
 const ProfileSetup = () => {
   const dispatch: any = useDispatch();
   const { userInfo } = useSelector((state: any) => state.auth);
   const params = useLocalSearchParams();
 
-  // Get existing profile data from route params
-  // The caller sends: { profileData: JSON.stringify(profile), isEditing: true }
-  // So handle both the case where profileData is already an object or a JSON string.
-  let existingProfile: any = undefined;
-  try {
-    const raw = params?.profileData as any;
-    if (raw) {
-      existingProfile = typeof raw === "string" ? JSON.parse(raw) : raw;
-    }
-  } catch (err) {
-    console.warn("Failed to parse profileData route param:", err);
-    existingProfile = undefined;
-  }
+  // Helper functions
+  const isValidTimeFormat = (t: string) => /^(([01]\d|2[0-3]):([0-5]\d))$/.test(t);
 
-  // Normalize isEditing to boolean (route params can be strings or arrays)
+  const timeToMinutes = (t: string) => {
+    if (!isValidTimeFormat(t)) return NaN;
+    const [hh, mm] = t.split(":").map(Number);
+    return hh * 60 + mm;
+  };
+
+  const validateTimePair = (start: string, end: string) => {
+    if (!start && !end) return "";
+    if (!isValidTimeFormat(start)) return "Invalid start time";
+    if (!isValidTimeFormat(end)) return "Invalid end time";
+    if (timeToMinutes(start) >= timeToMinutes(end)) return "Start must be before end";
+    return "";
+  };
+
+  // Normalize isEditing
   let isEditing = false;
   try {
     const rawIsEditing: any = params?.isEditing;
@@ -58,33 +104,24 @@ const ProfileSetup = () => {
     isEditing = false;
   }
 
-  console.log("Existing profile data:", existingProfile);
+  // Get section parameter for targeted editing
+  const editSection = params?.section as string | undefined;
 
-  // Form state - pre-fill if editing
+  // Form state - Initialize with defaults, populate async
   const [name, setName] = useState(userInfo?.name || "");
   const [email, setEmail] = useState(userInfo?.email || "");
   const [phone, setPhone] = useState(userInfo?.phone || "");
-  const [experience, setExperience] = useState(
-    existingProfile?.experience?.toString() || ""
-  );
-  const [religiousTradition, setReligiousTradition] = useState(
-    existingProfile?.religiousTradition || ""
-  );
-  const [description, setDescription] = useState(
-    existingProfile?.description || ""
-  );
-  const [templesAffiliated, setTemplesAffiliated] = useState(
-    existingProfile?.templesAffiliated &&
-      existingProfile.templesAffiliated.length > 0
-      ? existingProfile.templesAffiliated
-      : [{ name: "", address: "" }]
-  );
+  const [experience, setExperience] = useState("");
+  const [religiousTradition, setReligiousTradition] = useState("");
+  const [description, setDescription] = useState("");
+  const [languages, setLanguages] = useState<string[]>(userInfo?.languagesSpoken || []);
+  const [templesAffiliated, setTemplesAffiliated] = useState([
+    { name: "", address: "" },
+  ]);
 
-  // Services/ceremonies offered
   const [availableCeremonies, setAvailableCeremonies] = useState<any[]>([]);
   const [isLoadingCeremonies, setIsLoadingCeremonies] = useState(true);
 
-  // Availability
   const [availability, setAvailability] = useState({
     monday: { available: false, startTime: "", endTime: "" },
     tuesday: { available: false, startTime: "", endTime: "" },
@@ -95,64 +132,116 @@ const ProfileSetup = () => {
     sunday: { available: false, startTime: "", endTime: "" },
   });
 
-  // Default times for quick set (editable in the UI)
   const [defaultStart, setDefaultStart] = useState("09:00");
   const [defaultEnd, setDefaultEnd] = useState("18:00");
-  // Per-day time validation errors
   const [timeErrors, setTimeErrors] = useState<Record<string, string>>({});
-
-  // Form step
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Custom navigation: Jump to specific step from profile screen
-  // If jumpToStep is provided, we treat it as "Edit Section" mode
+  // Custom navigation
   const jumpToStepRaw = params?.jumpToStep;
   const initialStep = jumpToStepRaw ? parseInt(jumpToStepRaw as string, 10) : 1;
   const isSingleSectionMode = !!jumpToStepRaw;
 
-  // Initialize step on mount
+  // Initialize step
   useEffect(() => {
     if (initialStep > 1 && initialStep <= 4) {
       setCurrentStep(initialStep);
     }
   }, [initialStep]);
 
-  // Pre-fill data when editing
+  // Fetch Logic
   useEffect(() => {
     const fetchAndSetupData = async () => {
       try {
         setIsLoadingCeremonies(true);
-        // 1. Fetch all available ceremonies from backend
-        const response = await getAllCeremonies();
-        console.log("Ceremony API Response:", JSON.stringify(response, null, 2)); // keep logging for safety
 
-        let ceremoniesFromBackend = [];
-        if (Array.isArray(response)) {
-          ceremoniesFromBackend = response;
-        } else if (response?.ceremonies && Array.isArray(response.ceremonies)) {
-          ceremoniesFromBackend = response.ceremonies;
-        } else if (response?.data && Array.isArray(response.data)) {
-          ceremoniesFromBackend = response.data;
+        // Parallel fetch of ceremonies and profile (if editing)
+        const [ceremoniesRes, profileRes] = await Promise.all([
+          getAllCeremonies(),
+          isEditing ? priestService.getProfile().catch(err => {
+            console.warn("Failed to fetch profile:", err);
+            return null;
+          }) : Promise.resolve(null)
+        ]);
+
+        // If userInfo is null, fetch user data from API
+        let userData = userInfo;
+        if (!userData && isEditing) {
+          try {
+            console.log("ProfileSetup - userInfo is null, fetching from API");
+            const userResponse = await api.get('/api/users/profile');
+            userData = userResponse.data?.data || userResponse.data;
+            console.log("ProfileSetup - Fetched user data:", userData);
+          } catch (err) {
+            console.warn("Failed to fetch user data:", err);
+          }
         }
 
-        console.log("Parsed Ceremonies:", JSON.stringify(ceremoniesFromBackend, null, 2));
+        let ceremoniesFromBackend = [];
+        if (Array.isArray(ceremoniesRes)) {
+          ceremoniesFromBackend = ceremoniesRes;
+        } else if (ceremoniesRes?.ceremonies && Array.isArray(ceremoniesRes.ceremonies)) {
+          ceremoniesFromBackend = ceremoniesRes.ceremonies;
+        } else if (ceremoniesRes?.data && Array.isArray(ceremoniesRes.data)) {
+          ceremoniesFromBackend = ceremoniesRes.data;
+        }
 
-        // 2. Map to local state format
         let mappedCeremonies = ceremoniesFromBackend.map((c: any) => ({
-          id: c._id, // Store backend _id as id
+          id: c._id,
           name: c.name,
           selected: false,
           price: c.pricing?.basePrice?.toString() || "0",
           duration: c.duration?.typical || 60,
         }));
 
-        // 3. If editing, mark selected and update prices
-        if (existingProfile) {
-          if (existingProfile.services && existingProfile.services.length > 0) {
+        // Determine profile source (Prefer Fetch > Params)
+        let loadedProfile = profileRes;
+
+        // Fallback: try to parse from params if direct fetch failed
+        if (!loadedProfile && params.profileData) {
+          try {
+            loadedProfile = JSON.parse(params.profileData as string);
+          } catch (err) {
+            console.warn("Failed to parse profileData from params:", err);
+          }
+        }
+
+        if (loadedProfile) {
+          // Clean up profile data for logging (exclude binary image data)
+          const profileForLogging = {
+            ...loadedProfile,
+            verificationDocuments: loadedProfile.verificationDocuments?.map((doc: any) => ({
+              ...doc,
+              data: doc.data ? '[Binary Image Data]' : undefined
+            }))
+          };
+          console.log("ProfileSetup - Loaded profile data:", profileForLogging);
+
+          // Populate user-level fields from fetched userData (or Redux userInfo as fallback)
+          console.log("ProfileSetup - Using userData for user fields:", userData);
+          if (userData) {
+            if (userData.name) setName(userData.name);
+            if (userData.email) setEmail(userData.email);
+            if (userData.phone) setPhone(userData.phone);
+            // @ts-ignore - languagesSpoken might not be in type definition yet
+            if (userData.languagesSpoken) setLanguages(userData.languagesSpoken);
+          }
+
+          // Populate priest-specific fields from profile
+          if (loadedProfile.experience) setExperience(loadedProfile.experience.toString());
+          if (loadedProfile.religiousTradition) setReligiousTradition(loadedProfile.religiousTradition);
+          if (loadedProfile.description) setDescription(loadedProfile.description);
+          if (loadedProfile.templesAffiliated && loadedProfile.templesAffiliated.length > 0) {
+            setTemplesAffiliated(loadedProfile.templesAffiliated);
+          }
+          if (loadedProfile.availability) {
+            setAvailability(loadedProfile.availability);
+          }
+
+          if (loadedProfile.services && loadedProfile.services.length > 0) {
             mappedCeremonies = mappedCeremonies.map((ceremony: any) => {
-              // Check if this ceremony is in the user's services (by ID or Name fallback)
-              const service = existingProfile.services.find((s: any) =>
+              const service = loadedProfile.services.find((s: any) =>
                 (s.ceremonyId && (s.ceremonyId._id === ceremony.id || s.ceremonyId === ceremony.id)) ||
                 s.name === ceremony.name
               );
@@ -163,11 +252,10 @@ const ProfileSetup = () => {
                 price: service ? service.price.toString() : ceremony.price,
               };
             });
-          } else if (existingProfile.ceremonies) {
-            // Legacy fallback
+          } else if (loadedProfile.ceremonies) {
             mappedCeremonies = mappedCeremonies.map((ceremony: any) => {
-              const isSelected = existingProfile.ceremonies.includes(ceremony.name);
-              const price = existingProfile.priceList?.[ceremony.name] || ceremony.price;
+              const isSelected = loadedProfile.ceremonies.includes(ceremony.name);
+              const price = loadedProfile.priceList?.[ceremony.name] || ceremony.price;
               return {
                 ...ceremony,
                 selected: isSelected,
@@ -175,24 +263,19 @@ const ProfileSetup = () => {
               };
             });
           }
-
-          // Availability
-          if (existingProfile.availability) {
-            setAvailability(existingProfile.availability);
-          }
         }
 
         setAvailableCeremonies(mappedCeremonies);
       } catch (error) {
-        console.error("Failed to fetch ceremonies:", error);
-        Alert.alert("Error", "Failed to load ceremonies. Please check your connection.");
+        console.error("Failed to fetch data:", error);
+        Alert.alert("Error", "Failed to load data. Please check your connection.");
       } finally {
         setIsLoadingCeremonies(false);
       }
     };
 
     fetchAndSetupData();
-  }, []);
+  }, [isEditing]);
 
   // Temple handlers
   const addTemple = () => {
@@ -213,22 +296,24 @@ const ProfileSetup = () => {
     setTemplesAffiliated(updatedTemples);
   };
 
-  // Ceremony handlers
-  const toggleCeremony = (id: string) => {
-    const updatedCeremonies = availableCeremonies.map((ceremony) =>
-      ceremony.id === id
-        ? { ...ceremony, selected: !ceremony.selected }
-        : ceremony
+  // Ceremony handlers - Wrapped in useCallback
+  const toggleCeremony = useCallback((id: string) => {
+    setAvailableCeremonies((prev) =>
+      prev.map((ceremony) =>
+        ceremony.id === id
+          ? { ...ceremony, selected: !ceremony.selected }
+          : ceremony
+      )
     );
-    setAvailableCeremonies(updatedCeremonies);
-  };
+  }, []);
 
-  const updateCeremonyPrice = (id: string, price: string) => {
-    const updatedCeremonies = availableCeremonies.map((ceremony) =>
-      ceremony.id === id ? { ...ceremony, price } : ceremony
+  const updateCeremonyPrice = useCallback((id: string, price: string) => {
+    setAvailableCeremonies((prev) =>
+      prev.map((ceremony) =>
+        ceremony.id === id ? { ...ceremony, price } : ceremony
+      )
     );
-    setAvailableCeremonies(updatedCeremonies);
-  };
+  }, []);
 
   // Availability handlers
   const toggleDayAvailability = (day: string) => {
@@ -236,14 +321,12 @@ const ProfileSetup = () => {
       const currently = prev[day];
       const nowAvailable = !currently.available;
       const updatedDay = { ...currently, available: nowAvailable };
-      // If enabling and times empty, fill with defaults
       if (nowAvailable && (!updatedDay.startTime || !updatedDay.endTime)) {
         updatedDay.startTime = defaultStart;
         updatedDay.endTime = defaultEnd;
       }
       return { ...prev, [day]: updatedDay };
     });
-    // clear any error for this day when toggling
     setTimeErrors((prev) => ({ ...prev, [day]: "" }));
   };
 
@@ -251,35 +334,16 @@ const ProfileSetup = () => {
     setAvailability((prev: any) => {
       const updated = { ...prev };
       updated[day] = { ...updated[day], [field]: value };
-      return updated;
-    });
 
-    // Validate format and ordering
-    setTimeout(() => {
-      const updatedDay = (availability as any)[day] || {};
+      const updatedDay = updated[day];
       const newVal = field === "startTime" ? value : updatedDay.startTime;
       const newEnd = field === "endTime" ? value : updatedDay.endTime;
       const err = validateTimePair(newVal, newEnd);
-      setTimeErrors((prev) => ({ ...prev, [day]: err }));
-    }, 0);
+
+      return updated;
+    });
   };
 
-  // Time validation helpers
-  const isValidTimeFormat = (t: string) => /^(([01]\d|2[0-3]):([0-5]\d))$/.test(t);
-  const timeToMinutes = (t: string) => {
-    if (!isValidTimeFormat(t)) return NaN;
-    const [hh, mm] = t.split(":").map(Number);
-    return hh * 60 + mm;
-  };
-  const validateTimePair = (start: string, end: string) => {
-    if (!start && !end) return "";
-    if (!isValidTimeFormat(start)) return "Invalid start time";
-    if (!isValidTimeFormat(end)) return "Invalid end time";
-    if (timeToMinutes(start) >= timeToMinutes(end)) return "Start must be before end";
-    return "";
-  };
-
-  // UX helpers for availability
   const setDefaultTimes = (start = "09:00", end = "18:00") => {
     const updated: any = { ...availability };
     Object.keys(updated).forEach((d) => {
@@ -300,13 +364,34 @@ const ProfileSetup = () => {
 
   // Form submission
   const handleSubmit = async () => {
-    // Validate form
-    if (!name || !email || !phone || !experience || !religiousTradition) {
-      Alert.alert("Validation Error", "Please fill all required fields");
-      return;
+    console.log("ProfileSetup - handleSubmit called");
+    console.log("ProfileSetup - editSection:", editSection);
+    console.log("ProfileSetup - Form values:", { name, email, phone, experience, religiousTradition, languages });
+
+    // Section-aware validation
+    if (editSection === 'personalDetails') {
+      // Only validate personal details fields
+      if (!name || !experience || !religiousTradition) {
+        console.log("ProfileSetup - Validation failed for personalDetails");
+        Alert.alert("Validation Error", "Please fill all required fields (Name, Experience, Religious Tradition)");
+        return;
+      }
+    } else if (editSection === 'contactInfo') {
+      // Only validate contact info fields
+      if (!email || !phone) {
+        console.log("ProfileSetup - Validation failed for contactInfo");
+        Alert.alert("Validation Error", "Please fill all required fields (Email, Phone)");
+        return;
+      }
+    } else {
+      // Full form validation (when not editing a specific section)
+      if (!name || !email || !phone || !experience || !religiousTradition) {
+        console.log("ProfileSetup - Validation failed for full form");
+        Alert.alert("Validation Error", "Please fill all required fields");
+        return;
+      }
     }
 
-    // Validate availability times before submit
     const newErrors: Record<string, string> = {};
     Object.entries(availability).forEach(([day, data]) => {
       if (data.available) {
@@ -321,7 +406,6 @@ const ProfileSetup = () => {
       return;
     }
 
-    // Get selected ceremonies
     const selectedCeremonies = availableCeremonies
       .filter((ceremony) => ceremony.selected)
       .map((ceremony) => ceremony.name);
@@ -334,7 +418,6 @@ const ProfileSetup = () => {
     setIsSubmitting(true);
 
     try {
-      // Prepare profile data
       const profileData = {
         experience: parseInt(experience, 10),
         religiousTradition,
@@ -346,57 +429,52 @@ const ProfileSetup = () => {
         services: availableCeremonies
           .filter((ceremony) => ceremony.selected)
           .map((ceremony) => ({
-            ceremonyId: ceremony.id, // Critical: Send the Ceremony Object ID
+            ceremonyId: ceremony.id,
             price: parseInt(ceremony.price, 10),
             durationMinutes: ceremony.duration || 60,
           })),
-        // Legacy fields removed
-        // ceremonies: ...
-        // priceList: ...
       };
 
-      console.log("Updating profile with data:", profileData);
-      console.log(
-        "Temples affiliated being sent:",
-        profileData.templesAffiliated
-      );
-      // console.log("Ceremonies being sent:", profileData.ceremonies); // removed logging of deprecated field
+      console.log("ProfileSetup - Submitting profile data:", JSON.stringify(profileData, null, 2));
+      console.log("ProfileSetup - Selected ceremonies count:", availableCeremonies.filter(c => c.selected).length);
 
-      // Call Redux action to update profile
       await (dispatch as any)(updateProfile(profileData as any));
-      console.log("Profile updated successfully via Redux");
 
-      // Also update user info (name, email, phone) via Redux if changed
+      // Prepare user-level updates (name, email, phone, languages)
+      // Note: We need to fetch current user data to compare, since userInfo might be null
+      let currentUserData = userInfo;
+      if (!currentUserData) {
+        try {
+          const userResponse = await api.get('/api/users/profile');
+          currentUserData = userResponse.data?.data || userResponse.data;
+        } catch (err) {
+          console.warn("Failed to fetch current user data for comparison:", err);
+        }
+      }
+
       const userUpdateData: any = {};
-      if (name !== userInfo?.name) userUpdateData.name = name;
-      if (email !== userInfo?.email) userUpdateData.email = email;
-      if (phone !== userInfo?.phone) userUpdateData.phone = phone;
+      if (name !== currentUserData?.name) userUpdateData.name = name;
+      if (email !== currentUserData?.email) userUpdateData.email = email;
+      if (phone !== currentUserData?.phone) userUpdateData.phone = phone;
+
+      // Check if languages have changed
+      const currentLanguages = currentUserData?.languagesSpoken || [];
+      const languagesChanged = JSON.stringify(currentLanguages.sort()) !== JSON.stringify(languages.sort());
+      if (languagesChanged) {
+        console.log("ProfileSetup - Languages changed, updating:", { from: currentLanguages, to: languages });
+        userUpdateData.languagesSpoken = languages;
+      }
 
       if (Object.keys(userUpdateData).length > 0) {
-        (dispatch as any)(
-          updateUserProfile({
-            ...userInfo,
-            ...userUpdateData,
-            profileCompleted: true,
-          })
+        console.log("ProfileSetup - Updating user data:", userUpdateData);
+        await (dispatch as any)(
+          updateProfile(userUpdateData)
         );
       }
 
-      // Persist user info changes using secure storage
-      const userInfoString = await SecureStore.getItemAsync("userInfo");
-      if (userInfoString) {
-        const parsedUserInfo = JSON.parse(userInfoString);
-        await SecureStore.setItemAsync(
-          "userInfo",
-          JSON.stringify({
-            ...parsedUserInfo,
-            ...userUpdateData,
-            profileCompleted: true,
-          })
-        );
-      }
+      // Small delay to ensure backend and Redux state are updated
+      await new Promise(resolve => setTimeout(resolve, 300));
 
-      // Show success message and navigate back
       Alert.alert(
         "Profile Updated",
         "Your profile has been updated successfully.",
@@ -404,13 +482,7 @@ const ProfileSetup = () => {
           {
             text: "Continue",
             onPress: () => {
-              console.log("Profile updated successfully, navigating back");
-              // Navigate back to profile screen with refresh parameter
               router.back();
-              // Force a refresh of the profile screen (using expo-router)
-              setTimeout(() => {
-                router.replace({ params: { refresh: true } as any } as any);
-              }, 100);
             },
           },
         ]
@@ -427,7 +499,7 @@ const ProfileSetup = () => {
     }
   };
 
-  // Navigation between steps
+  // Navigation
   const nextStep = () => {
     if (currentStep === 1) {
       if (!name || !email || !phone || !experience || !religiousTradition) {
@@ -443,7 +515,6 @@ const ProfileSetup = () => {
         return;
       }
     }
-
     setCurrentStep(currentStep + 1);
   };
 
@@ -451,158 +522,166 @@ const ProfileSetup = () => {
     setCurrentStep(currentStep - 1);
   };
 
-  // Render form steps
-  const renderStep1 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Basic Information</Text>
+  // Render Steps
+  const renderStep1 = () => {
+    // Determine which fields to show based on editSection
+    const showPersonalDetails = !editSection || editSection === 'personalDetails';
+    const showContactInfo = !editSection || editSection === 'contactInfo';
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Full Name *</Text>
-        <TextInput
-          style={styles.input}
-          value={name}
-          onChangeText={setName}
-          placeholder="Enter your full name"
-          placeholderTextColor={APP_COLORS.gray}
-        />
-      </View>
+    return (
+      <ScrollView style={styles.content}>
+        <Text style={styles.stepTitle}>
+          {editSection === 'personalDetails' ? 'Personal Details' :
+            editSection === 'contactInfo' ? 'Contact Information' :
+              'Basic Information'}
+        </Text>
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Email *</Text>
-        <TextInput
-          style={styles.input}
-          value={email}
-          onChangeText={setEmail}
-          placeholder="Enter your email"
-          placeholderTextColor={APP_COLORS.gray}
-          keyboardType="email-address"
-          autoCapitalize="none"
-        />
-      </View>
+        {showPersonalDetails && (
+          <>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Full Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={name}
+                onChangeText={setName}
+                placeholder="Enter your full name"
+                placeholderTextColor={APP_COLORS.gray}
+              />
+            </View>
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Phone Number *</Text>
-        <TextInput
-          style={styles.input}
-          value={phone}
-          onChangeText={setPhone}
-          placeholder="Enter your phone number"
-          placeholderTextColor={APP_COLORS.gray}
-          keyboardType="phone-pad"
-        />
-      </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Years of Experience *</Text>
+              <TextInput
+                style={styles.input}
+                value={experience}
+                onChangeText={setExperience}
+                placeholder="Enter years of experience"
+                placeholderTextColor={APP_COLORS.gray}
+                keyboardType="numeric"
+              />
+            </View>
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Years of Experience *</Text>
-        <TextInput
-          style={styles.input}
-          value={experience}
-          onChangeText={setExperience}
-          placeholder="Enter years of experience"
-          placeholderTextColor={APP_COLORS.gray}
-          keyboardType="numeric"
-        />
-      </View>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Religious Tradition *</Text>
+              <TextInput
+                style={styles.input}
+                value={religiousTradition}
+                onChangeText={setReligiousTradition}
+                placeholder="E.g., Hinduism, Buddhism, etc."
+                placeholderTextColor={APP_COLORS.gray}
+              />
+            </View>
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Religious Tradition *</Text>
-        <TextInput
-          style={styles.input}
-          value={religiousTradition}
-          onChangeText={setReligiousTradition}
-          placeholder="E.g., Hinduism, Buddhism, etc."
-          placeholderTextColor={APP_COLORS.gray}
-        />
-      </View>
+            <LanguagePicker
+              selectedLanguages={languages}
+              onChange={setLanguages}
+            />
+          </>
+        )}
 
-      <View style={styles.formGroup}>
-        <Text style={styles.label}>Description (About Yourself)</Text>
-        <TextInput
-          style={[styles.input, styles.textArea]}
-          value={description}
-          onChangeText={setDescription}
-          placeholder="Describe your experience, specialties, and services"
-          placeholderTextColor={APP_COLORS.gray}
-          multiline
-          numberOfLines={4}
-        />
-      </View>
-    </View>
-  );
+        {showContactInfo && (
+          <>
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Email *</Text>
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Enter your email"
+                placeholderTextColor={APP_COLORS.gray}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Phone Number *</Text>
+              <TextInput
+                style={styles.input}
+                value={phone}
+                onChangeText={setPhone}
+                placeholder="Enter your phone number"
+                placeholderTextColor={APP_COLORS.gray}
+                keyboardType="phone-pad"
+              />
+            </View>
+          </>
+        )}
+
+        {!editSection && (
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Description (About Yourself)</Text>
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              value={description}
+              onChangeText={setDescription}
+              placeholder="Describe your experience, specialties, and services"
+              placeholderTextColor={APP_COLORS.gray}
+              multiline
+              numberOfLines={4}
+            />
+          </View>
+        )}
+        <View style={{ height: 20 }} />
+      </ScrollView>
+    );
+  };
 
   const renderStep2 = () => (
-    <View>
-      <Text style={styles.stepTitle}>Services & Pricing</Text>
-      <Text style={styles.stepSubtitle}>
-        Select the ceremonies you offer and set your pricing
-      </Text>
+    <View style={{ flex: 1 }}>
+      <FlatList
+        data={availableCeremonies}
+        renderItem={({ item }) => (
+          <CeremonyItem
+            ceremony={item}
+            onToggle={toggleCeremony}
+            onUpdatePrice={updateCeremonyPrice}
+          />
+        )}
+        keyExtractor={(item) => item.id}
+        ListHeaderComponent={
+          <View>
+            <Text style={styles.stepTitle}>Services & Pricing</Text>
+            <Text style={styles.stepSubtitle}>
+              Select the ceremonies you offer and set your pricing
+            </Text>
 
-      {isLoadingCeremonies ? (
-        <View style={{ padding: 24, alignItems: 'center' }}>
-          <Text style={{ color: APP_COLORS.gray }}>Loading ceremonies...</Text>
-        </View>
-      ) : availableCeremonies.length === 0 ? (
-        <View style={{ padding: 24, alignItems: 'center' }}>
-          <Text style={{ color: APP_COLORS.gray, marginBottom: 8 }}>No ceremonies available</Text>
-          <Text style={{ color: APP_COLORS.gray, fontSize: 12 }}>
-            Please contact support if this issue persists
-          </Text>
-        </View>
-      ) : (
-        <>
-          {availableCeremonies.map((ceremony) => (
-            <View key={ceremony.id} style={styles.ceremonyItem}>
-              <View style={styles.ceremonyHeader}>
-                <View style={styles.checkboxContainer}>
-                  <TouchableOpacity
-                    style={[
-                      styles.checkbox,
-                      ceremony.selected && styles.checkboxSelected,
-                    ]}
-                    onPress={() => toggleCeremony(ceremony.id)}
-                  >
-                    {ceremony.selected && (
-                      <Ionicons
-                        name="checkmark"
-                        size={16}
-                        color={APP_COLORS.white}
-                      />
-                    )}
-                  </TouchableOpacity>
-                  <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-                </View>
-                {ceremony.selected && (
-                  <View style={styles.priceContainer}>
-                    <Text style={styles.priceLabel}>Price (₹)</Text>
-                    <TextInput
-                      style={styles.priceInput}
-                      value={ceremony.price}
-                      onChangeText={(value) =>
-                        updateCeremonyPrice(ceremony.id, value)
-                      }
-                      keyboardType="numeric"
-                    />
-                  </View>
-                )}
+            {isLoadingCeremonies && (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: APP_COLORS.gray }}>Loading ceremonies...</Text>
               </View>
-            </View>
-          ))}
-        </>
-      )}
+            )}
 
-      <TouchableOpacity style={styles.addButton}>
-        <Ionicons
-          name="add-circle-outline"
-          size={20}
-          color={APP_COLORS.primary}
-        />
-        <Text style={styles.addButtonText}>Add Custom Ceremony</Text>
-      </TouchableOpacity>
+            {!isLoadingCeremonies && availableCeremonies.length === 0 && (
+              <View style={{ padding: 24, alignItems: 'center' }}>
+                <Text style={{ color: APP_COLORS.gray, marginBottom: 8 }}>No ceremonies available</Text>
+                <Text style={{ color: APP_COLORS.gray, fontSize: 12 }}>
+                  Please contact support if this issue persists
+                </Text>
+              </View>
+            )}
+          </View>
+        }
+        ListFooterComponent={
+          <TouchableOpacity style={styles.addButton}>
+            <Ionicons
+              name="add-circle-outline"
+              size={20}
+              color={APP_COLORS.primary}
+            />
+            <Text style={styles.addButtonText}>Add Custom Ceremony</Text>
+          </TouchableOpacity>
+        }
+        contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
+        initialNumToRender={10}
+        windowSize={5}
+        removeClippedSubviews={true}
+      />
     </View>
   );
 
   const renderStep3 = () => (
-    <View>
+    <ScrollView style={styles.content}>
       <Text style={styles.stepTitle}>Temple Affiliation</Text>
       <Text style={styles.stepSubtitle}>
         Add temples you are affiliated with
@@ -658,11 +737,12 @@ const ProfileSetup = () => {
         />
         <Text style={styles.addButtonText}>Add Another Temple</Text>
       </TouchableOpacity>
-    </View>
+      <View style={{ height: 20 }} />
+    </ScrollView>
   );
 
   const renderStep4 = () => (
-    <View>
+    <ScrollView style={styles.content}>
       <Text style={styles.stepTitle}>Availability</Text>
       <Text style={styles.stepSubtitle}>Set your weekly availability</Text>
 
@@ -752,7 +832,8 @@ const ProfileSetup = () => {
           )}
         </View>
       ))}
-    </View>
+      <View style={{ height: 20 }} />
+    </ScrollView>
   );
 
   return (
@@ -817,16 +898,12 @@ const ProfileSetup = () => {
             </View>
           )}
 
-          <ScrollView
-            style={styles.content}
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ flexGrow: 1 }}
-          >
+          <View style={{ flex: 1 }}>
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
             {currentStep === 4 && renderStep4()}
-          </ScrollView>
+          </View>
 
           <View style={styles.footer}>
             {isSingleSectionMode ? (
@@ -976,6 +1053,11 @@ const styles = StyleSheet.create({
   textArea: {
     minHeight: 100,
     textAlignVertical: "top",
+  },
+  infoText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    paddingVertical: 8,
   },
   ceremonyItem: {
     backgroundColor: APP_COLORS.white,

@@ -152,7 +152,7 @@ const ProfileCompletionBanner: React.FC<ProfileCompletionBannerProps> = ({
 
             <TouchableOpacity
                 style={styles.completeButton}
-                onPress={() => router.push('/priest/ProfileSetup')}
+                onPress={() => router.push('/priest/(tabs)/ProfileTab')}
             >
                 <Text style={styles.completeButtonText}>Complete Profile</Text>
                 <Ionicons name="arrow-forward" size={18} color={APP_COLORS.white} />

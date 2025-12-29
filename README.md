@@ -7,10 +7,29 @@
     npm install
     ```
 
-2.  **Run the app:**
-    ```bash
-    npx expo start
-    ```
+## Running the App
+To start the development server:
+
+```bash
+npx expo start
+```
+
+### Platform Specific
+- **Android:** Press `a` in the terminal (requires Android Emulator or connected device)
+- **iOS:** Press `i` in the terminal (requires Xcode Simulator or connected device)
+- **Web:** Press `w` in the terminal
+
+### Troubleshooting
+If you encounter errors or changes aren't reflecting:
+
+**Clear Cache:**
+```bash
+npx expo start -c
+```
+This is useful when:
+- Installing new packages
+- Editing `app.json` or `babel.config.js`
+- Encountering "InternalBytecode" or metro bundler errors
 
 ## Features
 

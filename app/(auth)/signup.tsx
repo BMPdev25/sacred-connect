@@ -14,7 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import InputField from "../../components/InputField";
-import ReligiousTraditionPicker from "../../components/ReligiousTraditionPicker";
+import LanguagePicker from "../../components/LanguagePicker";
 import { APP_COLORS } from "../../constants/Colors";
 import { clearError, register } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
@@ -29,8 +29,7 @@ interface SignUpState {
   confirmPassword: string;
   showPassword: boolean;
   userType: UserType;
-  religiousTradition: string;
-  showReligiousOptions: boolean;
+  languagesSpoken: string[];
 }
 
 interface FormErrors {
@@ -39,7 +38,7 @@ interface FormErrors {
   phone?: string;
   password?: string;
   confirmPassword?: string;
-  religiousTradition?: string;
+  languagesSpoken?: string;
 }
 
 export default function SignUpScreen() {
@@ -56,8 +55,7 @@ export default function SignUpScreen() {
     confirmPassword: "",
     showPassword: false,
     userType: initialUserType,
-    religiousTradition: "",
-    showReligiousOptions: false,
+    languagesSpoken: [],
   });
 
   // Form validation
@@ -108,8 +106,8 @@ export default function SignUpScreen() {
     else if (state.password !== state.confirmPassword)
       newErrors.confirmPassword = "Passwords do not match";
 
-    if (state.userType === "priest" && !state.religiousTradition)
-      newErrors.religiousTradition = "Please select your religious tradition";
+    if (state.userType === "priest" && state.languagesSpoken.length === 0)
+      newErrors.languagesSpoken = "Please select at least one language";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -117,9 +115,9 @@ export default function SignUpScreen() {
 
   const handleSignUp = (): void => {
     if (validateForm()) {
-      // If priest, ensure religiousTradition is present
-      if (state.userType === "priest" && !state.religiousTradition) {
-        setErrors((prev) => ({ ...prev, religiousTradition: "Please select your religious tradition" }));
+      // If priest, ensure languagesSpoken is present
+      if (state.userType === "priest" && state.languagesSpoken.length === 0) {
+        setErrors((prev) => ({ ...prev, languagesSpoken: "Please select at least one language" }));
         return;
       }
       dispatch(
@@ -129,7 +127,7 @@ export default function SignUpScreen() {
           phone: state.phone,
           password: state.password,
           userType: state.userType,
-          ...(state.userType === "priest" ? { religiousTradition: state.religiousTradition } : {}),
+          ...(state.userType === "priest" ? { languagesSpoken: state.languagesSpoken } : {}),
         })
       );
     }
@@ -264,18 +262,12 @@ export default function SignUpScreen() {
             />
 
             {state.userType === "priest" && (
-              <ReligiousTraditionPicker
-                value={state.religiousTradition}
-                onChange={(value: string) =>
-                  setState((prev) => ({ ...prev, religiousTradition: value }))
+              <LanguagePicker
+                selectedLanguages={state.languagesSpoken}
+                onChange={(languageIds: string[]) =>
+                  setState((prev) => ({ ...prev, languagesSpoken: languageIds }))
                 }
-                isVisible={state.showReligiousOptions}
-                onClose={() =>
-                  setState((prev) => ({
-                    ...prev,
-                    showReligiousOptions: !prev.showReligiousOptions,
-                  }))
-                }
+                error={errors.languagesSpoken}
               />
             )}
 

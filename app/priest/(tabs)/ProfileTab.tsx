@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as DocumentPicker from "expo-document-picker";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -85,6 +86,30 @@ const ProfileScreen: React.FC = () => {
 
   const handleUpdateProfile = (): void => {
     router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true } } as any);
+  };
+
+  const handleFileUpload = async (type: "government_id" | "religious_certificate") => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/jpeg", "image/png"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets![0];
+      Alert.alert("Uploading...", "Please wait while we upload your document.");
+
+      await priestService.uploadDocument(
+        { uri: file.uri, name: file.name, type: file.mimeType || "application/pdf" },
+        type
+      );
+
+      Alert.alert("Success", "Document uploaded successfully!");
+      getProfile();
+    } catch (error: any) {
+      Alert.alert("Error", error.toString());
+    }
   };
 
   return (
@@ -207,6 +232,11 @@ const ProfileScreen: React.FC = () => {
             */}
           </View>
 
+          {/* Verification Documents */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Verification Documents</Text>
+          </View>
+
           <View style={styles.documentsCard}>
             <View style={styles.documentItem}>
               <View style={styles.documentIconContainer}>
@@ -218,10 +248,14 @@ const ProfileScreen: React.FC = () => {
               </View>
               <View style={styles.documentInfo}>
                 <Text style={styles.documentTitle}>Government ID</Text>
-                <Text style={styles.documentStatus}>Upload Government ID</Text>
+                <Text style={styles.documentStatus}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Uploaded" : "Upload Government ID"}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton}>
-                <Text style={styles.uploadButtonText}>Upload</Text>
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("government_id")}>
+                <Text style={styles.uploadButtonText}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Re-upload" : "Upload"}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -237,10 +271,14 @@ const ProfileScreen: React.FC = () => {
                 <Text style={styles.documentTitle}>
                   Religious Certification
                 </Text>
-                <Text style={styles.documentStatus}>Upload Certification</Text>
+                <Text style={styles.documentStatus}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Uploaded" : "Upload Certification"}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton}>
-                <Text style={styles.uploadButtonText}>Upload</Text>
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("religious_certificate")}>
+                <Text style={styles.uploadButtonText}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Re-upload" : "Upload"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>

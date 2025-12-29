@@ -127,7 +127,7 @@ interface RegisterParams {
   phone: string;
   password: string;
   userType: "devotee" | "priest";
-  religiousTradition?: string;
+  languagesSpoken?: string[];
 }
 
 export const register = createAsyncThunk<
@@ -137,7 +137,7 @@ export const register = createAsyncThunk<
 >(
   "auth/register",
   async (
-    { name, email, phone, password, userType, religiousTradition },
+    { name, email, phone, password, userType, languagesSpoken },
     { rejectWithValue }
   ) => {
     try {
@@ -148,7 +148,7 @@ export const register = createAsyncThunk<
         phone,
         password,
         userType,
-        religiousTradition,
+        languagesSpoken,
       });
 
       // Store token in SecureStore

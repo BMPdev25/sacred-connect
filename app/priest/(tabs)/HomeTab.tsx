@@ -17,6 +17,7 @@ import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import priestService from "../../../services/priestService";
 import { useNotifications } from "../../../context/NotificationContext";
+import ProfileCompletionBanner from "../../../components/ProfileCompletionBanner";
 
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
@@ -31,6 +32,7 @@ const HomeScreen: React.FC = () => {
     availableBalance: 0,
   });
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
+  const [profileCompletion, setProfileCompletion] = useState<any>(null);
 
   // Ceremonies examples
   const ceremonies = [
@@ -90,6 +92,16 @@ const HomeScreen: React.FC = () => {
         setEarnings({ thisMonth: 0, growthPercentage: 0, availableBalance: 0 });
       }
 
+      // Profile Completion
+      try {
+        const completion = await priestService.getProfileCompletion();
+        if (!mounted) return;
+        setProfileCompletion(completion);
+      } catch (err) {
+        console.warn("profile completion fetch failed", err);
+        if (!mounted) return;
+      }
+
       setRecentReviews([
         { id: "1", devotee: "Anita", rating: 5, comment: "Excellent service!" },
       ]);
@@ -138,6 +150,11 @@ const HomeScreen: React.FC = () => {
 
           </View>
         </View>
+
+        {/* Profile Completion Banner */}
+        {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
+          <ProfileCompletionBanner data={profileCompletion} />
+        )}
 
         {
           loading ? (

@@ -537,43 +537,58 @@ const ProfileSetup = () => {
         Select the ceremonies you offer and set your pricing
       </Text>
 
-      {availableCeremonies.map((ceremony) => (
-        <View key={ceremony.id} style={styles.ceremonyItem}>
-          <View style={styles.ceremonyHeader}>
-            <View style={styles.checkboxContainer}>
-              <TouchableOpacity
-                style={[
-                  styles.checkbox,
-                  ceremony.selected && styles.checkboxSelected,
-                ]}
-                onPress={() => toggleCeremony(ceremony.id)}
-              >
-                {ceremony.selected && (
-                  <Ionicons
-                    name="checkmark"
-                    size={16}
-                    color={APP_COLORS.white}
-                  />
-                )}
-              </TouchableOpacity>
-              <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-            </View>
-            {ceremony.selected && (
-              <View style={styles.priceContainer}>
-                <Text style={styles.priceLabel}>Price (₹)</Text>
-                <TextInput
-                  style={styles.priceInput}
-                  value={ceremony.price}
-                  onChangeText={(value) =>
-                    updateCeremonyPrice(ceremony.id, value)
-                  }
-                  keyboardType="numeric"
-                />
-              </View>
-            )}
-          </View>
+      {isLoadingCeremonies ? (
+        <View style={{ padding: 24, alignItems: 'center' }}>
+          <Text style={{ color: APP_COLORS.gray }}>Loading ceremonies...</Text>
         </View>
-      ))}
+      ) : availableCeremonies.length === 0 ? (
+        <View style={{ padding: 24, alignItems: 'center' }}>
+          <Text style={{ color: APP_COLORS.gray, marginBottom: 8 }}>No ceremonies available</Text>
+          <Text style={{ color: APP_COLORS.gray, fontSize: 12 }}>
+            Please contact support if this issue persists
+          </Text>
+        </View>
+      ) : (
+        <>
+          {availableCeremonies.map((ceremony) => (
+            <View key={ceremony.id} style={styles.ceremonyItem}>
+              <View style={styles.ceremonyHeader}>
+                <View style={styles.checkboxContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.checkbox,
+                      ceremony.selected && styles.checkboxSelected,
+                    ]}
+                    onPress={() => toggleCeremony(ceremony.id)}
+                  >
+                    {ceremony.selected && (
+                      <Ionicons
+                        name="checkmark"
+                        size={16}
+                        color={APP_COLORS.white}
+                      />
+                    )}
+                  </TouchableOpacity>
+                  <Text style={styles.ceremonyName}>{ceremony.name}</Text>
+                </View>
+                {ceremony.selected && (
+                  <View style={styles.priceContainer}>
+                    <Text style={styles.priceLabel}>Price (₹)</Text>
+                    <TextInput
+                      style={styles.priceInput}
+                      value={ceremony.price}
+                      onChangeText={(value) =>
+                        updateCeremonyPrice(ceremony.id, value)
+                      }
+                      keyboardType="numeric"
+                    />
+                  </View>
+                )}
+              </View>
+            </View>
+          ))}
+        </>
+      )}
 
       <TouchableOpacity style={styles.addButton}>
         <Ionicons

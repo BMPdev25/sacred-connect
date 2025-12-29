@@ -17,6 +17,20 @@ const priestService = {
       throw error?.response?.data?.message || 'Failed to fetch profile. Please try again.';
     }
   },
+
+  /**
+   * Get profile completion percentage
+   * @returns {Promise} Response from the API
+   */
+  getProfileCompletion: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/profile-completion');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch profile completion. Please try again.';
+    }
+  },
+
   /**
    * Get pujaris who can perform a specific ceremony
    * Supports optional radius + location filtering
@@ -150,9 +164,30 @@ const priestService = {
 
   /**
    * Upload priest's certification or ID documents
-   * @param {FormData} formData - The form data with documents
+   * @param {Object} fileData - { uri, name, type }
+   * @param {string} documentType - government_id, religious_certificate, etc.
    * @returns {Promise} Response from the API
    */
+  uploadDocument: async (fileData: { uri: string; name: string; type: string }, documentType: string): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append('document', {
+        uri: fileData.uri,
+        name: fileData.name,
+        type: fileData.type,
+      } as any);
+      formData.append('documentType', documentType);
+
+      const response = await api.post('/api/priest/documents', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to upload document. Please try again.';
+    }
+  },
 
   /**
    * Get notifications for the priest

@@ -39,7 +39,7 @@ const BookingsTabScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      console.log('Error fetching bookings:', error);
+      // Error already logged by Redux
     }
   }, [error]);
 
@@ -83,14 +83,12 @@ const BookingsTabScreen: React.FC = () => {
 
   const handleViewDetails = (booking: any) => {
     // Use expo-router to navigate and send booking as a string param
-    console.log("here", booking)
     if (booking && booking._id) {
       router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
     }
   };
 
   const handleBookingPress = (booking: any) => {
-    console.log("here in handle booking press")
     if (booking && booking._id) {
       router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
     }

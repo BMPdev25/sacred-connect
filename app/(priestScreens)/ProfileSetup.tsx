@@ -169,10 +169,8 @@ const ProfileSetup = () => {
         let userData = userInfo;
         if (!userData && isEditing) {
           try {
-            console.log("ProfileSetup - userInfo is null, fetching from API");
             const userResponse = await api.get('/api/users/profile');
             userData = userResponse.data?.data || userResponse.data;
-            console.log("ProfileSetup - Fetched user data:", userData);
           } catch (err) {
             console.warn("Failed to fetch user data:", err);
           }
@@ -208,18 +206,7 @@ const ProfileSetup = () => {
         }
 
         if (loadedProfile) {
-          // Clean up profile data for logging (exclude binary image data)
-          const profileForLogging = {
-            ...loadedProfile,
-            verificationDocuments: loadedProfile.verificationDocuments?.map((doc: any) => ({
-              ...doc,
-              data: doc.data ? '[Binary Image Data]' : undefined
-            }))
-          };
-          console.log("ProfileSetup - Loaded profile data:", profileForLogging);
-
           // Populate user-level fields from fetched userData (or Redux userInfo as fallback)
-          console.log("ProfileSetup - Using userData for user fields:", userData);
           if (userData) {
             if (userData.name) setName(userData.name);
             if (userData.email) setEmail(userData.email);
@@ -364,29 +351,22 @@ const ProfileSetup = () => {
 
   // Form submission
   const handleSubmit = async () => {
-    console.log("ProfileSetup - handleSubmit called");
-    console.log("ProfileSetup - editSection:", editSection);
-    console.log("ProfileSetup - Form values:", { name, email, phone, experience, religiousTradition, languages });
-
     // Section-aware validation
     if (editSection === 'personalDetails') {
       // Only validate personal details fields
       if (!name || !experience || !religiousTradition) {
-        console.log("ProfileSetup - Validation failed for personalDetails");
         Alert.alert("Validation Error", "Please fill all required fields (Name, Experience, Religious Tradition)");
         return;
       }
     } else if (editSection === 'contactInfo') {
       // Only validate contact info fields
       if (!email || !phone) {
-        console.log("ProfileSetup - Validation failed for contactInfo");
         Alert.alert("Validation Error", "Please fill all required fields (Email, Phone)");
         return;
       }
     } else {
       // Full form validation (when not editing a specific section)
       if (!name || !email || !phone || !experience || !religiousTradition) {
-        console.log("ProfileSetup - Validation failed for full form");
         Alert.alert("Validation Error", "Please fill all required fields");
         return;
       }
@@ -435,9 +415,6 @@ const ProfileSetup = () => {
           })),
       };
 
-      console.log("ProfileSetup - Submitting profile data:", JSON.stringify(profileData, null, 2));
-      console.log("ProfileSetup - Selected ceremonies count:", availableCeremonies.filter(c => c.selected).length);
-
       await (dispatch as any)(updateProfile(profileData as any));
 
       // Prepare user-level updates (name, email, phone, languages)
@@ -461,12 +438,10 @@ const ProfileSetup = () => {
       const currentLanguages = currentUserData?.languagesSpoken || [];
       const languagesChanged = JSON.stringify(currentLanguages.sort()) !== JSON.stringify(languages.sort());
       if (languagesChanged) {
-        console.log("ProfileSetup - Languages changed, updating:", { from: currentLanguages, to: languages });
         userUpdateData.languagesSpoken = languages;
       }
 
       if (Object.keys(userUpdateData).length > 0) {
-        console.log("ProfileSetup - Updating user data:", userUpdateData);
         await (dispatch as any)(
           updateProfile(userUpdateData)
         );

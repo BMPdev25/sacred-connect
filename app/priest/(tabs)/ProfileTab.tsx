@@ -47,7 +47,6 @@ const ProfileScreen: React.FC = () => {
   const getProfile = async () => {
     try {
       const priestProfile = await priestService.getProfile();
-      console.log("ProfileTab - Fetched profile:", JSON.stringify(priestProfile, null, 2));
       setProfile(priestProfile);
 
       // Fetch profile completion from backend

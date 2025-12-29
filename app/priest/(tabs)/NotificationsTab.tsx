@@ -128,7 +128,6 @@ const NotificationsScreen: React.FC = () => {
           if (!item.read) {
             markAsRead(item._id);
           }
-          console.log("Notification tapped:", item);
           // Handle notification tap
           if (item.type === "booking") {
             router.push({ pathname: "/PriestBookingDetails", params: { notificationDetails: JSON.stringify(item) } });

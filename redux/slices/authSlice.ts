@@ -34,13 +34,10 @@ export const login = createAsyncThunk<
   { rejectValue: string }
 >("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
   try {
-    console.log("Attempting login with:", { identifier });
     const response = await api.post("/api/auth/login", {
       identifier,
       password,
     });
-
-    console.log("Login successful");
 
     // Store token in SecureStore
     await SecureStore.setItemAsync("userToken", response.data.token);
@@ -83,13 +80,10 @@ export const firebaseLogin = createAsyncThunk<
   { rejectValue: string }
 >("auth/firebaseLogin", async ({ idToken, userType }, { rejectWithValue }) => {
   try {
-    console.log("Attempting firebase login with token");
     const response = await api.post("/api/auth/firebase-login", {
       idToken,
       userType
     });
-
-    console.log("Firebase Login successful");
 
     // Store token in SecureStore
     await SecureStore.setItemAsync("userToken", response.data.token);
@@ -141,7 +135,6 @@ export const register = createAsyncThunk<
     { rejectWithValue }
   ) => {
     try {
-      console.log("Registration data:", { name, email, phone, userType });
       const response = await api.post("/api/auth/register", {
         name,
         email,
@@ -165,7 +158,6 @@ export const register = createAsyncThunk<
       return response.data;
     } catch (error: any) {
       console.error("Registration error:", error);
-      console.log(error);
       let errorMessage = "An error occurred during registration.";
 
       if (error.response) {
@@ -222,8 +214,6 @@ export const updateProfile = createAsyncThunk<
   { rejectValue: string }
 >("auth/updateProfile", async (profileData, { rejectWithValue, getState }) => {
   try {
-    console.log("Updating profile with data:", profileData);
-
     const state = getState() as RootState;
     // Get the auth token from state
     const { userToken } = state.auth;

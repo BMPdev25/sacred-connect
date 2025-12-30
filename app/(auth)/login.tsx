@@ -16,10 +16,10 @@ import InputField from "../../components/InputField";
 import { APP_COLORS } from "../../constants/Colors";
 import { clearError, login, firebaseLogin } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
+import { detectIdentifierType } from "../../utils/identifierDetection";
 
 interface LoginState {
   identifier: string; // This can be phone or email
-  identifierType: "phone" | "email";
   authMethod: "password" | "otp";
   password: string;
   showPassword: boolean;
@@ -31,7 +31,6 @@ interface LoginState {
 export default function LoginScreen() {
   const [state, setState] = useState<LoginState>({
     identifier: "",
-    identifierType: "phone", // Default to phone
     authMethod: "password", // Default to password
     password: "",
     showPassword: false,
@@ -52,12 +51,15 @@ export default function LoginScreen() {
     if (!state.identifier || !state.password) {
       Alert.alert(
         "Validation Error",
-        `Please enter your ${state.identifierType} and password`
+        "Please enter your email or mobile number and password"
       );
       return;
     }
 
     try {
+      // Auto-detect identifier type
+      const identifierType = detectIdentifierType(state.identifier);
+
       // Await the login thunk and get the returned user info
       const user = await dispatch(login({ identifier: state.identifier, password: state.password })).unwrap();
 
@@ -72,7 +74,8 @@ export default function LoginScreen() {
     if (!state.otp) return;
     // Simulate verify
     // In real app, we verify OTP sent to state.identifier (email or phone)
-    const mockIdToken = `mock_token_${state.identifierType}_${state.identifier.replace(/[^a-zA-Z0-9]/g, '')}`;
+    const identifierType = detectIdentifierType(state.identifier);
+    const mockIdToken = `mock_token_${identifierType}_${state.identifier.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     try {
       await dispatch(firebaseLogin({ idToken: mockIdToken, userType: 'devotee' })).unwrap(); // Defaulting to devotee for OTP login for now or need selector
@@ -93,7 +96,10 @@ export default function LoginScreen() {
   }
 
   const sendOTP = () => {
-    if (!state.identifier) { Alert.alert("Error", `Enter ${state.identifierType}`); return; }
+    if (!state.identifier) {
+      Alert.alert("Error", "Enter your email or mobile number");
+      return;
+    }
     // Simulate sending OTP
     Alert.alert("OTP Sent", `Code sent to ${state.identifier}`);
     setState(prev => ({ ...prev, confirmResult: "mock_confirmation" }));
@@ -149,31 +155,15 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* 1. Identifier Type Toggle (Email vs Phone) */}
-            <View style={styles.typeToggleContainer}>
-              <TouchableOpacity
-                style={[styles.typeToggleButton, state.identifierType === 'phone' && styles.activeTypeToggleButton]}
-                onPress={() => setState(prev => ({ ...prev, identifierType: 'phone', identifier: '', validationError: undefined }))}
-              >
-                <Text style={[styles.typeToggleText, state.identifierType === 'phone' && styles.activeTypeToggleText]}>Phone</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.typeToggleButton, state.identifierType === 'email' && styles.activeTypeToggleButton]}
-                onPress={() => setState(prev => ({ ...prev, identifierType: 'email', identifier: '', validationError: undefined }))}
-              >
-                <Text style={[styles.typeToggleText, state.identifierType === 'email' && styles.activeTypeToggleText]}>Email</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* 2. Identifier Input */}
+            {/* Identifier Input - Auto-detects Phone or Email */}
             <InputField
-              label={state.identifierType === 'email' ? "Email Address" : "Phone Number"}
+              label="Email or Mobile Number"
               value={state.identifier}
               onChangeText={(text: string) =>
                 setState((prev) => ({ ...prev, identifier: text }))
               }
-              placeholder={state.identifierType === 'email' ? "Enter your email" : "Enter your phone"}
-              keyboardType={state.identifierType === 'email' ? "email-address" : "phone-pad"}
+              placeholder="Enter your email or mobile number"
+              keyboardType="default"
               autoCapitalize="none"
             />
 

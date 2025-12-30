@@ -73,14 +73,12 @@ export default function SignUpScreen() {
 
   useEffect(() => {
     if (userInfo) {
+      // Progressive onboarding: redirect all users to their home screen
+      // Profile completion banner will guide priests to complete their profile
       if (userInfo.userType === "devotee") {
         router.replace("/devotee/HomeTab");
       } else if (userInfo.userType === "priest") {
-        if (!userInfo.profileCompleted) {
-          router.replace("/priest/ProfileSetup");
-        } else {
-          router.replace("/priest/HomeTab");
-        }
+        router.replace("/priest/HomeTab");
       }
     }
   }, [userInfo]);

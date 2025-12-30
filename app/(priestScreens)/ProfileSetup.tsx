@@ -15,9 +15,12 @@ import {
   View,
   Switch,
   FlatList,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import * as Location from 'expo-location';
+import * as ImagePicker from 'expo-image-picker';
 import { APP_COLORS } from "../../constants/Colors";
 import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
 import { updateProfile } from "../../redux/slices/priestSlice";
@@ -114,7 +117,15 @@ const ProfileSetup = () => {
   const [experience, setExperience] = useState("");
   const [religiousTradition, setReligiousTradition] = useState("");
   const [description, setDescription] = useState("");
-  const [languages, setLanguages] = useState<string[]>(userInfo?.languagesSpoken || []);
+  const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [location, setLocation] = useState<{ type: string, coordinates: number[] }>({ type: 'Point', coordinates: [0, 0] });
+  const [languages, setLanguages] = useState<string[]>(() => {
+    const rawLangs = userInfo?.languagesSpoken || [];
+    if (rawLangs.length > 0 && typeof rawLangs[0] === 'object') {
+      return rawLangs.map((l: any) => l._id);
+    }
+    return rawLangs;
+  });
   const [templesAffiliated, setTemplesAffiliated] = useState([
     { name: "", address: "" },
   ]);
@@ -212,18 +223,35 @@ const ProfileSetup = () => {
             if (userData.email) setEmail(userData.email);
             if (userData.phone) setPhone(userData.phone);
             // @ts-ignore - languagesSpoken might not be in type definition yet
-            if (userData.languagesSpoken) setLanguages(userData.languagesSpoken);
+            if (userData.languagesSpoken) {
+              const rawLangs = userData.languagesSpoken;
+              const langIds = (rawLangs.length > 0 && typeof rawLangs[0] === 'object')
+                ? rawLangs.map((l: any) => l._id)
+                : rawLangs;
+              setLanguages(langIds);
+            }
           }
 
           // Populate priest-specific fields from profile
           if (loadedProfile.experience) setExperience(loadedProfile.experience.toString());
           if (loadedProfile.religiousTradition) setReligiousTradition(loadedProfile.religiousTradition);
           if (loadedProfile.description) setDescription(loadedProfile.description);
+          if (loadedProfile.profilePicture) setProfilePicture(loadedProfile.profilePicture);
+          if (loadedProfile.location) setLocation(loadedProfile.location);
           if (loadedProfile.templesAffiliated && loadedProfile.templesAffiliated.length > 0) {
             setTemplesAffiliated(loadedProfile.templesAffiliated);
           }
-          if (loadedProfile.availability) {
+          if (loadedProfile.availability && Object.keys(loadedProfile.availability).length > 0) {
+            console.log('DEBUG: Loaded Availability from profile:', JSON.stringify(loadedProfile.availability));
             setAvailability(loadedProfile.availability);
+          } else {
+            console.log('DEBUG: No availability (or empty) in loaded profile. Populating defaults.');
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            const defaults: any = {};
+            days.forEach(day => {
+              defaults[day] = { available: false, startTime: "09:00", endTime: "18:00" };
+            });
+            setAvailability(defaults);
           }
 
           if (loadedProfile.services && loadedProfile.services.length > 0) {
@@ -390,7 +418,9 @@ const ProfileSetup = () => {
       .filter((ceremony) => ceremony.selected)
       .map((ceremony) => ceremony.name);
 
-    if (selectedCeremonies.length === 0) {
+    // Only validate ceremonies if we are in initial setup OR editing services
+    // If editSection is 'personalDetails' or 'availability', skip this check
+    if ((!editSection || editSection === 'services') && selectedCeremonies.length === 0) {
       Alert.alert("Validation Error", "Please select at least one ceremony");
       return;
     }
@@ -402,6 +432,7 @@ const ProfileSetup = () => {
         experience: parseInt(experience, 10),
         religiousTradition,
         description,
+        location,
         templesAffiliated: templesAffiliated.filter(
           (temple: any) => temple.name && temple.address
         ),
@@ -410,12 +441,15 @@ const ProfileSetup = () => {
           .filter((ceremony) => ceremony.selected)
           .map((ceremony) => ({
             ceremonyId: ceremony.id,
-            price: parseInt(ceremony.price, 10),
+            price: parseInt(ceremony.price, 10) || 0, // Fallback to 0 if NaN
             durationMinutes: ceremony.duration || 60,
           })),
       };
 
-      await (dispatch as any)(updateProfile(profileData as any));
+      console.log('DEBUG: Priest Profile Update Payload:', JSON.stringify(profileData, null, 2)); // DEBUG LOG
+
+      // Use priestService to update priest-specific profile data
+      await priestService.updateProfile(profileData);
 
       // Prepare user-level updates (name, email, phone, languages)
       // Note: We need to fetch current user data to compare, since userInfo might be null
@@ -435,16 +469,35 @@ const ProfileSetup = () => {
       if (phone !== currentUserData?.phone) userUpdateData.phone = phone;
 
       // Check if languages have changed
-      const currentLanguages = currentUserData?.languagesSpoken || [];
-      const languagesChanged = JSON.stringify(currentLanguages.sort()) !== JSON.stringify(languages.sort());
+      const currentLanguagesRaw = currentUserData?.languagesSpoken || [];
+      const currentLanguageIds = (currentLanguagesRaw.length > 0 && typeof currentLanguagesRaw[0] === 'object')
+        ? currentLanguagesRaw.map((l: any) => l._id)
+        : currentLanguagesRaw;
+      console.log('DEBUG: New Languages State:', languages);
+
+      const languagesChanged = JSON.stringify(currentLanguageIds.sort()) !== JSON.stringify([...languages].sort());
+      console.log('DEBUG: Languages Changed?', languagesChanged);
+
       if (languagesChanged) {
         userUpdateData.languagesSpoken = languages;
       }
 
+      console.log('DEBUG: User Update Payload:', userUpdateData);
+
       if (Object.keys(userUpdateData).length > 0) {
-        await (dispatch as any)(
-          updateProfile(userUpdateData)
-        );
+        console.log('DEBUG: Dispatching updateUserProfile...');
+        try {
+          // Explicitly casing the import to avoid confusion
+          const result = await (dispatch as any)(updateUserProfile(userUpdateData));
+
+          if (updateUserProfile.fulfilled.match(result)) {
+            console.log('DEBUG: updateUserProfile dispatched successfully (Fulfilled).');
+          } else {
+            console.error('DEBUG: updateUserProfile failed (Rejected):', result.payload || result.error);
+          }
+        } catch (err) {
+          console.error('DEBUG: updateUserProfile dispatch threw error:', err);
+        }
       }
 
       // Small delay to ensure backend and Redux state are updated
@@ -497,6 +550,64 @@ const ProfileSetup = () => {
     setCurrentStep(currentStep - 1);
   };
 
+  // Image Picker Logic
+  const pickImage = async () => {
+    try {
+      console.log('DEBUG: pickImage function called!');
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.5,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const asset = result.assets[0];
+        setProfilePicture(asset.uri);
+
+        // Auto-upload
+        try {
+          const fileData = {
+            uri: asset.uri,
+            name: asset.fileName || "profile.jpg",
+            type: asset.mimeType || "image/jpeg"
+          };
+
+          Alert.alert("Uploading", "Updating profile picture...");
+          await priestService.uploadDocument(fileData, 'profile_picture');
+          Alert.alert("Success", "Profile picture updated!");
+        } catch (err: any) {
+          console.error("Profile pic upload failed:", err);
+          Alert.alert("Error", "Failed to upload profile picture: " + err.toString());
+        }
+      }
+    } catch (error) {
+      console.error("Pick image error:", error);
+    }
+  };
+
+  // Location Logic
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied');
+        return;
+      }
+
+      Alert.alert("Locating", "Fetching current location...");
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation({
+        type: 'Point',
+        coordinates: [loc.coords.longitude, loc.coords.latitude]
+      });
+      Alert.alert("Success", "Location updated!");
+    } catch (error) {
+      console.error("Location error:", error);
+      Alert.alert("Error", "Could not fetch location.");
+    }
+  };
+
   // Render Steps
   const renderStep1 = () => {
     // Determine which fields to show based on editSection
@@ -513,6 +624,44 @@ const ProfileSetup = () => {
 
         {showPersonalDetails && (
           <>
+            {/* Profile Picture Section - Refactored */}
+            <View style={styles.profilePicContainer}>
+              <TouchableOpacity
+                onPress={pickImage}
+                style={styles.profilePicButton}
+                activeOpacity={0.8}
+              >
+                {profilePicture ? (
+                  <Image
+                    source={{ uri: profilePicture }}
+                    style={styles.profileImage}
+                  />
+                ) : (
+                  <View style={styles.placeholderImage}>
+                    <Ionicons name="camera" size={40} color={APP_COLORS.gray} />
+                  </View>
+                )}
+                <View style={styles.editBadge}>
+                  <Ionicons name="pencil" size={14} color="white" />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.profilePicText}>
+                {profilePicture ? 'Change Profile Photo' : 'Upload Profile Photo'}
+              </Text>
+            </View>
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>Location</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f0f0f0', padding: 12, borderRadius: 8 }}>
+                <View>
+                  <Text style={{ fontWeight: 'bold' }}>Current: {location && location.coordinates[0] !== 0 ? 'Set' : 'Not Set'}</Text>
+                  <Text style={{ fontSize: 12, color: '#666' }}>{location && location.coordinates[0] !== 0 ? `Lat: ${location.coordinates[1].toFixed(4)}, Lng: ${location.coordinates[0].toFixed(4)}` : 'Tap to update'}</Text>
+                </View>
+                <TouchableOpacity onPress={getCurrentLocation} style={{ backgroundColor: APP_COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 }}>
+                  <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Update Location</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
             <View style={styles.formGroup}>
               <Text style={styles.label}>Full Name *</Text>
               <TextInput
@@ -551,6 +700,19 @@ const ProfileSetup = () => {
               selectedLanguages={languages}
               onChange={setLanguages}
             />
+
+            <View style={styles.formGroup}>
+              <Text style={styles.label}>About You (Description)</Text>
+              <TextInput
+                style={[styles.input, { height: 100, textAlignVertical: "top", paddingTop: 12 }]}
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Tell devotees about your background and approach..."
+                placeholderTextColor={APP_COLORS.gray}
+                multiline
+                numberOfLines={4}
+              />
+            </View>
           </>
         )}
 
@@ -758,57 +920,59 @@ const ProfileSetup = () => {
       </View>
 
       {/* Per-day rows */}
-      {Object.entries(availability).map(([day, data]) => (
-        <View key={day} style={styles.availabilityItem}>
-          <View style={styles.availabilityDay}>
-            <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
-            <Switch
-              value={!!data.available}
-              onValueChange={() => toggleDayAvailability(day)}
-              trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + "80" }}
-              thumbColor={data.available ? APP_COLORS.primary : APP_COLORS.gray}
-            />
-          </View>
-
-          {data.available ? (
-            <View style={styles.timeSlots}>
-              <View style={styles.timeSlot}>
-                <Text style={styles.timeLabel}>From</Text>
-                <TextInput
-                  style={[styles.timeInput, styles.smallTimeInput]}
-                  value={data.startTime}
-                  onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
-                  placeholder="09:00"
-                  placeholderTextColor={APP_COLORS.gray}
-                />
-                {timeErrors[day] ? (
-                  <Text style={{ color: APP_COLORS.error, marginTop: 6 }}>{timeErrors[day]}</Text>
-                ) : null}
-              </View>
-              <View style={styles.timeSlot}>
-                <Text style={styles.timeLabel}>To</Text>
-                <TextInput
-                  style={[styles.timeInput, styles.smallTimeInput]}
-                  value={data.endTime}
-                  onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
-                  placeholder="18:00"
-                  placeholderTextColor={APP_COLORS.gray}
-                />
-              </View>
-              <TouchableOpacity
-                style={{ marginLeft: 12, alignSelf: "center" }}
-                onPress={() => applyToAllDays(day)}
-              >
-                <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all</Text>
-              </TouchableOpacity>
+      {
+        Object.entries(availability).map(([day, data]) => (
+          <View key={day} style={styles.availabilityItem}>
+            <View style={styles.availabilityDay}>
+              <Text style={styles.dayName}>{day.charAt(0).toUpperCase() + day.slice(1)}</Text>
+              <Switch
+                value={!!data.available}
+                onValueChange={() => toggleDayAvailability(day)}
+                trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.primary + "80" }}
+                thumbColor={data.available ? APP_COLORS.primary : APP_COLORS.gray}
+              />
             </View>
-          ) : (
-            <Text style={{ color: APP_COLORS.gray, marginTop: 8 }}>You're marked unavailable on this day.</Text>
-          )}
-        </View>
-      ))}
+
+            {data.available ? (
+              <View style={styles.timeSlots}>
+                <View style={styles.timeSlot}>
+                  <Text style={styles.timeLabel}>From</Text>
+                  <TextInput
+                    style={[styles.timeInput, styles.smallTimeInput]}
+                    value={data.startTime}
+                    onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
+                    placeholder="09:00"
+                    placeholderTextColor={APP_COLORS.gray}
+                  />
+                  {timeErrors[day] ? (
+                    <Text style={{ color: APP_COLORS.error, marginTop: 6 }}>{timeErrors[day]}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.timeSlot}>
+                  <Text style={styles.timeLabel}>To</Text>
+                  <TextInput
+                    style={[styles.timeInput, styles.smallTimeInput]}
+                    value={data.endTime}
+                    onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
+                    placeholder="18:00"
+                    placeholderTextColor={APP_COLORS.gray}
+                  />
+                </View>
+                <TouchableOpacity
+                  style={{ marginLeft: 12, alignSelf: "center" }}
+                  onPress={() => applyToAllDays(day)}
+                >
+                  <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Text style={{ color: APP_COLORS.gray, marginTop: 8 }}>You're marked unavailable on this day.</Text>
+            )}
+          </View>
+        ))
+      }
       <View style={{ height: 20 }} />
-    </ScrollView>
+    </ScrollView >
   );
 
   return (
@@ -1209,6 +1373,51 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: APP_COLORS.white,
     fontWeight: "bold",
+  },
+  // New Profile Picture Styles
+  profilePicContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+    marginTop: 10,
+  },
+  profilePicButton: {
+    position: 'relative',
+    marginBottom: 12,
+  },
+  profileImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 2,
+    borderColor: APP_COLORS.primary,
+  },
+  placeholderImage: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#F0F0F0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: APP_COLORS.gray,
+  },
+  editBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: APP_COLORS.primary,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: 'white',
+  },
+  profilePicText: {
+    color: APP_COLORS.primary,
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

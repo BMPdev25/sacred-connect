@@ -232,22 +232,40 @@ export const updateProfile = createAsyncThunk<
       },
     });
 
-    // Update AsyncStorage
-    const userInfoStr = await SecureStore.getItemAsync("userInfo");
-    if (userInfoStr) {
-      const userInfo = JSON.parse(userInfoStr);
-      const updatedUserInfo = { ...userInfo, ...response.data };
+      // Update AsyncStorage
+      const userInfoStr = await SecureStore.getItemAsync("userInfo");
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        
+        // Handle inconsistent API responses (flat vs nested in data property)
+        const newData = (response.data && response.data.data) ? response.data.data : response.data;
+        
+        const updatedUserInfo = { ...userInfo, ...newData };
 
-      // Make sure profileCompleted is explicitly set
-      if (profileData.profileCompleted !== undefined) {
-        updatedUserInfo.profileCompleted = profileData.profileCompleted;
+        // Make sure profileCompleted is explicitly set
+        if (profileData.profileCompleted !== undefined) {
+          updatedUserInfo.profileCompleted = profileData.profileCompleted;
+        }
+
+        // Optimize storage: convert populated languages back to IDs to save space
+        // SecureStore has a 2KB limit on Android
+        const storageUserInfo = { ...updatedUserInfo };
+        if (storageUserInfo.languagesSpoken && 
+            Array.isArray(storageUserInfo.languagesSpoken) && 
+            storageUserInfo.languagesSpoken.length > 0 && 
+            typeof storageUserInfo.languagesSpoken[0] === 'object') {
+          // @ts-ignore
+          storageUserInfo.languagesSpoken = storageUserInfo.languagesSpoken.map(l => l._id);
+        }
+
+        await SecureStore.setItemAsync(
+          "userInfo",
+          JSON.stringify(storageUserInfo)
+        );
       }
-
-      await SecureStore.setItemAsync(
-        "userInfo",
-        JSON.stringify(updatedUserInfo)
-      );
-    }
+      
+      // Return the correct payload to the reducer (keep populated data for Redux/UI)
+      return (response.data && response.data.data) ? response.data.data : response.data;
 
     return response.data;
   } catch (error: any) {

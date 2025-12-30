@@ -14,6 +14,11 @@ To run tests in watch mode:
 npm test -- --watch
 ```
 
+To run specific test file:
+```bash
+npm test -- __tests__/detectIdentifierType.test.ts
+```
+
 ## Test Structure
 
 ### Component Tests (`__tests__/`)
@@ -22,6 +27,22 @@ Tests for individual React Native components to ensure they render correctly and
 *   **`Colors.test.ts`**:
     *   **Purpose**: Validates that the color constants are defined correctly.
     *   **Cases**: Ensures `APP_COLORS` object contains expected color values.
+
+*   **`detectIdentifierType.test.ts`** ✅ NEW:
+    *   **Purpose**: Tests the auto-detection logic for email vs phone number identification
+    *   **Cases**: 
+        - Email detection (with special characters, domains)
+        - Phone number detection (plain, with country codes, formatted)
+        - Edge cases (empty strings, mixed input)
+        - Real-world examples (Indian phone numbers, common emails)
+
+*   **`SkeletonCard.test.tsx`** ✅ NEW:
+    *   **Purpose**: Tests the skeleton loader component
+    *   **Cases**:
+        - Component renders without crashing
+        - All skeleton elements present
+        - Animation initialization
+        - Multiple instances render independently
 
 ## Components to Test
 
@@ -51,6 +72,55 @@ Tests for individual React Native components to ensure they render correctly and
   - Should save profile data correctly
 
 ## Manual Testing Procedures
+
+### UX Refactoring Features (NEW)
+
+#### 1. Login Screen Simplification
+1. Navigate to login screen
+2. Verify single "Email or Mobile Number" input field (no toggle)
+3. Test email input: `test@example.com` → Should login successfully
+4. Test phone input: `9876543210` → Should login successfully
+5. Test formatted phone: `+91-98765-43210` → Should login successfully
+6. Verify keyboard type is "default" (smart detection)
+
+#### 2. Skeleton Loaders
+1. Clear app cache/data
+2. Login as priest
+3. Navigate to Home tab
+4. **Expected**: See 3 pulsing skeleton cards (NOT spinner)
+5. Navigate to Bookings tab
+6. **Expected**: See 4 pulsing skeleton cards while loading
+7. Verify smooth transition to real content
+
+#### 3. Enhanced Booking Cards
+1. Navigate to Bookings tab
+2. View any booking card
+3. **Expected**: See distance (e.g., "5.2 km")
+4. **Expected**: See travel time (e.g., "20 mins travel")
+5. **Expected**: See location icon (near-me icon)
+6. Verify layout is clean and readable
+
+#### 4. Progressive Onboarding
+1. Create new priest account via signup
+2. **Expected**: Redirect to `/priest/HomeTab` (NOT ProfileSetup)
+3. **Expected**: Profile completion banner visible at top
+4. Tap "Go Online" toggle
+5. **Expected**: Alert shows "Complete Your Profile" (if < 80%)
+6. **Expected**: "Complete Now" and "Later" buttons in alert
+7. Complete profile to 80%+
+8. **Expected**: "Go Online" toggle becomes functional
+9. Toggle to "Online"
+10. **Expected**: Green background, "Online" text
+
+#### 5. Schedule Agenda View
+1. Navigate to Schedule tab
+2. **Expected**: Calendar with week-focused view
+3. Swipe left/right to navigate months
+4. Tap on a date
+5. **Expected**: Agenda list updates below calendar
+6. **Expected**: Bookings grouped by time
+7. Select date with no bookings
+8. **Expected**: "No bookings for this day" message
 
 ### Language Selection Feature
 1. Navigate to priest signup
@@ -98,9 +168,12 @@ Tests for individual React Native components to ensure they render correctly and
 
 Current test coverage:
 - ✅ Color constants validation
+- ✅ Identifier type detection (email vs phone) **NEW**
+- ✅ Skeleton loader component **NEW**
 - ⏳ Language picker component (planned)
 - ⏳ Profile completion banner (planned)
 - ⏳ Profile setup form validation (planned)
+- ⏳ Go Online toggle logic (planned)
 
 ## Future Test Additions
 
@@ -111,6 +184,8 @@ Planned component tests:
 - Notification handling
 - Search and filter functionality
 - Map integration
+- Go Online toggle state management
+- Progressive onboarding flow
 
 ## Running Specific Tests
 
@@ -122,6 +197,8 @@ npm test
 Run specific test file:
 ```bash
 npx jest __tests__/Colors.test.ts
+npx jest __tests__/detectIdentifierType.test.ts
+npx jest __tests__/SkeletonCard.test.tsx
 ```
 
 Run tests with coverage:
@@ -137,10 +214,18 @@ Frontend tests should mock API calls using Jest mocks. For integration testing w
 3. Verify API responses in network tab
 4. Check backend logs for errors
 
+### Backend Integration Checklist
+- ✅ Login endpoint accepts both email and phone
+- ✅ Signup endpoint handles progressive onboarding
+- ✅ Profile completion calculation works correctly
+- ✅ Booking data includes all required fields
+- ⏳ Distance/travel time calculation (currently mocked)
+
 ## Known Issues
 
 - **InternalBytecode.js Error**: Harmless Metro bundler error during development, does not affect functionality
 - **API Warnings**: Expected warnings for new accounts (bookings, earnings, notifications) are normal
+- **TypeScript Errors**: 2 pre-existing errors in PriestSearch.tsx and PujariCard.tsx (unrelated to UX refactoring)
 
 ## Recent Updates
 - ✅ Added LanguagePicker component for priest signup
@@ -148,3 +233,10 @@ Frontend tests should mock API calls using Jest mocks. For integration testing w
 - ✅ Added ProfileCompletionBanner component
 - ✅ Added loading states to ceremony selection in ProfileSetup
 - ✅ Fixed ProfileTab syntax errors
+- ✅ **NEW**: Simplified login screen with auto-detection
+- ✅ **NEW**: Added skeleton loaders (HomeTab, BookingsTab)
+- ✅ **NEW**: Enhanced booking cards with distance/travel time
+- ✅ **NEW**: Implemented progressive onboarding with Go Online toggle
+- ✅ **NEW**: Optimized schedule view for mobile
+- ✅ **NEW**: Created unit tests for identifier detection
+- ✅ **NEW**: Created unit tests for SkeletonCard component

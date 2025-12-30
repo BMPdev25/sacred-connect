@@ -113,20 +113,26 @@ const ProfileScreen: React.FC = () => {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           {/* ... Header ... */}
+          {/* ... Header ... */}
           <View style={styles.profileHeader}>
-            <Image source={require("../../../assets/images/default-profile.png")} style={styles.profileImage} />
-            <TouchableOpacity style={styles.editProfileButton}>
+            <Image
+              source={profile?.profilePicture ? { uri: profile.profilePicture } : require("../../../assets/images/default-profile.png")}
+              style={styles.profileImage}
+            />
+            <TouchableOpacity style={styles.editProfileButton} onPress={handleUpdateProfile}>
               <Ionicons name="camera-outline" size={20} color={APP_COLORS.white} />
             </TouchableOpacity>
             <Text style={styles.userName}>{userInfo?.name || "Pandit Sharma"}</Text>
             <Text style={styles.userRole}>Priest • {(profile?.experience as any) || 0} years experience</Text>
 
-            <View style={styles.completionContainer}>
-              <View style={styles.completionBar}>
-                <View style={[styles.completionProgress, { width: `${profileCompletion}%` }]} />
+            {profileCompletion < 100 && (
+              <View style={styles.completionContainer}>
+                <View style={styles.completionBar}>
+                  <View style={[styles.completionProgress, { width: `${profileCompletion}%` }]} />
+                </View>
+                <Text style={styles.completionText}>Profile {profileCompletion}% Complete</Text>
               </View>
-              <Text style={styles.completionText}>Profile {profileCompletion}% Complete</Text>
-            </View>
+            )}
           </View>
 
           {/* Personal Details */}
@@ -156,51 +162,33 @@ const ProfileScreen: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Languages Spoken</Text>
               <Text style={styles.infoValue}>
-                {userInfo?.languagesSpoken && userInfo.languagesSpoken.length > 0
-                  ? userInfo.languagesSpoken.join(', ')
-                  : 'Not specified'}
+                <Text style={styles.infoValue}>
+                  {(() => {
+                    const langs = profile?.userId?.languagesSpoken;
+                    if (!langs || langs.length === 0) return 'Not specified';
+                    if (typeof langs[0] === 'object') {
+                      return langs.map((l: any) => l.name || JSON.stringify(l)).join(', ');
+                    }
+                    return langs.join(', ');
+                  })()}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Description</Text>
+              <Text style={styles.infoValue}>{profile?.description || 'Not provided'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>
+                {profile?.location && profile.location.coordinates[0] !== 0
+                  ? `Lat: ${profile.location.coordinates[1].toFixed(4)}, Lng: ${profile.location.coordinates[0].toFixed(4)}`
+                  : 'Not set'}
               </Text>
             </View>
           </View>
 
-          {/* Services & Pricing */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Services & Pricing</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 2 } } as any)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.infoCard}>
-            {profile?.services && profile.services.length > 0 ? (
-              profile.services.map((service: any, idx: number) => {
-                const name = service.ceremonyId?.name || service.name || "Unknown Ceremony";
-                return (
-                  <View style={styles.infoRow} key={`service-${idx}`}>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.infoLabel}>Ceremony</Text>
-                        <Text style={styles.infoValue}>{name}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.infoLabel}>Price</Text>
-                        <Text style={[styles.infoValue, { color: APP_COLORS.primary, fontWeight: 'bold' }]}>
-                          ₹{service.price}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })
-            ) : (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoValue}>No services added yet</Text>
-              </View>
-            )}
-          </View>
+          {/* Services moved to ServicesTab */}
 
           {/* Availability */}
           <View style={styles.section}>

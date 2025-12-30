@@ -97,27 +97,27 @@ const PriestTabs = () => {
         name="(tabs)/HomeTab"
         options={{
           title: "Home",
-          headerShown: false, // Home has custom header
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home-outline" size={size || 20} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="(tabs)/BookingsTab"
+        name="(tabs)/CalendarTab"
         options={{
-          title: "Bookings",
+          title: "Calendar",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size || 20} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="(tabs)/ScheduleTab"
+        name="(tabs)/ServicesTab"
         options={{
-          title: "Schedule",
+          title: "Services",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size || 20} color={color} />
+            <Ionicons name="list-outline" size={size || 20} color={color} />
           ),
         }}
       />
@@ -133,10 +133,10 @@ const PriestTabs = () => {
       <Tabs.Screen
         name="(tabs)/ProfileTab"
         options={{
-          title: "Profile",
-          headerRight: () => null, // No bell on Profile
+          title: "Menu",
+          headerRight: () => null,
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person-outline" size={size || 20} color={color} />
+            <Ionicons name="menu-outline" size={size || 20} color={color} />
           ),
         }}
       />

@@ -575,7 +575,7 @@ const ProfileSetup = () => {
 
           Alert.alert("Uploading", "Updating profile picture...");
           await priestService.uploadDocument(fileData, 'profile_picture');
-          Alert.alert("Success", "Profile picture updated!");
+          // Alert.alert("Success", "Profile picture updated!");
         } catch (err: any) {
           console.error("Profile pic upload failed:", err);
           Alert.alert("Error", "Failed to upload profile picture: " + err.toString());
@@ -601,7 +601,7 @@ const ProfileSetup = () => {
         type: 'Point',
         coordinates: [loc.coords.longitude, loc.coords.latitude]
       });
-      Alert.alert("Success", "Location updated!");
+      // Alert.alert("Success", "Location updated!");
     } catch (error) {
       console.error("Location error:", error);
       Alert.alert("Error", "Could not fetch location.");

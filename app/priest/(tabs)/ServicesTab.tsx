@@ -1,9 +1,9 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Switch, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Switch, TextInput, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
 import priestService from '../../../services/priestService';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ServicesTab() {
@@ -99,89 +99,96 @@ export default function ServicesTab() {
         const isUpdating = updating === (item._id || index.toString());
         const serviceId = item._id || index.toString();
 
+        const navigateToDetail = () => {
+            // Pass the item object as a string param
+            router.push({
+                pathname: "/priest/(priestScreens)/ServiceDetailScreen",
+                params: { service: JSON.stringify(item) }
+            });
+        };
+
+        const imageUri = item.ceremonyId?.images?.[0]?.url
+            ? (item.ceremonyId.images[0].url.startsWith('http')
+                ? item.ceremonyId.images[0].url
+                : `${process.env.EXPO_PUBLIC_API_URL}${item.ceremonyId.images[0].url}`)
+            : 'https://via.placeholder.com/400x200';
+
         return (
-            <View style={[styles.card, !item.isActive && styles.inactiveCard]}>
-                <View style={styles.cardHeader}>
-                    <Text style={[styles.serviceName, !item.isActive && styles.inactiveText]}>
-                        {item.ceremonyId?.name || item.name || "Unknown Service"}
-                    </Text>
-                    <Switch
-                        trackColor={{ false: "#767577", true: APP_COLORS.primary + '80' }}
-                        thumbColor={item.isActive ? APP_COLORS.primary : "#f4f3f4"}
-                        onValueChange={() => handleToggleActive(index, item.isActive)}
-                        value={item.isActive}
-                    />
-                </View>
-
-                <View style={styles.cardBody}>
-                    <View style={styles.priceContainer}>
-                        <Text style={styles.label}>Base Price:</Text>
-                        {isEditing ? (
-                            <View style={styles.editPriceContainer}>
-                                <Text style={styles.currency}>₹</Text>
-                                <TextInput
-                                    style={styles.priceInput}
-                                    value={tempPrice}
-                                    onChangeText={setTempPrice}
-                                    keyboardType="numeric"
-                                    autoFocus
-                                    onBlur={() => savePrice(index)}
-                                />
-                                <TouchableOpacity onPress={() => savePrice(index)} style={styles.saveButton}>
-                                    <Ionicons name="checkmark" size={18} color={APP_COLORS.white} />
-                                </TouchableOpacity>
-                            </View>
-                        ) : (
-                            <TouchableOpacity
-                                style={styles.priceDisplay}
-                                onPress={() => startEditingPrice(serviceId, item.price)}
-                            >
-                                <Text style={[styles.priceValue, !item.isActive && styles.inactiveText]}>
-                                    ₹{item.price}
+            <TouchableOpacity
+                style={[styles.card, !item.isActive && styles.inactiveCard]}
+                onPress={navigateToDetail}
+                activeOpacity={0.9}
+            >
+                <ImageBackground
+                    source={{ uri: imageUri }}
+                    style={styles.cardBackground}
+                    imageStyle={styles.cardImage}
+                >
+                    <View style={styles.cardOverlay}>
+                        <View style={styles.cardHeader}>
+                            <View style={styles.titleContainer}>
+                                <Text style={[styles.serviceName, !item.isActive && styles.inactiveText]}>
+                                    {item.ceremonyId?.name || item.name || "Unknown Service"}
                                 </Text>
-                                <Ionicons name="pencil" size={14} color={APP_COLORS.primary} style={{ marginLeft: 8 }} />
-                            </TouchableOpacity>
-                        )}
+                                <Switch
+                                    trackColor={{ false: "#767577", true: APP_COLORS.primary }}
+                                    thumbColor={APP_COLORS.white}
+                                    onValueChange={() => handleToggleActive(index, item.isActive)}
+                                    value={item.isActive}
+                                />
+                            </View>
+                        </View>
+
+                        <View style={styles.cardBody}>
+                            <View style={styles.priceTag}>
+                                <Text style={styles.priceLabel}>Base Price</Text>
+                                <Text style={styles.priceValue}>₹{item.price}</Text>
+                            </View>
+
+                            <View style={styles.detailButton}>
+                                <Text style={styles.detailButtonText}>Details</Text>
+                                <Ionicons name="arrow-forward" size={16} color={APP_COLORS.white} />
+                            </View>
+                        </View>
                     </View>
-
-                    {isUpdating && <ActivityIndicator size="small" color={APP_COLORS.primary} />}
-
-                    {/* Placeholder for "Details" navigation if needed later */}
-                    {/* <TouchableOpacity style={styles.detailsButton}>
-                        <Text style={styles.detailsText}>Details</Text>
-                    </TouchableOpacity> */}
-                </View>
-            </View>
+                </ImageBackground>
+            </TouchableOpacity>
         );
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
-                <Text style={styles.title}>My Services</Text>
-                <TouchableOpacity style={styles.addButton} onPress={() => Alert.alert("Coming Soon", "Add Service feature coming soon")}>
-                    <Ionicons name="add" size={24} color={APP_COLORS.white} />
-                </TouchableOpacity>
-            </View>
+        <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
 
-            {loading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={APP_COLORS.primary} />
-                </View>
-            ) : (
-                <FlatList
-                    data={services}
-                    renderItem={renderItem}
-                    keyExtractor={(item, index) => item._id || index.toString()}
-                    contentContainerStyle={styles.listContent}
-                    ListEmptyComponent={
-                        <View style={styles.empty}>
-                            <Text style={styles.emptyText}>No services offered yet.</Text>
-                        </View>
-                    }
-                />
-            )}
-        </SafeAreaView>
+            {
+                loading ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={services}
+                        renderItem={renderItem}
+                        keyExtractor={(item, index) => item._id || index.toString()}
+                        contentContainerStyle={styles.listContent}
+                        ListEmptyComponent={
+                            <View style={styles.empty}>
+                                <Text style={styles.emptyText}>No services offered yet.</Text>
+                            </View>
+                        }
+                    />
+                )
+            }
+
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.fab}
+                onPress={() => router.push("/priest/(priestScreens)/AddServiceScreen")}
+                activeOpacity={0.8}
+            >
+                <Ionicons name="add" size={30} color={APP_COLORS.white} />
+                <Text style={styles.fabText}>Add New</Text>
+            </TouchableOpacity>
+        </SafeAreaView >
     );
 }
 
@@ -191,29 +198,14 @@ const styles = StyleSheet.create({
         backgroundColor: APP_COLORS.background,
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: APP_COLORS.white,
-        borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        // Removed custom header
     },
     title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: APP_COLORS.black,
-    },
-    addButton: {
-        backgroundColor: APP_COLORS.primary,
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        justifyContent: 'center',
-        alignItems: 'center',
+        // Removed custom title
     },
     listContent: {
         padding: 16,
+        paddingBottom: 100, // Space for FAB
     },
     center: {
         flex: 1,
@@ -221,86 +213,91 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     card: {
-        backgroundColor: APP_COLORS.white,
-        borderRadius: 12,
-        padding: 16,
+        borderRadius: 16,
         marginBottom: 16,
-        elevation: 2,
+        elevation: 4,
         shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 5,
+        height: 180,
+        overflow: 'hidden',
+        backgroundColor: APP_COLORS.white,
     },
     inactiveCard: {
-        opacity: 0.7,
-        backgroundColor: '#f9f9f9',
+        opacity: 0.8,
+    },
+    cardBackground: {
+        flex: 1,
+        justifyContent: 'flex-end',
+    },
+    cardImage: {
+        borderRadius: 16,
+    },
+    cardOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.4)', // Dark overlay for readability
+        padding: 16,
+        justifyContent: 'space-between',
     },
     cardHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
+        alignItems: 'flex-start',
+    },
+    titleContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        width: '100%',
     },
     serviceName: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: APP_COLORS.black,
+        fontSize: 22,
+        fontWeight: 'bold',
+        color: APP_COLORS.white,
         flex: 1,
+        textShadowColor: 'rgba(0, 0, 0, 0.75)',
+        textShadowOffset: { width: -1, height: 1 },
+        textShadowRadius: 10,
+        marginRight: 10,
     },
     inactiveText: {
-        color: APP_COLORS.gray,
+        color: '#ddd',
     },
     cardBody: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-end',
     },
-    priceContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    label: {
-        fontSize: 14,
-        color: APP_COLORS.gray,
-        marginRight: 8,
-    },
-    priceDisplay: {
-        flexDirection: 'row',
-        alignItems: 'center',
+    priceTag: {
+        backgroundColor: 'rgba(255,255,255,0.2)',
+        paddingHorizontal: 10,
         paddingVertical: 4,
-        paddingHorizontal: 8,
-        backgroundColor: '#f0f0f0',
-        borderRadius: 6,
+        borderRadius: 8,
+    },
+    priceLabel: {
+        fontSize: 10,
+        color: '#eee',
+        textTransform: 'uppercase',
     },
     priceValue: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: 'bold',
-        color: APP_COLORS.black,
+        color: APP_COLORS.white,
     },
-    priceInput: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: APP_COLORS.black,
-        borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.primary,
-        minWidth: 60,
-        textAlign: 'center',
-        marginHorizontal: 4,
-        paddingVertical: 2,
-    },
-    editPriceContainer: {
+    detailButton: {
         flexDirection: 'row',
         alignItems: 'center',
+        backgroundColor: APP_COLORS.primary,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        borderRadius: 20,
     },
-    currency: {
-        fontSize: 16,
-        color: APP_COLORS.gray,
-    },
-    saveButton: {
-        backgroundColor: APP_COLORS.success || 'green',
-        borderRadius: 12,
-        padding: 4,
-        marginLeft: 8,
+    detailButtonText: {
+        color: APP_COLORS.white,
+        fontSize: 12,
+        fontWeight: 'bold',
+        marginRight: 4,
     },
     empty: {
         marginTop: 50,
@@ -309,5 +306,28 @@ const styles = StyleSheet.create({
     emptyText: {
         color: APP_COLORS.gray,
         fontSize: 16,
+    },
+    fab: {
+        position: 'absolute',
+        bottom: 24,
+        right: 24,
+        backgroundColor: APP_COLORS.primary,
+        borderRadius: 30, // Pill shape or circle
+        height: 56,
+        paddingHorizontal: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        elevation: 6,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.27,
+        shadowRadius: 4.65,
+    },
+    fabText: {
+        color: APP_COLORS.white,
+        fontSize: 16,
+        fontWeight: 'bold',
+        marginLeft: 8,
     }
 });

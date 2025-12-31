@@ -165,6 +165,23 @@ const PriestTabs = () => {
           ),
         }}
       />
+      <Tabs.Screen
+        name="(priestScreens)/ServiceDetailScreen"
+        options={{
+          href: null,
+          title: "Service Details",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/AddServiceScreen"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }

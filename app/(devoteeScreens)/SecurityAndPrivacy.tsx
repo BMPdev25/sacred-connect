@@ -30,7 +30,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
     twoFactorEnabled: false,
     lastPasswordChange: null,
   });
-  
+
   // Privacy State
   const [privacySettings, setPrivacySettings] = useState<{
     profileVisibility: string;
@@ -97,11 +97,12 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
         passwordForm.currentPassword,
         passwordForm.newPassword
       );
-      
-      Alert.alert('Success', 'Password changed successfully');
+
+      // Alert.alert('Success', 'Password changed successfully');
+      router.back();
       setPasswordModalVisible(false);
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      
+
       // Update security settings
       setSecuritySettings(prev => ({
         ...prev,
@@ -175,11 +176,11 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
             setIsLoading(true);
             try {
               await userService.deleteAccount(deleteForm.password, deleteForm.confirmationText);
-              Alert.alert('Success', 'Account deleted successfully', [
-                { text: 'OK', onPress: () => router.push('/login') }
-              ]);
+              // Alert.alert('Success', 'Account deleted successfully', [
+              router.push('/login');
+              // ]);
             } catch (error: unknown) {
-                      Alert.alert('Error', (error as any)?.response?.data?.message ?? 'Failed to delete account');
+              Alert.alert('Error', (error as any)?.response?.data?.message ?? 'Failed to delete account');
             } finally {
               setIsLoading(false);
             }
@@ -198,8 +199,8 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
 
   return (
-      <SafeAreaView style={styles.container} edges={["top","left","right"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }] }>
+    <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.primary} />
         </TouchableOpacity>
@@ -210,8 +211,8 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
         {/* Security Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Security</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.menuItem}
             onPress={() => setPasswordModalVisible(true)}
           >
@@ -249,7 +250,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
         {/* Privacy Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy</Text>
-          
+
           <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="eye-outline" size={24} color={APP_COLORS.primary} />
@@ -313,7 +314,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
         {/* Data & Marketing */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data & Marketing</Text>
-          
+
           <View style={styles.menuItem}>
             <View style={styles.menuItemLeft}>
               <Ionicons name="document-text-outline" size={24} color={APP_COLORS.primary} />
@@ -354,8 +355,8 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
         {/* Danger Zone */}
         <View style={[styles.section, styles.dangerSection]}>
           <Text style={[styles.sectionTitle, { color: APP_COLORS.error }]}>Danger Zone</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={[styles.menuItem, styles.dangerItem]}
             onPress={() => setDeleteAccountModalVisible(true)}
           >
@@ -399,7 +400,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
                 value={passwordForm.currentPassword}
                 onChangeText={(text) => setPasswordForm(prev => ({ ...prev, currentPassword: text }))}
               />
-              
+
               <TextInput
                 style={styles.input}
                 placeholder="New Password"
@@ -407,7 +408,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
                 value={passwordForm.newPassword}
                 onChangeText={(text) => setPasswordForm(prev => ({ ...prev, newPassword: text }))}
               />
-              
+
               <TextInput
                 style={styles.input}
                 placeholder="Confirm New Password"
@@ -416,7 +417,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
                 onChangeText={(text) => setPasswordForm(prev => ({ ...prev, confirmPassword: text }))}
               />
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.saveButton}
                 onPress={handlePasswordChange}
                 disabled={isLoading}
@@ -460,7 +461,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
                 value={deleteForm.password}
                 onChangeText={(text) => setDeleteForm(prev => ({ ...prev, password: text }))}
               />
-              
+
               <TextInput
                 style={styles.input}
                 placeholder='Type "DELETE" to confirm'
@@ -468,7 +469,7 @@ const EnhancedSecurityPrivacyScreen: React.FC = () => {
                 onChangeText={(text) => setDeleteForm(prev => ({ ...prev, confirmationText: text }))}
               />
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.saveButton, { backgroundColor: APP_COLORS.error }]}
                 onPress={handleDeleteAccount}
                 disabled={isLoading}

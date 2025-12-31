@@ -107,7 +107,7 @@ const EarningsScreen = () => {
         paymentMethod: selectedPaymentMethod,
       });
 
-      Alert.alert("Success", "Withdrawal request submitted successfully");
+      // Alert.alert("Success", "Withdrawal request submitted successfully");
       setWithdrawalModalVisible(false);
       setWithdrawalAmount("");
 

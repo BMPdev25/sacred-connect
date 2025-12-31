@@ -99,7 +99,7 @@ const HomeScreen: React.FC = () => {
   const handleAccept = async (bookingId: string) => {
     try {
       await priestService.updateBookingStatus(bookingId, 'confirmed');
-      Alert.alert("Success", "Booking accepted!");
+      // Alert.alert("Success", "Booking accepted!");
       // Reload
       // fast refresh would be better but simple reload works
       // In a real app we'd update state locally.
@@ -111,7 +111,7 @@ const HomeScreen: React.FC = () => {
   const handleReject = async (bookingId: string) => {
     try {
       await priestService.updateBookingStatus(bookingId, 'cancelled');
-      Alert.alert("Success", "Booking rejected");
+      // Alert.alert("Success", "Booking rejected");
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to reject");
     }

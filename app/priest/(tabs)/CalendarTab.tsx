@@ -60,39 +60,62 @@ export default function CalendarTab() {
         }, [loadBookings])
     );
 
+    const totalItems = useMemo(() => sections.reduce((acc, s) => acc + s.data.length, 0), [sections]);
+
+    const getCardStyles = useCallback(() => {
+        if (totalItems === 1) return [styles.card, styles.cardSingle];
+        if (totalItems === 2) return [styles.card, styles.cardDouble];
+        return styles.card;
+    }, [totalItems]);
+
     const renderItem = useCallback(({ item }: { item: any }) => (
         <TouchableOpacity
-            style={styles.card}
+            style={getCardStyles()}
             onPress={() => router.push({
                 pathname: "/PriestBookingDetails",
                 params: { booking: JSON.stringify(item) }
             })}
+            activeOpacity={0.9}
         >
-            <View style={styles.timeStripe}>
-                <Text style={styles.timeText}>{item.startTime || item.time || '00:00'}</Text>
+            <View style={[styles.timeStripe, totalItems <= 2 && styles.timeStripeLarge]}>
+                <Text style={[styles.timeText, totalItems <= 2 && styles.timeTextLarge]}>
+                    {item.startTime || item.time || '00:00'}
+                </Text>
             </View>
-            <View style={styles.cardContent}>
-                <Text style={styles.ceremonyName}>{item.ceremonyType || item.ceremony}</Text>
-                <Text style={styles.clientName}>{item.devoteeId?.name || 'Client'}</Text>
-                <View style={styles.locationRow}>
-                    <Ionicons name="location-outline" size={14} color={APP_COLORS.gray} />
-                    <Text style={styles.locationText} numberOfLines={1}>
+            <View style={[styles.cardContent, totalItems <= 2 && styles.cardContentCenter]}>
+                <Text style={[styles.ceremonyName, totalItems <= 2 && styles.textLarge]}>
+                    {item.ceremonyType || item.ceremony}
+                </Text>
+                <Text style={[styles.clientName, totalItems <= 2 && styles.textMedium]}>
+                    {item.devoteeId?.name || 'Client'}
+                </Text>
+                <View style={[styles.locationRow, totalItems <= 2 && { marginTop: 8 }]}>
+                    <Ionicons name="location-outline" size={totalItems <= 2 ? 20 : 14} color={APP_COLORS.gray} />
+                    <Text style={[styles.locationText, totalItems <= 2 && styles.textMedium]} numberOfLines={2}>
                         {item.location?.address || `${item.location?.city || 'Location'}`}
                     </Text>
                 </View>
             </View>
         </TouchableOpacity>
-    ), []);
+    ), [getCardStyles, totalItems]);
 
     const theme = useMemo(() => ({
         selectedDayBackgroundColor: APP_COLORS.primary,
         todayTextColor: APP_COLORS.primary,
         dotColor: APP_COLORS.primary,
         arrowColor: APP_COLORS.primary,
+        stylesheet: {
+            calendar: {
+                header: {
+                    paddingTop: 0,
+                    marginTop: 0,
+                }
+            }
+        }
     }), []);
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.container}>
             <CalendarProvider
                 date={today}
                 showTodayButton
@@ -104,6 +127,7 @@ export default function CalendarTab() {
                     theme={theme}
                     disablePan={false}
                     hideKnob={false}
+                    style={styles.calendar}
                 />
 
                 <View style={styles.listContainer}>
@@ -114,6 +138,7 @@ export default function CalendarTab() {
                             sections={sections}
                             renderItem={renderItem}
                             sectionStyle={styles.sectionHeader}
+                            contentContainerStyle={{ paddingBottom: 100 }}
                         />
                     ) : (
                         <View style={styles.empty}>
@@ -122,7 +147,7 @@ export default function CalendarTab() {
                     )}
                 </View>
             </CalendarProvider>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -130,6 +155,16 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: APP_COLORS.background,
+    },
+    calendar: {
+        paddingTop: 0, // Ensure no top padding
+        marginTop: 0, // Ensure no top margin
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 3,
+        zIndex: 10,
     },
     listContainer: {
         flex: 1,
@@ -146,44 +181,80 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         backgroundColor: APP_COLORS.white,
-        borderRadius: 8,
+        borderRadius: 12,
         marginHorizontal: 16,
         marginBottom: 12,
         overflow: 'hidden',
-        elevation: 1,
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        minHeight: 90,
+    },
+    cardSingle: {
+        marginTop: 20,
+        minHeight: 400,
+        marginHorizontal: 20,
+    },
+    cardDouble: {
+        marginTop: 16,
+        minHeight: 200,
+        marginHorizontal: 18,
     },
     timeStripe: {
-        backgroundColor: APP_COLORS.primary + '20',
-        width: 60,
+        backgroundColor: APP_COLORS.primary + '15', // lighter opacity
+        width: 70,
         justifyContent: 'center',
         alignItems: 'center',
         borderRightWidth: 1,
         borderRightColor: APP_COLORS.lightGray,
     },
+    timeStripeLarge: {
+        width: 100,
+    },
     timeText: {
         fontWeight: 'bold',
         color: APP_COLORS.primary,
+        fontSize: 16,
+    },
+    timeTextLarge: {
+        fontSize: 24,
     },
     cardContent: {
         flex: 1,
-        padding: 12,
+        padding: 16,
+        justifyContent: 'center',
+    },
+    cardContentCenter: {
+        justifyContent: 'center',
     },
     ceremonyName: {
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: 'bold',
-        marginBottom: 4,
+        marginBottom: 6,
+        color: APP_COLORS.black,
+    },
+    textLarge: {
+        fontSize: 28,
+        marginBottom: 12,
     },
     clientName: {
         fontSize: 14,
         color: APP_COLORS.gray,
-        marginBottom: 4,
+        marginBottom: 6,
+        fontWeight: '500',
+    },
+    textMedium: {
+        fontSize: 18,
+        marginBottom: 10,
     },
     locationRow: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     locationText: {
-        fontSize: 12,
+        fontSize: 13,
         color: APP_COLORS.gray,
         marginLeft: 4,
         flex: 1,

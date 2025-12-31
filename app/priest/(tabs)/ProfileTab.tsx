@@ -101,7 +101,7 @@ const ProfileScreen: React.FC = () => {
         type
       );
 
-      Alert.alert("Success", "Document uploaded successfully!");
+      // Alert.alert("Success", "Document uploaded successfully!");
       getProfile();
     } catch (error: any) {
       Alert.alert("Error", error.toString());

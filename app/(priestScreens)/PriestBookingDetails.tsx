@@ -127,7 +127,8 @@ const BookingDetails = () => {
               }
               await priestService.updateBookingStatus(bookingId, newStatus);
               setCurrentStatus(newStatus);
-              Alert.alert("Success", `Booking has been marked as ${newStatus}`);
+              // Alert.alert("Success", `Booking has been marked as ${newStatus}`);
+              router.back();
               router.back();
             } catch (err: any) {
               Alert.alert("Error", err?.message || "Failed to update status");

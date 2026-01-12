@@ -7,8 +7,9 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { useColorScheme } from "react-native";
-import { Provider, useDispatch } from "react-redux";
+import { Provider } from "react-redux";
 import store from "../redux/store";
+import { useAppDispatch } from "../redux/hooks";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setLogoutCallback } from "../api";
 import { logout } from "../redux/slices/authSlice";
@@ -17,7 +18,7 @@ const queryClient = new QueryClient();
 
 function AppContent() {
   const colorScheme = useColorScheme();
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   // Set up logout callback for API interceptor
   useEffect(() => {

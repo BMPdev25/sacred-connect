@@ -181,9 +181,11 @@ const ProfileScreen: React.FC = () => {
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Location</Text>
               <Text style={styles.infoValue}>
-                {profile?.location && profile.location.coordinates[0] !== 0
-                  ? `Lat: ${profile.location.coordinates[1].toFixed(4)}, Lng: ${profile.location.coordinates[0].toFixed(4)}`
-                  : 'Not set'}
+                {profile?.address
+                  ? profile.address
+                  : profile?.location && profile.location.coordinates[0] !== 0
+                    ? `Lat: ${profile.location.coordinates[1].toFixed(4)}, Lng: ${profile.location.coordinates[0].toFixed(4)}`
+                    : 'Not set'}
               </Text>
             </View>
           </View>

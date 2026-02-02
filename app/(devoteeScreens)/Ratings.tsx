@@ -1,5 +1,5 @@
-// src/screens/devotee/RatingScreen.js - Fixed Complete Code
 import { Ionicons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -42,7 +42,8 @@ type Categories = {
   overall: number;
 };
 
-const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking } } }> = ({ navigation, route }) => {
+const Ratings: React.FC = () => {
+  const params = useLocalSearchParams();
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const { isLoading } = useSelector((state: RootState) => state.booking);
@@ -61,10 +62,10 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
   useEffect(() => {
     let bookingData: Booking | null = null;
     try {
-      if (route.params?.booking) {
-        bookingData = typeof route.params.booking === 'string'
-          ? JSON.parse(route.params.booking)
-          : route.params.booking;
+      if (params.booking) {
+        bookingData = typeof params.booking === 'string'
+          ? JSON.parse(params.booking)
+          : params.booking;
       }
     } catch (e) {
       console.error("Error parsing booking data", e);
@@ -99,7 +100,7 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
     }
 
     setBooking(bookingData);
-  }, [route.params]);
+  }, [params.booking]);
 
   const ratingCategories: { key: keyof Categories; label: string; description: string; icon: string }[] = [
     {
@@ -196,7 +197,7 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
               text: 'OK',
               onPress: () => {
                 // Navigate back to bookings
-                navigation.navigate('DevoteeTabs', { screen: 'Bookings' });
+                router.push('/devotee/(tabs)/BookingsTab');
               },
             },
           ]
@@ -239,7 +240,7 @@ const Ratings: React.FC<{ navigation: any; route: { params?: { booking?: Booking
         <View style={[styles.header, { paddingTop: insets.top + 8, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 4, elevation: 4, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray }]}>
           <TouchableOpacity
             style={styles.backIcon}
-            onPress={() => navigation.goBack()}
+            onPress={() => router.back()}
           >
             <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
           </TouchableOpacity>

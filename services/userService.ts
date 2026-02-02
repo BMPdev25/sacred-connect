@@ -34,7 +34,7 @@ const userService = {
         name: 'profile.jpg',
       } as any);
 
-      const response = await api.post('/user/profile/picture', formData, {
+      const response = await api.post('/api/user/profile/picture', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -47,7 +47,7 @@ const userService = {
 
   deleteProfilePicture: async (): Promise<any> => {
     try {
-      const response = await api.delete('/user/profile/picture');
+      const response = await api.delete('/api/user/profile/picture');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -57,7 +57,7 @@ const userService = {
   // Security Features
   changePassword: async (currentPassword: string, newPassword: string): Promise<any> => {
     try {
-      const response = await api.post('/user/security/change-password', {
+      const response = await api.post('/api/user/security/change-password', {
         currentPassword,
         newPassword,
       });
@@ -99,7 +99,7 @@ const userService = {
   // Account Management
   deleteAccount: async (password: string, confirmationText: string): Promise<any> => {
     try {
-      const response = await api.delete('/user/account', {
+      const response = await api.delete('/api/user/account', {
         data: { password, confirmationText },
       });
       return response.data;

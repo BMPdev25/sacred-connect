@@ -19,6 +19,7 @@ export default function ServiceDetailScreen() {
     const [requirements, setRequirements] = useState<string[]>(initialService.requirements || []);
     const [newRequirement, setNewRequirement] = useState('');
     const [loading, setLoading] = useState(false);
+    const [hasChanges, setHasChanges] = useState(false);
 
     // Ceremony Details (read-only from ceremonyId)
     const ceremony = initialService.ceremonyId || {};
@@ -28,12 +29,14 @@ export default function ServiceDetailScreen() {
         if (!newRequirement.trim()) return;
         setRequirements([...requirements, newRequirement.trim()]);
         setNewRequirement('');
+        setHasChanges(true);
     };
 
     const handleRemoveRequirement = (index: number) => {
         const updated = [...requirements];
         updated.splice(index, 1);
         setRequirements(updated);
+        setHasChanges(true);
     };
 
     const handleSave = async () => {
@@ -138,7 +141,10 @@ export default function ServiceDetailScreen() {
                         <TextInput
                             style={styles.priceInput}
                             value={price}
-                            onChangeText={setPrice}
+                            onChangeText={(text) => {
+                                setPrice(text);
+                                setHasChanges(true);
+                            }}
                             keyboardType="numeric"
                             placeholder="Enter Price"
                         />
@@ -196,20 +202,22 @@ export default function ServiceDetailScreen() {
                 </View>
             </ScrollView>
 
-            {/* Bottom Save Bar */}
-            <View style={styles.bottomBar}>
-                <TouchableOpacity
-                    style={[styles.saveButton, loading && styles.disabledBtn]}
-                    onPress={handleSave}
-                    disabled={loading}
-                >
-                    {loading ? (
-                        <ActivityIndicator color="white" />
-                    ) : (
-                        <Text style={styles.saveText}>Save Changes</Text>
-                    )}
-                </TouchableOpacity>
-            </View>
+            {/* Bottom Save Bar - only show when there are changes */}
+            {hasChanges && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={[styles.saveButton, loading && styles.disabledBtn]}
+                        onPress={handleSave}
+                        disabled={loading}
+                    >
+                        {loading ? (
+                            <ActivityIndicator color="white" />
+                        ) : (
+                            <Text style={styles.saveText}>Save Changes</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
         </View>
     );
 }

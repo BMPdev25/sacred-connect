@@ -40,7 +40,7 @@ export default function CalendarTab() {
 
             // Convert to sections array for AgendaList
             // [{ title: '2023-10-22', data: [...] }]
-            const sectionData = Object.keys(grouped).sort().map(date => ({
+            const sectionData = Object.keys(grouped).sort().reverse().map(date => ({
                 title: date,
                 data: grouped[date]
             }));

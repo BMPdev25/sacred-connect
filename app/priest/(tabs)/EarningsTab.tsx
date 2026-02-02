@@ -37,38 +37,18 @@ const EarningsScreen = () => {
   }, []);
 
   const fetchEarningsData = async () => {
-    // ... implementation ...
     try {
       setLoading(true);
       const data = await priestService.getEarnings(userInfo?._id, "all");
-      setEarningsData({
-        thisMonth: 12500,
-        lastMonth: 8000,
-        growthPercentage: 56.25,
-        availableBalance: 12500,
-        transactions: [
-          {
-            id: "64a1f8e9a2c6b9d1f2e3a4b5",
-            amount: 2500,
-            type: "earnings",
-            date: "2025-10-03T12:34:56.789Z",
-            description: "Wedding Ceremony",
-            client: "Ramesh Patel",
-            status: "completed",
-            // ... rest of data
-          },
-          {
-            id: "64a1f7d0a2c6b9d1f2e3a4b4",
-            amount: 5000,
-            type: "earnings",
-            date: "2025-10-02T09:10:11.000Z",
-            description: "Housewarming",
-            client: "Sita Devi",
-            status: "completed",
-          }
-        ],
-        totalBookings: 2,
-        totalCompletedBookings: 10,
+      // Use actual API response data instead of hardcoded values
+      setEarningsData(data || {
+        thisMonth: 0,
+        lastMonth: 0,
+        growthPercentage: 0,
+        availableBalance: 0,
+        transactions: [],
+        totalBookings: 0,
+        totalCompletedBookings: 0,
       });
     } catch (error) {
       console.error("Error fetching earnings:", error);

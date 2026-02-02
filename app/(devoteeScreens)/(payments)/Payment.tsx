@@ -23,6 +23,17 @@ import { getBookings } from "../../../redux/slices/bookingSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
 
+// Format expiry date as MM/YY
+const formatExpiryDate = (text: string) => {
+  // Remove non-digits
+  const cleaned = text.replace(/\D/g, '');
+  // Format as MM/YY
+  if (cleaned.length >= 2) {
+    return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4);
+  }
+  return cleaned;
+};
+
 const Payment: React.FC = () => {
   const params = useLocalSearchParams();
   let bookingDetails: any = null;
@@ -123,7 +134,7 @@ const Payment: React.FC = () => {
       Alert.alert(
         "Payment Failed",
         (error as any)?.message ||
-          "An error occurred while processing your payment. Please try again."
+        "An error occurred while processing your payment. Please try again."
       );
     }
   };
@@ -239,7 +250,7 @@ const Payment: React.FC = () => {
               style={[
                 styles.paymentMethodOption,
                 selectedPaymentMethod === "card" &&
-                  styles.selectedPaymentMethod,
+                styles.selectedPaymentMethod,
               ]}
               onPress={() => setSelectedPaymentMethod("card")}
             >
@@ -296,7 +307,7 @@ const Payment: React.FC = () => {
                       style={styles.input}
                       placeholder="MM/YY"
                       value={cardExpiry}
-                      onChangeText={setCardExpiry}
+                      onChangeText={(text) => setCardExpiry(formatExpiryDate(text))}
                       keyboardType="number-pad"
                       maxLength={5}
                     />

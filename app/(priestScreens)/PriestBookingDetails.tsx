@@ -71,7 +71,12 @@ const BookingDetails = () => {
         if (mounted) setFetchedBooking(data || null);
       } catch (err: any) {
         console.error('Failed to fetch booking details', err);
-        if (mounted) setBookingError(typeof err === 'string' ? err : err?.message || 'Failed to load booking');
+        // If we have passed booking data, don't show error screen, just fall back to usage
+        if (booking && mounted) {
+          console.warn("Using passed booking parameters as fallback");
+        } else {
+          if (mounted) setBookingError(typeof err === 'string' ? err : err?.message || 'Failed to load booking');
+        }
       } finally {
         if (mounted) setLoadingBooking(false);
       }
@@ -113,9 +118,21 @@ const BookingDetails = () => {
         },
         {
           text: "Confirm",
-          onPress: () => {
-            // Update status logic would go here
-            setCurrentStatus(newStatus);
+          onPress: async () => {
+            try {
+              const bookingId = activeBooking._id || activeBooking.id;
+              if (!bookingId) {
+                Alert.alert("Error", "Booking ID not found");
+                return;
+              }
+              await priestService.updateBookingStatus(bookingId, newStatus);
+              setCurrentStatus(newStatus);
+              // Alert.alert("Success", `Booking has been marked as ${newStatus}`);
+              router.back();
+              router.back();
+            } catch (err: any) {
+              Alert.alert("Error", err?.message || "Failed to update status");
+            }
           },
         },
       ],
@@ -148,173 +165,173 @@ const BookingDetails = () => {
           </View>
         ) : (
           <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 24 }}>
-          <View style={styles.statusContainer}>
-            <View
-              style={[
-                styles.statusBadge,
-                {
-                  backgroundColor:
-                    currentStatus === "confirmed"
-                      ? "#e6f7e6"
-                      : currentStatus === "completed"
-                      ? "#e6f0ff"
-                      : currentStatus === "cancelled"
-                      ? "#ffe6e6"
-                      : "#fff9e6",
-                  borderColor:
-                    currentStatus === "confirmed"
-                      ? APP_COLORS.success
-                      : currentStatus === "completed"
-                      ? APP_COLORS.info
-                      : currentStatus === "cancelled"
-                      ? APP_COLORS.error
-                      : APP_COLORS.warning,
-                },
-              ]}
-            >
-              <Text
+            <View style={styles.statusContainer}>
+              <View
                 style={[
-                  styles.statusText,
+                  styles.statusBadge,
                   {
-                    color:
+                    backgroundColor:
+                      currentStatus === "confirmed"
+                        ? "#e6f7e6"
+                        : currentStatus === "completed"
+                          ? "#e6f0ff"
+                          : currentStatus === "cancelled"
+                            ? "#ffe6e6"
+                            : "#fff9e6",
+                    borderColor:
                       currentStatus === "confirmed"
                         ? APP_COLORS.success
                         : currentStatus === "completed"
-                        ? APP_COLORS.info
-                        : currentStatus === "cancelled"
-                        ? APP_COLORS.error
-                        : APP_COLORS.warning,
+                          ? APP_COLORS.info
+                          : currentStatus === "cancelled"
+                            ? APP_COLORS.error
+                            : APP_COLORS.warning,
                   },
                 ]}
               >
-                {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
-              </Text>
+                <Text
+                  style={[
+                    styles.statusText,
+                    {
+                      color:
+                        currentStatus === "confirmed"
+                          ? APP_COLORS.success
+                          : currentStatus === "completed"
+                            ? APP_COLORS.info
+                            : currentStatus === "cancelled"
+                              ? APP_COLORS.error
+                              : APP_COLORS.warning,
+                    },
+                  ]}
+                >
+                  {currentStatus.charAt(0).toUpperCase() + currentStatus.slice(1)}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Ceremony Details</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Ceremony Type</Text>
-              <Text style={styles.detailValue}>{activeBooking.ceremonyType}</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Ceremony Details</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Ceremony Type</Text>
+                <Text style={styles.detailValue}>{activeBooking.ceremonyType}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Date</Text>
+                <Text style={styles.detailValue}>{formattedDate}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Time</Text>
+                <Text style={styles.detailValue}>
+                  {activeBooking.startTime} - {activeBooking.endTime}
+                </Text>
+              </View>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Date</Text>
-              <Text style={styles.detailValue}>{formattedDate}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Time</Text>
-              <Text style={styles.detailValue}>
-                {activeBooking.startTime} - {activeBooking.endTime}
-              </Text>
-            </View>
-          </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Client Information</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Client Name</Text>
-              <Text style={styles.detailValue}>{activeBooking.clientName}</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Client Information</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Client Name</Text>
+                <Text style={styles.detailValue}>{activeBooking.clientName}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Phone Number</Text>
+                <Text style={styles.detailValue}>+91 98765 43210</Text>
+              </View>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Phone Number</Text>
-              <Text style={styles.detailValue}>+91 98765 43210</Text>
-            </View>
-          </View>
 
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Location</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Address</Text>
-              <Text style={styles.detailValue}>{activeBooking.location?.address}</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Location</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Address</Text>
+                <Text style={styles.detailValue}>{activeBooking.location?.address}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>City</Text>
+                <Text style={styles.detailValue}>{activeBooking.location?.city}</Text>
+              </View>
+              <TouchableOpacity style={styles.mapButton}>
+                <Ionicons
+                  name="map-outline"
+                  size={16}
+                  color={APP_COLORS.primary}
+                />
+                <Text style={styles.mapButtonText}>View on Maps</Text>
+              </TouchableOpacity>
             </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>City</Text>
-              <Text style={styles.detailValue}>{activeBooking.location?.city}</Text>
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Payment Details</Text>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Base Price</Text>
+                <Text style={styles.detailValue}>₹{activeBooking.basePrice}</Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Platform Fee</Text>
+                <Text style={styles.detailValue}>
+                  ₹{activeBooking.platformFee || 500}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Total Amount</Text>
+                <Text style={[styles.detailValue, styles.totalAmount]}>
+                  ₹{activeBooking.totalAmount || 8500}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Payment Status</Text>
+                <Text
+                  style={[
+                    styles.paymentStatus,
+                    {
+                      color:
+                        activeBooking.paymentStatus === "completed"
+                          ? APP_COLORS.success
+                          : APP_COLORS.warning,
+                    },
+                  ]}
+                >
+                  {activeBooking.paymentStatus === "completed" ? "Paid" : "Pending"}
+                </Text>
+              </View>
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Payment Method</Text>
+                <Text style={styles.detailValue}>
+                  {activeBooking.paymentMethod === "upi"
+                    ? "UPI"
+                    : activeBooking.paymentMethod === "card"
+                      ? "Credit/Debit Card"
+                      : "Not specified"}
+                </Text>
+              </View>
             </View>
-            <TouchableOpacity style={styles.mapButton}>
+
+            {currentStatus === "confirmed" && (
+              <View style={styles.actionButtons}>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.completeButton]}
+                  onPress={() => handleStatusUpdate("completed")}
+                >
+                  <Text style={styles.actionButtonText}>Mark as Completed</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.actionButton, styles.cancelButton]}
+                  onPress={() => handleStatusUpdate("cancelled")}
+                >
+                  <Text style={styles.cancelButtonText}>Cancel Booking</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            <TouchableOpacity style={styles.contactButton}>
               <Ionicons
-                name="map-outline"
-                size={16}
-                color={APP_COLORS.primary}
+                name="chatbubble-ellipses-outline"
+                size={20}
+                color={APP_COLORS.white}
               />
-              <Text style={styles.mapButtonText}>View on Maps</Text>
+              <Text style={styles.contactButtonText}>Contact Client</Text>
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Payment Details</Text>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Base Price</Text>
-              <Text style={styles.detailValue}>₹{activeBooking.basePrice}</Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Platform Fee</Text>
-              <Text style={styles.detailValue}>
-                ₹{activeBooking.platformFee || 500}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Total Amount</Text>
-              <Text style={[styles.detailValue, styles.totalAmount]}>
-                ₹{activeBooking.totalAmount || 8500}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Payment Status</Text>
-              <Text
-                style={[
-                  styles.paymentStatus,
-                  {
-                    color:
-                      activeBooking.paymentStatus === "completed"
-                        ? APP_COLORS.success
-                        : APP_COLORS.warning,
-                  },
-                ]}
-              >
-                {activeBooking.paymentStatus === "completed" ? "Paid" : "Pending"}
-              </Text>
-            </View>
-            <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Payment Method</Text>
-              <Text style={styles.detailValue}>
-                {activeBooking.paymentMethod === "upi"
-                  ? "UPI"
-                  : activeBooking.paymentMethod === "card"
-                  ? "Credit/Debit Card"
-                  : "Not specified"}
-              </Text>
-            </View>
-          </View>
-
-          {currentStatus === "confirmed" && (
-            <View style={styles.actionButtons}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.completeButton]}
-                onPress={() => handleStatusUpdate("completed")}
-              >
-                <Text style={styles.actionButtonText}>Mark as Completed</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => handleStatusUpdate("cancelled")}
-              >
-                <Text style={styles.cancelButtonText}>Cancel Booking</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          <TouchableOpacity style={styles.contactButton}>
-            <Ionicons
-              name="chatbubble-ellipses-outline"
-              size={20}
-              color={APP_COLORS.white}
-            />
-            <Text style={styles.contactButtonText}>Contact Client</Text>
-          </TouchableOpacity>
-        </ScrollView>
-          )}
+          </ScrollView>
+        )}
       </View>
     </SafeAreaView>
   );

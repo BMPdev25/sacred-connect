@@ -6,22 +6,28 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-navigation/native": "^7.1.8",
     "@reduxjs/toolkit": "^2.9.0",
+    "@tanstack/react-query": "^5.90.11",
     "axios": "^1.12.2",
     "expo": "~54.0.10",
     "expo-constants": "~18.0.9",
+    "expo-document-picker": "~14.0.8",
     "expo-font": "~14.0.8",
+    "expo-image-picker": "~17.0.10",
     "expo-linking": "~8.0.8",
+    "expo-location": "~19.0.8",
     "expo-router": "~6.0.8",
     "expo-secure-store": "^15.0.7",
     "expo-splash-screen": "~31.0.10",
     "expo-status-bar": "~3.0.8",
     "expo-web-browser": "~15.0.7",
+    "firebase": "^12.7.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.4",
@@ -35,8 +41,33 @@
     "react-redux": "^9.2.0"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
+    "baseline-browser-mapping": "^2.8.32",
+    "jest": "^30.2.0",
+    "jest-expo": "^54.0.16",
+    "react-test-renderer": "^19.2.3",
     "typescript": "~5.9.2"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "react-native",
+    "transform": {
+      "^.+\\.(js|ts|tsx)$": "babel-jest"
+    },
+    "transformIgnorePatterns": [
+      "node_modules/(?!(react-native|@react-native|expo|@expo|@unimodules|unimodules|react-navigation|@react-navigation)/)"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.[jt]s?(x)"
+    ],
+    "moduleFileExtensions": [
+      "ts",
+      "tsx",
+      "js",
+      "jsx",
+      "json"
+    ]
+  }
 }

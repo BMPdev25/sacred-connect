@@ -6,6 +6,7 @@ import {
   Alert,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -21,6 +22,7 @@ import priestService from "../../../services/priestService";
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
 const EarningsScreen = () => {
+  // ... hooks ...
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [selectedMonth, setSelectedMonth] = useState<string>("current");
   const [withdrawalModalVisible, setWithdrawalModalVisible] = useState(false);
@@ -38,35 +40,15 @@ const EarningsScreen = () => {
     try {
       setLoading(true);
       const data = await priestService.getEarnings(userInfo?._id, "all");
-      // console.log("Earnings data fetched:", data);
-      // setEarningsData(data);
-      setEarningsData({
-        thisMonth: 12500,
-        lastMonth: 8000,
-        growthPercentage: 56.25,
-        availableBalance: 12500,
-        transactions: [
-          {
-            id: "64a1f8e9a2c6b9d1f2e3a4b5",
-            amount: 2500,
-            type: "earnings",
-            date: "2025-10-03T12:34:56.789Z",
-            description: "Wedding Ceremony",
-            client: "Ramesh Patel",
-            status: "completed",
-          },
-          {
-            id: "64a1f7d0a2c6b9d1f2e3a4b4",
-            amount: 5000,
-            type: "earnings",
-            date: "2025-10-02T09:10:11.000Z",
-            description: "Housewarming",
-            client: "Sita Devi",
-            status: "completed",
-          },
-        ],
-        totalBookings: 2,
-        totalCompletedBookings: 10,
+      // Use actual API response data instead of hardcoded values
+      setEarningsData(data || {
+        thisMonth: 0,
+        lastMonth: 0,
+        growthPercentage: 0,
+        availableBalance: 0,
+        transactions: [],
+        totalBookings: 0,
+        totalCompletedBookings: 0,
       });
     } catch (error) {
       console.error("Error fetching earnings:", error);
@@ -82,6 +64,7 @@ const EarningsScreen = () => {
     setRefreshing(false);
   };
 
+  // ... handleWithdrawal ...
   const handleWithdrawal = async () => {
     const amount = parseFloat(withdrawalAmount);
     if (isNaN(amount) || amount <= 0) {
@@ -104,7 +87,7 @@ const EarningsScreen = () => {
         paymentMethod: selectedPaymentMethod,
       });
 
-      Alert.alert("Success", "Withdrawal request submitted successfully");
+      // Alert.alert("Success", "Withdrawal request submitted successfully");
       setWithdrawalModalVisible(false);
       setWithdrawalAmount("");
 
@@ -151,36 +134,13 @@ const EarningsScreen = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: HEADER_TOP_PADDING,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 4,
-            elevation: 4,
-            borderBottomWidth: 1,
-            borderBottomColor: APP_COLORS.lightGray,
-          },
-        ]}
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[APP_COLORS.primary]} />
+        }
       >
-        <Text style={styles.headerTitle}>Earnings</Text>
-        <TouchableOpacity
-          onPress={handleRefresh}
-          style={{ position: "absolute", right: 16, top: HEADER_TOP_PADDING }}
-          accessibilityLabel="Refresh earnings"
-        >
-          {refreshing ? (
-            <ActivityIndicator size="small" color={APP_COLORS.white} />
-          ) : (
-            <Ionicons name="refresh" size={20} color={APP_COLORS.white} />
-          )}
-        </TouchableOpacity>
-      </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.earningsSummary}>
           <View style={styles.summaryHeader}>
             <Text style={styles.summaryTitle}>Total Earnings</Text>
@@ -259,7 +219,7 @@ const EarningsScreen = () => {
           <Text style={styles.sectionTitle}>Recent Transactions</Text>
 
           {!earningsData?.transactions ||
-          earningsData.transactions.length === 0 ? (
+            earningsData.transactions.length === 0 ? (
             <View style={styles.emptyState}>
               <Ionicons
                 name="receipt-outline"
@@ -359,7 +319,7 @@ const EarningsScreen = () => {
                   style={[
                     styles.paymentMethodOption,
                     selectedPaymentMethod === "upi" &&
-                      styles.selectedPaymentMethod,
+                    styles.selectedPaymentMethod,
                   ]}
                   onPress={() => setSelectedPaymentMethod("upi")}
                 >
@@ -375,7 +335,7 @@ const EarningsScreen = () => {
                   style={[
                     styles.paymentMethodOption,
                     selectedPaymentMethod === "card" &&
-                      styles.selectedPaymentMethod,
+                    styles.selectedPaymentMethod,
                   ]}
                   onPress={() => setSelectedPaymentMethod("card")}
                 >
@@ -410,7 +370,7 @@ const styles = StyleSheet.create({
   refreshButton: {
     padding: 8,
   },
-    rotating: {
+  rotating: {
     transform: [{ rotate: '180deg' }],
   },
   container: {

@@ -16,15 +16,7 @@ import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
 
 
-type Priest = {
-  _id?: string;
-  profilePicture?: string;
-  name?: string;
-  religiousTradition?: string;
-  experience?: number;
-  ratings?: { average?: number; count?: number };
-  ceremonies?: string[];
-};
+import { Priest } from "../../../types";
 
 const PriestSearch: React.FC = () => {
   const params = useLocalSearchParams();
@@ -61,72 +53,38 @@ const PriestSearch: React.FC = () => {
   const [priests, setPriests] = useState<Priest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchPriests = async () => {
-      try {
-        setLoading(true);
-        // console.log('PriestSearchScreen: Fetching priests...');
+  // Fetch priests function
+  const fetchPriests = async (query = "", ceremony = "") => {
+    try {
+      setLoading(true);
+      const params: any = { limit: 50 };
+      if (query) params.search = query;
+      if (ceremony && ceremony !== "All Ceremonies") params.ceremony = ceremony;
 
-        // Try debug endpoint first
-        // const allPriestsResponse = await devoteeService.getAllPriests();
-        // console.log('PriestSearchScreen: All priests response:', allPriestsResponse);
-
-        const response = await devoteeService.searchPriests({ limit: 50 });
-        // console.log('PriestSearchScreen: Search priests response:', response);
-        setPriests(response.priests || []);
-      } catch (err) {
-        console.error("PriestSearchScreen: Error fetching priests:", err);
-        setPriests([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchPriests();
-  }, []);
-
-  // Filter priests based on search criteria
-  const filteredPriests = priests.filter((priest: Priest) => {
-    // Filter by search query
-    if (
-      searchQuery &&
-      !(priest.name || "").toLowerCase().includes(searchQuery.toLowerCase())
-    ) {
-      return false;
+      const response = await devoteeService.searchPriests(params);
+      setPriests(response.priests || []);
+    } catch (err) {
+      console.error("PriestSearchScreen: Error fetching priests:", err);
+      setPriests([]);
+    } finally {
+      setLoading(false);
     }
-
-    // Filter by ceremony
-    if (selectedCeremony && selectedCeremony !== "All Ceremonies") {
-      if (!priest.ceremonies?.includes(selectedCeremony)) {
-        return false;
-      }
-    }
-
-    // Filter by religion
-    if (selectedReligion && priest.religiousTradition !== selectedReligion) {
-      return false;
-    }
-
-    // Filter by rating
-    if (selectedRating) {
-      let minRating = 0;
-      if (selectedRating === "4.5 & above") minRating = 4.5;
-      else if (selectedRating === "4.0 & above") minRating = 4.0;
-      else if (selectedRating === "3.5 & above") minRating = 3.5;
-
-      if ((priest.ratings?.average || 0) < minRating) {
-        return false;
-      }
-    }
-
-    return true;
-  });
-
-  const handleSearch = () => {
-    // Implement search logic if needed
   };
 
+  useEffect(() => {
+    fetchPriests(initialSearchQuery, initialCeremony);
+  }, []);
+
+  // Handle search submission
+  const handleSearch = () => {
+    fetchPriests(searchQuery, selectedCeremony);
+  };
+
+  // Handle ceremony selection and trigger search
   const handleCeremonySelect = (ceremony: string) => {
-    setSelectedCeremony(ceremony === selectedCeremony ? "" : ceremony);
+    const newCeremony = ceremony === selectedCeremony ? "" : ceremony;
+    setSelectedCeremony(newCeremony);
+    fetchPriests(searchQuery, newCeremony);
   };
 
   const handlePriestPress = (priest: Priest) => {
@@ -160,7 +118,7 @@ const PriestSearch: React.FC = () => {
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={16} color="#FFD700" />
           <Text style={styles.ratingText}>
-            {item.ratings?.average || 0} ({item.ratings?.count || 0})
+            {item.rating?.average || 0} ({item.rating?.count || 0})
           </Text>
         </View>
         <View style={styles.specialtiesContainer}>
@@ -185,13 +143,41 @@ const PriestSearch: React.FC = () => {
         <Text style={[styles.statusText, styles.availableText]}>Available</Text>
         <TouchableOpacity
           style={styles.bookButton}
-          onPress={() => router.push({pathname: "/[BookCeremony]", params: { BookCeremony: item._id ?? "", priestId: item._id ?? "" } })}
+          onPress={() => router.push({ pathname: "/[BookCeremony]", params: { BookCeremony: item._id ?? "", priestId: item._id ?? "" } })}
         >
           <Text style={styles.bookButtonText}>Book</Text>
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
+
+  // Debounced search function
+  const debouncedSearch = React.useCallback(
+    (query: string, ceremony: string) => {
+      const timeoutId = setTimeout(() => {
+        fetchPriests(query, ceremony);
+      }, 500); // 500ms delay
+      return () => clearTimeout(timeoutId);
+    },
+    []
+  );
+
+  // Keep track of timeout to clear it
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchTextChange = (text: string) => {
+    setSearchQuery(text);
+
+    // Clear previous timeout
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+
+    // Set new timeout
+    timeoutRef.current = setTimeout(() => {
+      fetchPriests(text, selectedCeremony);
+    }, 500);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -218,13 +204,16 @@ const PriestSearch: React.FC = () => {
             style={styles.searchInput}
             placeholder="Search priests by name"
             value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
+            onChangeText={handleSearchTextChange}
+          // Removed onSubmitEditing since we have live search
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity
               style={styles.clearButton}
-              onPress={() => setSearchQuery("")}
+              onPress={() => {
+                setSearchQuery("");
+                fetchPriests("", selectedCeremony);
+              }}
             >
               <Ionicons name="close-circle" size={20} color={APP_COLORS.gray} />
             </TouchableOpacity>
@@ -253,7 +242,7 @@ const PriestSearch: React.FC = () => {
                   style={[
                     styles.filterChipText,
                     selectedCeremony === ceremony &&
-                      styles.selectedFilterChipText,
+                    styles.selectedFilterChipText,
                   ]}
                 >
                   {ceremony}
@@ -276,7 +265,7 @@ const PriestSearch: React.FC = () => {
                     style={[
                       styles.filterChip,
                       selectedReligion === religion &&
-                        styles.selectedFilterChip,
+                      styles.selectedFilterChip,
                     ]}
                     onPress={() =>
                       setSelectedReligion(
@@ -288,7 +277,7 @@ const PriestSearch: React.FC = () => {
                       style={[
                         styles.filterChipText,
                         selectedReligion === religion &&
-                          styles.selectedFilterChipText,
+                        styles.selectedFilterChipText,
                       ]}
                     >
                       {religion}
@@ -319,7 +308,7 @@ const PriestSearch: React.FC = () => {
                       style={[
                         styles.filterChipText,
                         selectedRating === rating &&
-                          styles.selectedFilterChipText,
+                        styles.selectedFilterChipText,
                       ]}
                     >
                       {rating}
@@ -353,12 +342,12 @@ const PriestSearch: React.FC = () => {
 
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsText}>
-          {filteredPriests.length}{" "}
-          {filteredPriests.length === 1 ? "priest" : "priests"} found
+          {priests.length}{" "}
+          {priests.length === 1 ? "priest" : "priests"} found
         </Text>
 
         <FlatList
-          data={filteredPriests}
+          data={priests}
           renderItem={renderPriestItem}
           keyExtractor={(item) => `${item._id}`}
           contentContainerStyle={styles.priestsList}

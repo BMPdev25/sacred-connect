@@ -2,8 +2,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,39 +11,26 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useSelector } from "react-redux";
+import { useQuery } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
-// Platform.constants may be undefined in some environments; guard access
-const androidStatusBarHeight =
-  (Platform as any).constants?.StatusBarHeight ?? 24;
-const HEADER_TOP_PADDING =
-  Platform.OS === "android" ? androidStatusBarHeight : 44;
+import ceremonyService from "../../../services/ceremonyService";
 
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const insets = useSafeAreaInsets();
 
-  // Ceremonies data with error handling for images
-  const ceremonies = [
-    {
-      id: "1",
-      name: "Wedding",
-      image: require("../../../assets/images/wedding.jpg"),
-    },
-    {
-      id: "2",
-      name: "Grih Pravesh",
-      image: require("../../../assets/images/home-rituals.jpg"),
-    },
-    {
-      id: "3",
-      name: "Baby Naming",
-      image: require("../../../assets/images/baby-naming.jpg"),
-    },
-  ];
+  // Fetch ceremonies from backend
+  const { data: ceremoniesData, isLoading: isLoadingCeremonies } = useQuery({
+    queryKey: ["ceremonies", "popular"],
+    queryFn: () => ceremonyService.getAllPujas({ limit: 5 }), // Using getAllPujas based on service wrapper
+    select: (data) => data.ceremonies || [],
+  });
 
   // Mock data for recommended priests
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
@@ -51,24 +38,17 @@ const HomeScreen: React.FC = () => {
   useEffect(() => {
     const fetchRecommendedPriests = async () => {
       try {
-        // console.log("Fetching recommended priests...");
-
         // Try the regular search for priests
         const response = await devoteeService.searchPriests({ limit: 10 });
-        // console.log("Search priests response:", response);
 
         if (response && response.priests.length > 0) {
-          // console.log(response.priests)
           setRecommendedPriests(response.priests);
         } else {
-          // Fallback to mock data if API fails
-          // console.log("No priests found, using fallback data");
           setRecommendedPriests([]);
         }
       } catch (err) {
         console.error("Error fetching recommended priests:", err);
         // Set mock data if there's an error
-        console.log("API failed, using mock data");
         setRecommendedPriests([]);
       }
     };
@@ -77,12 +57,11 @@ const HomeScreen: React.FC = () => {
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
-    router.push(`/PriestSearch?query=${searchQuery}`);
+    router.push(`/(devoteeScreens)/GlobalSearch?query=${searchQuery}`);
   };
 
-  const handleCeremonyPress = (ceremony: { id?: string; name: string }) => {
-    router.push(`/PriestSearch?ceremony=${ceremony.name}`);
-    // navigation.navigate("PriestSearch", { ceremony: ceremony.name });
+  const handleCeremonyPress = (ceremony: { _id: string; name: string }) => {
+    router.push(`/(devoteeScreens)/(pujas)/${ceremony._id}`);
   };
 
   const handlePriestPress = (priest: any) => {
@@ -91,7 +70,8 @@ const HomeScreen: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+      <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
       <ScrollView
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 24 }}
@@ -100,7 +80,7 @@ const HomeScreen: React.FC = () => {
           style={[
             styles.header,
             {
-              paddingTop: HEADER_TOP_PADDING,
+              paddingTop: Math.max(insets.top, 24) + 16,
               shadowColor: "#000",
               shadowOffset: { width: 0, height: 2 },
               shadowOpacity: 0.08,
@@ -123,50 +103,58 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
+          <TouchableOpacity
+            style={styles.searchBar}
+            onPress={() => router.push("/(devoteeScreens)/GlobalSearch")}
+            activeOpacity={1}
+          >
             <Ionicons name="search" size={20} color={APP_COLORS.gray} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search for priests, ceremonies"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              onSubmitEditing={handleSearch}
-            />
-          </View>
+            <Text style={[styles.searchInput, { color: APP_COLORS.gray, paddingTop: 4 }]}>
+              Search for priests, ceremonies...
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.ceremoniesContainer}>
           <Text style={styles.sectionTitle}>Popular Ceremonies</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.ceremoniesScroll}
-          >
-            {ceremonies.map((ceremony) => (
-              <TouchableOpacity
-                key={ceremony.id}
-                style={styles.ceremonyCard}
-                onPress={() => handleCeremonyPress(ceremony)}
-              >
-                <Image source={ceremony.image} style={styles.ceremonyImage} />
-                <View style={styles.ceremonyOverlay} />
-                <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-              </TouchableOpacity>
-            ))}
-            <TouchableOpacity
-              style={[styles.ceremonyCard, styles.viewAllCard]}
-              onPress={() => {}}
+          {isLoadingCeremonies ? (
+            <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginLeft: 16, alignSelf: 'flex-start' }} />
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.ceremoniesScroll}
             >
-              <View style={styles.viewAllContent}>
-                <Text style={styles.viewAllText}>View All</Text>
-                <Ionicons
-                  name="arrow-forward"
-                  size={20}
-                  color={APP_COLORS.primary}
-                />
-              </View>
-            </TouchableOpacity>
-          </ScrollView>
+              {ceremoniesData?.map((ceremony: any) => (
+                <TouchableOpacity
+                  key={ceremony._id}
+                  style={styles.ceremonyCard}
+                  onPress={() => handleCeremonyPress(ceremony)}
+                >
+                  <Image
+                    source={{ uri: ceremony.image || "https://via.placeholder.com/150" }}
+                    style={styles.ceremonyImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.ceremonyOverlay} />
+                  <Text style={styles.ceremonyName} numberOfLines={2}>{ceremony.name}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={[styles.ceremonyCard, styles.viewAllCard]}
+                onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+              >
+                <View style={styles.viewAllContent}>
+                  <Text style={styles.viewAllText}>View All</Text>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={20}
+                    color={APP_COLORS.primary}
+                  />
+                </View>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
         </View>
 
         <View style={styles.priestsContainer}>
@@ -211,23 +199,23 @@ const HomeScreen: React.FC = () => {
                   </Text>
                 </View>
                 <View style={styles.specialtiesContainer}>
-                  {priest.ceremonies
+                  {priest.services
                     ?.slice(0, 2)
-                    .map((ceremony: string, index: number) => (
+                    .map((service: any, index: number) => (
                       <View
-                        key={`${priest._id}-ceremony-${index}-${ceremony}`}
+                        key={`${priest._id}-ceremony-${index}-${service.name}`}
                         style={styles.specialtyBadge}
                       >
-                        <Text style={styles.specialtyText}>{ceremony}</Text>
+                        <Text style={styles.specialtyText}>{service.name}</Text>
                       </View>
                     ))}
-                  {priest.ceremonies?.length > 2 && (
+                  {priest.services?.length > 2 && (
                     <View
                       key={`${priest._id}-more-ceremonies`}
                       style={styles.specialtyBadge}
                     >
                       <Text style={styles.specialtyText}>
-                        +{priest.ceremonies.length - 2} more
+                        +{priest.services.length - 2} more
                       </Text>
                     </View>
                   )}
@@ -247,7 +235,7 @@ const HomeScreen: React.FC = () => {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

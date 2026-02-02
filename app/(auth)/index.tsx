@@ -1,8 +1,10 @@
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch } from "react-redux";
+import { APP_COLORS } from "../../constants/Colors";
 import { loadUser } from "../../redux/slices/authSlice";
 
 export default function Authentication() {
@@ -13,32 +15,48 @@ export default function Authentication() {
     (async () => {
       try {
         const userInfoStr = await SecureStore.getItemAsync("userInfo");
+        const userToken = await SecureStore.getItemAsync("userToken");
+
         if (!mounted) return;
 
-        if (userInfoStr) {
+        // Check if both userInfo and token exist
+        if (userInfoStr && userToken) {
           const userInfo = JSON.parse(userInfoStr);
-          // populate redux auth state from AsyncStorage
+
+          // Try to load user data to validate token
           try {
             await dispatch(loadUser() as any);
-          } catch (e) {
-            // ignore load errors; we'll still route based on stored value
-            console.warn("loadUser failed during boot:", e);
-          }
-          // route based on userType
-          if (userInfo?.userType === "priest") {
-            router.replace("/priest/HomeTab" as any);
-            return;
-          }
-          if (userInfo?.userType === "devotee") {
-            router.replace("/devotee/HomeTab" as any);
+
+            // If loadUser succeeds, token is valid - route to appropriate screen
+            if (userInfo?.userType === "priest") {
+              router.replace("/priest/HomeTab" as any);
+              return;
+            }
+            if (userInfo?.userType === "devotee") {
+              router.replace("/devotee/HomeTab" as any);
+              return;
+            }
+          } catch (e: any) {
+            // If loadUser fails (likely 401), clear credentials and go to login
+            console.log("Token validation failed - clearing credentials");
+            await SecureStore.deleteItemAsync("userToken");
+            await SecureStore.deleteItemAsync("userInfo");
+            router.replace("/login" as any);
             return;
           }
         }
 
-        // not authenticated -> go to login
+        // No credentials or incomplete credentials -> go to login
         router.replace("/login" as any);
       } catch (e) {
         console.error("Error checking auth on boot:", e);
+        // Clear potentially corrupted credentials
+        try {
+          await SecureStore.deleteItemAsync("userToken");
+          await SecureStore.deleteItemAsync("userInfo");
+        } catch (clearError) {
+          console.error("Error clearing credentials:", clearError);
+        }
         router.replace("/login" as any);
       }
     })();
@@ -49,10 +67,10 @@ export default function Authentication() {
   }, []);
 
   return (
-    <View style={styles.container}>
-      <ActivityIndicator size="large" color="#666" />
+    <SafeAreaView style={styles.container}>
+      <ActivityIndicator size="large" color={APP_COLORS.primary} />
       <Text style={styles.text}>Checking authentication...</Text>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -61,10 +79,10 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#fff",
+    backgroundColor: APP_COLORS.background,
   },
   text: {
     marginTop: 12,
-    color: "#666",
+    color: APP_COLORS.gray,
   },
 });

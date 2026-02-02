@@ -247,6 +247,17 @@ const ProfileScreen: React.FC = () => {
           <Text style={styles.sectionTitle}>Account</Text>
           <TouchableOpacity
             style={styles.accountOption}
+            onPress={() => router.push("/(devoteeScreens)/profile/ManageAddresses")}
+          >
+            <Ionicons
+              name="location-outline"
+              size={24}
+              color={APP_COLORS.primary}
+            />
+            <Text style={styles.accountOptionText}>Saved Addresses</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.accountOption}
             onPress={() => router.push("/SecurityAndPrivacy" as any)}
           >
             <Ionicons

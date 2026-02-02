@@ -24,7 +24,7 @@ interface AuthState {
 
 // Login user
 interface LoginParams {
-  phone: string;
+  identifier: string;
   password: string;
 }
 
@@ -32,15 +32,12 @@ export const login = createAsyncThunk<
   UserInfo,
   LoginParams,
   { rejectValue: string }
->("auth/login", async ({ phone, password }, { rejectWithValue }) => {
+>("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
   try {
-    console.log("Attempting login with:", { phone });
     const response = await api.post("/api/auth/login", {
-      phone,
+      identifier,
       password,
     });
-
-    console.log("Login successful");
 
     // Store token in SecureStore
     await SecureStore.setItemAsync("userToken", response.data.token);
@@ -71,6 +68,52 @@ export const login = createAsyncThunk<
   }
 });
 
+// Firebase Login
+interface FirebaseLoginParams {
+  idToken: string;
+  userType?: "devotee" | "priest";
+}
+
+export const firebaseLogin = createAsyncThunk<
+  UserInfo,
+  FirebaseLoginParams,
+  { rejectValue: string }
+>("auth/firebaseLogin", async ({ idToken, userType }, { rejectWithValue }) => {
+  try {
+    const response = await api.post("/api/auth/firebase-login", {
+      idToken,
+      userType
+    });
+
+    // Store token in SecureStore
+    await SecureStore.setItemAsync("userToken", response.data.token);
+    // Ensure _id is present in userInfo for future use
+    const userInfoToStore = response.data._id
+      ? { ...response.data, _id: response.data._id }
+      : response.data;
+    await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfoToStore));
+
+    return response.data;
+  } catch (error: any) {
+    console.error("Error occurred during firebase login:", error);
+
+    // Create a user-friendly error message
+    let errorMessage = "An error occurred during login.";
+
+    if (error.response) {
+      errorMessage =
+        error.response.data.message || `Server error: ${error.response.status}`;
+    } else if (error.request) {
+      errorMessage =
+        "Unable to reach the server. Please check your internet connection.";
+    } else {
+      errorMessage = `Request error: ${error.message}`;
+    }
+
+    return rejectWithValue(errorMessage);
+  }
+});
+
 // Register user
 interface RegisterParams {
   name: string;
@@ -78,7 +121,7 @@ interface RegisterParams {
   phone: string;
   password: string;
   userType: "devotee" | "priest";
-  religiousTradition?: string;
+  languagesSpoken?: string[];
 }
 
 export const register = createAsyncThunk<
@@ -88,18 +131,17 @@ export const register = createAsyncThunk<
 >(
   "auth/register",
   async (
-    { name, email, phone, password, userType, religiousTradition },
+    { name, email, phone, password, userType, languagesSpoken },
     { rejectWithValue }
   ) => {
     try {
-      console.log("Registration data:", { name, email, phone, userType });
       const response = await api.post("/api/auth/register", {
         name,
         email,
         phone,
         password,
         userType,
-        religiousTradition,
+        languagesSpoken,
       });
 
       // Store token in SecureStore
@@ -116,7 +158,6 @@ export const register = createAsyncThunk<
       return response.data;
     } catch (error: any) {
       console.error("Registration error:", error);
-      console.log(error);
       let errorMessage = "An error occurred during registration.";
 
       if (error.response) {
@@ -161,6 +202,7 @@ interface UpdateProfileParams {
   name?: string;
   email?: string;
   phone?: string;
+  languagesSpoken?: string[];
   password?: string;
   userType?: "devotee" | "priest";
   profileCompleted?: boolean;
@@ -172,8 +214,6 @@ export const updateProfile = createAsyncThunk<
   { rejectValue: string }
 >("auth/updateProfile", async (profileData, { rejectWithValue, getState }) => {
   try {
-    console.log("Updating profile with data:", profileData);
-
     const state = getState() as RootState;
     // Get the auth token from state
     const { userToken } = state.auth;
@@ -182,13 +222,8 @@ export const updateProfile = createAsyncThunk<
       return rejectWithValue("Authentication required");
     }
 
-    // Get user type to determine correct endpoint
-    const userInfo = state.auth.userInfo;
-    const userType = userInfo?.userType || "devotee";
-
-    // Use the correct endpoint based on user type
-    const endpoint =
-      userType === "priest" ? "/api/priest/profile" : "/api/devotee/profile";
+    // Use the user profile endpoint for user-level data (name, email, phone, languages)
+    const endpoint = "/api/users/profile";
 
     // Make API call to update profile
     const response = await api.put(endpoint, profileData, {
@@ -197,22 +232,40 @@ export const updateProfile = createAsyncThunk<
       },
     });
 
-    // Update AsyncStorage
-    const userInfoStr = await SecureStore.getItemAsync("userInfo");
-    if (userInfoStr) {
-      const userInfo = JSON.parse(userInfoStr);
-      const updatedUserInfo = { ...userInfo, ...response.data };
+      // Update AsyncStorage
+      const userInfoStr = await SecureStore.getItemAsync("userInfo");
+      if (userInfoStr) {
+        const userInfo = JSON.parse(userInfoStr);
+        
+        // Handle inconsistent API responses (flat vs nested in data property)
+        const newData = (response.data && response.data.data) ? response.data.data : response.data;
+        
+        const updatedUserInfo = { ...userInfo, ...newData };
 
-      // Make sure profileCompleted is explicitly set
-      if (profileData.profileCompleted !== undefined) {
-        updatedUserInfo.profileCompleted = profileData.profileCompleted;
+        // Make sure profileCompleted is explicitly set
+        if (profileData.profileCompleted !== undefined) {
+          updatedUserInfo.profileCompleted = profileData.profileCompleted;
+        }
+
+        // Optimize storage: convert populated languages back to IDs to save space
+        // SecureStore has a 2KB limit on Android
+        const storageUserInfo = { ...updatedUserInfo };
+        if (storageUserInfo.languagesSpoken && 
+            Array.isArray(storageUserInfo.languagesSpoken) && 
+            storageUserInfo.languagesSpoken.length > 0 && 
+            typeof storageUserInfo.languagesSpoken[0] === 'object') {
+          // @ts-ignore
+          storageUserInfo.languagesSpoken = storageUserInfo.languagesSpoken.map(l => l._id);
+        }
+
+        await SecureStore.setItemAsync(
+          "userInfo",
+          JSON.stringify(storageUserInfo)
+        );
       }
-
-      await SecureStore.setItemAsync(
-        "userInfo",
-        JSON.stringify(updatedUserInfo)
-      );
-    }
+      
+      // Return the correct payload to the reducer (keep populated data for Redux/UI)
+      return (response.data && response.data.data) ? response.data.data : response.data;
 
     return response.data;
   } catch (error: any) {
@@ -285,6 +338,20 @@ const authSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error?.message || "Login failed";
+      })
+      // Firebase Login
+      .addCase(firebaseLogin.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(firebaseLogin.fulfilled, (state, action: PayloadAction<UserInfo>) => {
+        state.isLoading = false;
+        state.userInfo = action.payload;
+        state.userToken = action.payload.token;
+      })
+      .addCase(firebaseLogin.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error?.message || "Firebase login failed";
       })
       // Register
       .addCase(register.pending, (state) => {

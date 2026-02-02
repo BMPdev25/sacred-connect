@@ -12,6 +12,10 @@ const store = configureStore({
     devotee: devoteeReducer,
     booking: bookingReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
 
 // Optional: Define RootState and AppDispatch types for type safety

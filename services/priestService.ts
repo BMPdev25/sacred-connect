@@ -19,6 +19,48 @@ const priestService = {
   },
 
   /**
+   * Get profile completion percentage
+   * @returns {Promise} Response from the API
+   */
+  getProfileCompletion: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/profile-completion');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch profile completion. Please try again.';
+    }
+  },
+
+  /**
+   * Get pujaris who can perform a specific ceremony
+   * Supports optional radius + location filtering
+   * @param {Object} params - ceremonyId, lat?, lng?, radius?
+   */
+  getAvailablePujaris: async (params: {
+    ceremonyId: string;
+    lat?: number;
+    lng?: number;
+    radius?: number;
+  }): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/available', {
+        params: {
+          ceremonyId: params.ceremonyId,
+          lat: params.lat,
+          lng: params.lng,
+          radius: params.radius ?? 10,
+        },
+      });
+      return response.data.pujaris;
+    } catch (error: any) {
+      throw (
+        error?.response?.data?.message ||
+        'Failed to fetch available pujaris. Please try again.'
+      );
+    }
+  },
+
+  /**
    * Update priest profile
    * @param {Object} profileData - The profile data to update
    * @returns {Promise} Response from the API
@@ -56,7 +98,7 @@ const priestService = {
   getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/priest/bookings/${bookingId}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }
@@ -68,9 +110,9 @@ const priestService = {
    * @param {string} status - The new status
    * @returns {Promise} Response from the API
    */
-  updateBookingStatus: async (bookingId: string, status: string): Promise<any> => {
+  updateBookingStatus: async (bookingId: string, status: string, notes?: string): Promise<any> => {
     try {
-      const response = await api.put(`/api/priest/bookings/${bookingId}/status`, { status });
+      const response = await api.put(`/api/priest/bookings/${bookingId}/status`, { status, notes });
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to update booking status. Please try again.';
@@ -112,51 +154,30 @@ const priestService = {
    * @param {string} type - Filter transactions by type (optional)
    * @returns {Promise} Response from the API
    */
-  getTransactions: async (type?: string): Promise<any> => {
-    try {
-      const url = type ? `/api/priest/transactions?type=${type}` : '/api/priest/transactions';
-      const response = await api.get(url);
-      return response.data;
-    } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to fetch transactions. Please try again.';
-    }
-  },
 
-  /**
-   * Update priest's availability
-   * @param {Object} availabilityData - The availability data
-   * @returns {Promise} Response from the API
-   */
-  updateAvailability: async (availabilityData: Record<string, any>): Promise<any> => {
-    try {
-      const response = await api.put('/api/priest/availability', availabilityData);
-      return response.data;
-    } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to update availability. Please try again.';
-    }
-  },
 
   /**
    * Update priest's services and pricing
    * @param {Object} servicesData - The services and pricing data
    * @returns {Promise} Response from the API
    */
-  updateServices: async (servicesData: Record<string, any>): Promise<any> => {
-    try {
-      const response = await api.put('/api/priest/services', servicesData);
-      return response.data;
-    } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to update services. Please try again.';
-    }
-  },
 
   /**
    * Upload priest's certification or ID documents
-   * @param {FormData} formData - The form data with documents
+   * @param {Object} fileData - { uri, name, type }
+   * @param {string} documentType - government_id, religious_certificate, etc.
    * @returns {Promise} Response from the API
    */
-  uploadDocuments: async (formData: FormData): Promise<any> => {
+  uploadDocument: async (fileData: { uri: string; name: string; type: string }, documentType: string): Promise<any> => {
     try {
+      const formData = new FormData();
+      formData.append('document', {
+        uri: fileData.uri,
+        name: fileData.name,
+        type: fileData.type,
+      } as any);
+      formData.append('documentType', documentType);
+
       const response = await api.post('/api/priest/documents', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -164,7 +185,7 @@ const priestService = {
       });
       return response.data;
     } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to upload documents. Please try again.';
+      throw error?.response?.data?.message || 'Failed to upload document. Please try again.';
     }
   },
 

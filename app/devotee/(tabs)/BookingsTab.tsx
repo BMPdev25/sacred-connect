@@ -39,7 +39,7 @@ const BookingsTabScreen: React.FC = () => {
 
   useEffect(() => {
     if (error) {
-      console.log('Error fetching bookings:', error);
+      // Error already logged by Redux
     }
   }, [error]);
 
@@ -78,19 +78,17 @@ const BookingsTabScreen: React.FC = () => {
       return;
     }
 
-    router.push('/Ratings') //,params: {booking: booking,});
+    router.push({ pathname: '/Ratings', params: { booking: JSON.stringify(booking) } });
   };
 
   const handleViewDetails = (booking: any) => {
     // Use expo-router to navigate and send booking as a string param
-    console.log("here", booking)
     if (booking && booking._id) {
       router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
     }
   };
 
   const handleBookingPress = (booking: any) => {
-    console.log("here in handle booking press")
     if (booking && booking._id) {
       router.push({ pathname: '/BookingDetails', params: { booking: JSON.stringify(booking) } });
     }
@@ -270,7 +268,7 @@ const BookingsTabScreen: React.FC = () => {
       return booking.status === 'pending';
     } else if (selectedFilter === 'past') {
       return booking.status === 'completed' || booking.status === 'cancelled' ||
-             (bookingDate < currentDate && booking.status !== 'pending');
+        (bookingDate < currentDate && booking.status !== 'pending');
     }
     return true; // 'all' filter
   });
@@ -286,7 +284,7 @@ const BookingsTabScreen: React.FC = () => {
         return booking.status === 'pending';
       } else if (filter === 'past') {
         return booking.status === 'completed' || booking.status === 'cancelled' ||
-               (bookingDate < currentDate && booking.status !== 'pending');
+          (bookingDate < currentDate && booking.status !== 'pending');
       }
       return true;
     }).length;

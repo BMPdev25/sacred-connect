@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   Alert,
@@ -9,292 +9,372 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
+  TextInput,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import { Ionicons } from "@expo/vector-icons";
+import * as Location from 'expo-location';
+
 import InputField from "../../components/InputField";
-import ReligiousTraditionPicker from "../../components/ReligiousTraditionPicker";
+import LanguagePicker from "../../components/LanguagePicker";
 import { APP_COLORS } from "../../constants/Colors";
 import { clearError, register } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
+import priestService from "../../services/priestService"; // Direct service call for profile update
+import { getAllCeremonies } from "../../api/ceremonyService"; // Fetch ceremonies
 
 type UserType = "devotee" | "priest";
 
-interface SignUpState {
-  name: string;
-  email: string;
-  phone: string;
-  password: string;
-  confirmPassword: string;
-  showPassword: boolean;
-  userType: UserType;
-  religiousTradition: string;
-  showReligiousOptions: boolean;
-}
-
-interface FormErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-  password?: string;
-  confirmPassword?: string;
-  religiousTradition?: string;
-}
-
 export default function SignUpScreen() {
-  const [state, setState] = useState<SignUpState>({
-    name: "",
-    email: "",
-    phone: "",
-    password: "",
-    confirmPassword: "",
-    showPassword: false,
-    userType: "devotee",
-    religiousTradition: "",
-    showReligiousOptions: false,
-  });
-
-  // Form validation
-  const [errors, setErrors] = useState<FormErrors>({});
+  const params = useLocalSearchParams();
+  const initialUserType = (params.userType === 'devotee' || params.userType === 'priest')
+    ? (params.userType as UserType)
+    : 'devotee';
 
   const dispatch = useDispatch<AppDispatch>();
   const { isLoading, error, userInfo } = useSelector((state: RootState) => state.auth);
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert("Registration Error", error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
+  // --- WIZARD STATE ---
+  const [step, setStep] = useState(1);
 
+  // Step 1: Credentials
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [userType, setUserType] = useState<UserType>(initialUserType);
+  const [languagesSpoken, setLanguagesSpoken] = useState<string[]>([]);
+
+  // Step 2: Profile Details (Priest Only)
+  const [experience, setExperience] = useState("");
+  const [bio, setBio] = useState("");
+  const [religiousTradition, setReligiousTradition] = useState("");
+  const [location, setLocation] = useState<{ type: string, coordinates: number[] } | null>(null);
+
+  // Step 3: Ceremonies (Priest Only)
+  const [ceremonies, setCeremonies] = useState<any[]>([]);
+  const [selectedCeremonies, setSelectedCeremonies] = useState<string[]>([]);
+  const [loadingCeremonies, setLoadingCeremonies] = useState(false);
+
+  // Validation Errors
+  const [errors, setErrors] = useState<any>({});
+  const [submissionLoading, setSubmissionLoading] = useState(false);
+
+  // --- EFFECTS ---
+
+  // Clear auth errors on mount
   useEffect(() => {
-    if (userInfo) {
-      if (userInfo.userType === "devotee") {
-        router.replace("/devotee/HomeTab");
-      } else if (userInfo.userType === "priest") {
-        router.replace("/priest/HomeTab");
+    dispatch(clearError());
+  }, []);
+
+  // Fetch Ceremonies when entering Step 3
+  useEffect(() => {
+    if (step === 3 && userType === 'priest' && ceremonies.length === 0) {
+      fetchCeremonies();
+    }
+  }, [step, userType]);
+
+  const fetchCeremonies = async () => {
+    try {
+      setLoadingCeremonies(true);
+      const res = await getAllCeremonies();
+      const list = Array.isArray(res) ? res : (res.ceremonies || res.data || []);
+      setCeremonies(list);
+    } catch (err) {
+      console.error("Failed to fetch ceremonies", err);
+      Alert.alert("Error", "Could not load ceremonies. Please check connection.");
+    } finally {
+      setLoadingCeremonies(false);
+    }
+  };
+
+  // --- LOCATION LOGIC ---
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied');
+        return;
       }
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation({
+        type: 'Point',
+        coordinates: [loc.coords.longitude, loc.coords.latitude]
+      });
+      // Alert.alert("Success", "Location captured!");
+    } catch (error) {
+      console.error("Location error:", error);
+      Alert.alert("Error", "Could not fetch location.");
     }
-  }, [userInfo]);
+  };
 
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
 
-    if (!state.name) newErrors.name = "Name is required";
-    if (!state.email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(state.email))
-      newErrors.email = "Email is invalid";
+  // --- VALIDATION & NAVIGATION ---
 
-    if (!state.phone) newErrors.phone = "Phone number is required";
-    else if (!/^\d{10}$/.test(state.phone.replace(/\D/g, "")))
-      newErrors.phone = "Phone number must be 10 digits";
+  const validateStep1 = () => {
+    const newErrors: any = {};
+    if (!name) newErrors.name = "Name is required";
+    if (!email) newErrors.email = "Email is required";
+    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Invalid email";
+    if (!phone) newErrors.phone = "Phone is required";
+    if (!password) newErrors.password = "Password is required";
+    else if (password.length < 6) newErrors.password = "Min 6 chars";
+    if (password !== confirmPassword) newErrors.confirmPassword = "Passwords mismatch";
 
-    if (!state.password) newErrors.password = "Password is required";
-    else if (state.password.length < 6)
-      newErrors.password = "Password must be at least 6 characters";
-
-    if (!state.confirmPassword)
-      newErrors.confirmPassword = "Please confirm your password";
-    else if (state.password !== state.confirmPassword)
-      newErrors.confirmPassword = "Passwords do not match";
-
-    if (state.userType === "priest" && !state.religiousTradition)
-      newErrors.religiousTradition = "Please select your religious tradition";
+    if (userType === 'priest' && languagesSpoken.length === 0) {
+      newErrors.languagesSpoken = "Select at least one language";
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSignUp = (): void => {
-    if (validateForm()) {
-      // If priest, ensure religiousTradition is present
-      if (state.userType === "priest" && !state.religiousTradition) {
-        setErrors((prev) => ({ ...prev, religiousTradition: "Please select your religious tradition" }));
-        return;
+  const validateStep2 = () => {
+    const newErrors: any = {};
+    if (!experience) newErrors.experience = "Experience is required";
+    if (!bio) newErrors.bio = "Bio is required";
+    if (!religiousTradition) newErrors.religiousTradition = "Tradition is required";
+    if (!location) newErrors.location = "Location is required";
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleNext = () => {
+    if (step === 1) {
+      if (validateStep1()) {
+        if (userType === 'priest') setStep(2);
+        else handleSubmitDevotee(); // Devotees sign up immediately
       }
-      dispatch(
-        register({
-          name: state.name,
-          email: state.email,
-          phone: state.phone,
-          password: state.password,
-          userType: state.userType,
-          ...(state.userType === "priest" ? { religiousTradition: state.religiousTradition } : {}),
-        })
-      );
+    } else if (step === 2) {
+      if (validateStep2()) {
+        setStep(3);
+      }
     }
   };
+
+  const toggleCeremony = (id: string) => {
+    setSelectedCeremonies(prev => {
+      if (prev.includes(id)) return prev.filter(c => c !== id);
+      return [...prev, id];
+    });
+  };
+
+  // --- SUBMISSION ---
+
+  const handleSubmitDevotee = () => {
+    // Normal register for devotee
+    setSubmissionLoading(true);
+    dispatch(register({ name, email, phone, password, userType }))
+      .unwrap()
+      .then(() => {
+        // Auto-nav handled by authSlice usually, but let's force check
+        router.replace("/devotee/HomeTab");
+      })
+      .catch(err => {
+        Alert.alert("Registration Failed", err || "Unknown error");
+      })
+      .finally(() => setSubmissionLoading(false));
+  };
+
+  const handleSubmitPriest = async () => {
+    // Validate Step 3
+    if (selectedCeremonies.length < 2) {
+      Alert.alert("Selection Required", "Please select at least 2 ceremonies.");
+      return;
+    }
+
+    setSubmissionLoading(true);
+
+    try {
+      // 1. Register User
+      const userRes = await dispatch(register({
+        name, email, phone, password, userType, languagesSpoken
+      })).unwrap();
+
+      const userId = userRes._id; // Ensure we get ID
+      if (!userId) throw new Error("Registration failed to return User ID");
+
+      // 2. Update Profile with Extra Details
+      // We assume the token is set in Redux/Storage by 'register' action automatically
+      // But we might need to wait for state update? usually .unwrap() waits for success.
+
+      const profileData = {
+        experience: parseInt(experience),
+        religiousTradition,
+        description: bio,
+        location,
+        services: selectedCeremonies.map(id => {
+          // Find default price if possible, or 0
+          const cer = ceremonies.find(c => c._id === id);
+          return {
+            ceremonyId: id,
+            price: cer?.pricing?.basePrice || 1000,
+            durationMinutes: cer?.duration?.typical || 60
+          };
+        })
+      };
+
+      await priestService.updateProfile(profileData);
+
+      // 3. Navigate
+      router.replace("/priest/HomeTab");
+
+    } catch (err: any) {
+      console.error("Signup Flow Error:", err);
+      Alert.alert("Error", err.message || "Failed to complete signup.");
+    } finally {
+      setSubmissionLoading(false);
+    }
+  };
+
+
+  // --- RENDERS ---
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
-        <ScrollView
-          style={styles.container}
-          contentContainerStyle={styles.contentContainer}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.logoContainer}>
-            <Text style={styles.logoText}>BookMyPujari</Text>
-          </View>
+        <ScrollView contentContainerStyle={styles.content}>
+          <TouchableOpacity onPress={() => step === 1 ? router.back() : setStep(step - 1)} style={styles.backBtn}>
+            <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+          </TouchableOpacity>
 
-          <View style={styles.formContainer}>
-            <View style={styles.tabContainer}>
-              <TouchableOpacity
-                style={[styles.tabButton, styles.activeTabButton]}
-              >
-                <Text style={[styles.tabText, styles.activeTabText]}>
-                  Sign Up
-                </Text>
-              </TouchableOpacity>
-            </View>
+          <Text style={styles.headerTitle}>
+            {step === 1 ? "Create Account" : step === 2 ? "Your Profile" : "Select Ceremonies"}
+          </Text>
+          <Text style={styles.stepIndicator}>Step {step} of 3</Text>
 
-            <View style={styles.userTypeContainer}>
-              <Text style={styles.sectionTitle}>I am a:</Text>
-              <View style={styles.userTypeButtons}>
+          {/* STEP 1: CREDENTIALS */}
+          {step === 1 && (
+            <View style={styles.formSection}>
+              {/* User Type Toggle */}
+              <View style={styles.typeContainer}>
                 <TouchableOpacity
-                  style={[
-                    styles.userTypeButton,
-                    state.userType === "devotee" && styles.activeUserTypeButton,
-                  ]}
-                  onPress={() =>
-                    setState((prev) => ({ ...prev, userType: "devotee" }))
-                  }
+                  style={[styles.typeBtn, userType === 'devotee' && styles.typeBtnActive]}
+                  onPress={() => setUserType('devotee')}
                 >
-                  <Text
-                    style={[
-                      styles.userTypeButtonText,
-                      state.userType === "devotee" &&
-                        styles.activeUserTypeButtonText,
-                    ]}
-                  >
-                    Devotee
-                  </Text>
+                  <Text style={[styles.typeText, userType === 'devotee' && styles.typeTextActive]}>Devotee</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={[
-                    styles.userTypeButton,
-                    state.userType === "priest" && styles.activeUserTypeButton,
-                  ]}
-                  onPress={() =>
-                    setState((prev) => ({ ...prev, userType: "priest" }))
-                  }
+                  style={[styles.typeBtn, userType === 'priest' && styles.typeBtnActive]}
+                  onPress={() => setUserType('priest')}
                 >
-                  <Text
-                    style={[
-                      styles.userTypeButtonText,
-                      state.userType === "priest" &&
-                        styles.activeUserTypeButtonText,
-                    ]}
-                  >
-                    Priest
-                  </Text>
+                  <Text style={[styles.typeText, userType === 'priest' && styles.typeTextActive]}>Priest</Text>
                 </TouchableOpacity>
               </View>
+
+              <InputField label="Name" value={name} onChangeText={setName} placeholder="Full Name" error={errors.name} />
+              <InputField label="Email" value={email} onChangeText={setEmail} placeholder="email@example.com" error={errors.email} keyboardType="email-address" />
+              <InputField label="Phone" value={phone} onChangeText={setPhone} placeholder="10-digit Mobile" error={errors.phone} keyboardType="phone-pad" />
+              <InputField label="Password" value={password} onChangeText={setPassword} placeholder="******" secureTextEntry error={errors.password} />
+              <InputField label="Confirm Password" value={confirmPassword} onChangeText={setConfirmPassword} placeholder="******" secureTextEntry error={errors.confirmPassword} />
+
+              {userType === 'priest' && (
+                <LanguagePicker
+                  selectedLanguages={languagesSpoken}
+                  onChange={setLanguagesSpoken}
+                  error={errors.languagesSpoken}
+                />
+              )}
             </View>
+          )}
 
-            <InputField
-              label="Full Name"
-              value={state.name}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, name: text }))
-              }
-              placeholder="Enter your full name"
-              error={errors.name}
-            />
-
-            <InputField
-              label="Email"
-              value={state.email}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, email: text }))
-              }
-              placeholder="Enter your email address"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              error={errors.email}
-            />
-
-            <InputField
-              label="Phone Number"
-              value={state.phone}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, phone: text }))
-              }
-              placeholder="Enter your phone number"
-              keyboardType="phone-pad"
-              error={errors.phone}
-            />
-
-            <InputField
-              label="Password"
-              value={state.password}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, password: text }))
-              }
-              placeholder="Create a password"
-              secureTextEntry={!state.showPassword}
-              showTogglePassword={true}
-              passwordVisible={state.showPassword}
-              onTogglePassword={() =>
-                setState((prev) => ({
-                  ...prev,
-                  showPassword: !prev.showPassword,
-                }))
-              }
-              error={errors.password}
-            />
-
-            <InputField
-              label="Confirm Password"
-              value={state.confirmPassword}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, confirmPassword: text }))
-              }
-              placeholder="Confirm your password"
-              secureTextEntry={!state.showPassword}
-              error={errors.confirmPassword}
-            />
-
-            {state.userType === "priest" && (
-              <ReligiousTraditionPicker
-                value={state.religiousTradition}
-                onChange={(value: string) =>
-                  setState((prev) => ({ ...prev, religiousTradition: value }))
-                }
-                isVisible={state.showReligiousOptions}
-                onClose={() =>
-                  setState((prev) => ({
-                    ...prev,
-                    showReligiousOptions: !prev.showReligiousOptions,
-                  }))
-                }
+          {/* STEP 2: PROFILE (Priest Only) */}
+          {step === 2 && (
+            <View style={styles.formSection}>
+              <InputField
+                label="Years of Experience"
+                value={experience}
+                onChangeText={setExperience}
+                placeholder="e.g. 5"
+                keyboardType="numeric"
+                error={errors.experience}
               />
-            )}
 
-            <TouchableOpacity
-              style={styles.signUpButton}
-              onPress={handleSignUp}
-              disabled={isLoading}
-            >
-              <Text style={styles.signUpButtonText}>
-                {isLoading ? "Signing Up..." : "Sign Up"}
-              </Text>
-            </TouchableOpacity>
+              <InputField
+                label="Religious Tradition"
+                value={religiousTradition}
+                onChangeText={setReligiousTradition}
+                placeholder="e.g. Vedic, South Indian"
+                error={errors.religiousTradition}
+              />
 
-            <Text style={styles.termsText}>
-              By signing up, you agree to our Terms of Service and Privacy Policy
-            </Text>
-            <View style={styles.authLinkContainer}>
-              <Text style={styles.authLinkText}>Already have an account? </Text>
-              <TouchableOpacity onPress={() => router.push("/login" as any)}>
-                <Text style={styles.authLinkAction}>Login</Text>
-              </TouchableOpacity>
+              <Text style={styles.label}>Bio / Description</Text>
+              <TextInput
+                style={[styles.textArea, errors.bio && styles.inputError]}
+                value={bio}
+                onChangeText={setBio}
+                placeholder="Tell us about your background..."
+                multiline
+                numberOfLines={4}
+              />
+
+              <Text style={[styles.label, { marginTop: 16 }]}>Location</Text>
+              <View style={styles.locationRow}>
+                <View style={styles.locationInfo}>
+                  <Text style={styles.locText}>
+                    {location ? `Lat: ${location.coordinates[1].toFixed(2)}, Lng: ${location.coordinates[0].toFixed(2)}` : "Location not set"}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={getCurrentLocation} style={styles.locBtn}>
+                  <Ionicons name="location" size={20} color="white" />
+                  <Text style={styles.locBtnText}>Get Location</Text>
+                </TouchableOpacity>
+              </View>
+              {errors.location && <Text style={styles.errorText}>{errors.location}</Text>}
             </View>
-          </View>
+          )}
+
+          {/* STEP 3: CEREMONIES (Priest Only) */}
+          {step === 3 && (
+            <View style={styles.formSection}>
+              <Text style={styles.subTitle}>Select at least 2 ceremonies you perform</Text>
+
+              {loadingCeremonies ? (
+                <ActivityIndicator size="large" color={APP_COLORS.primary} style={{ marginTop: 20 }} />
+              ) : (
+                <View style={styles.grid}>
+                  {ceremonies.map((c) => {
+                    const isSelected = selectedCeremonies.includes(c._id);
+                    return (
+                      <TouchableOpacity
+                        key={c._id}
+                        style={[styles.gridItem, isSelected && styles.gridItemSelected]}
+                        onPress={() => toggleCeremony(c._id)}
+                      >
+                        <Text style={[styles.gridText, isSelected && styles.gridTextSelected]}>{c.name}</Text>
+                        {isSelected && <Ionicons name="checkmark-circle" size={18} color="white" style={styles.checkIcon} />}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* ACTION BUTTONS */}
+          <TouchableOpacity
+            style={styles.mainBtn}
+            onPress={step === 3 || (step === 1 && userType === 'devotee') ? (userType === 'devotee' ? handleSubmitDevotee : handleSubmitPriest) : handleNext}
+            disabled={submissionLoading}
+          >
+            {submissionLoading ? (
+              <ActivityIndicator color="white" />
+            ) : (
+              <Text style={styles.mainBtnText}>
+                {step === 3 || (step === 1 && userType === 'devotee') ? "Complete Signup" : "Next"}
+              </Text>
+            )}
+          </TouchableOpacity>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -302,130 +382,49 @@ export default function SignUpScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: APP_COLORS.background,
+  safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
+  content: { padding: 20, paddingBottom: 50 },
+  backBtn: { marginBottom: 10 },
+  headerTitle: { fontSize: 26, fontWeight: "bold", color: APP_COLORS.primary, marginBottom: 4 },
+  stepIndicator: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 20 },
+
+  formSection: { marginBottom: 20 },
+
+  // User Type
+  typeContainer: { flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 },
+  typeBtn: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 6 },
+  typeBtnActive: { backgroundColor: APP_COLORS.white, elevation: 2 },
+  typeText: { fontWeight: '600', color: APP_COLORS.gray },
+  typeTextActive: { color: APP_COLORS.primary },
+
+  // Inputs
+  label: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 6, fontWeight: '500' },
+  textArea: {
+    backgroundColor: 'white', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, height: 100, textAlignVertical: 'top'
   },
-  contentContainer: {
-    padding: 16,
+  inputError: { borderColor: APP_COLORS.error },
+  errorText: { color: APP_COLORS.error, fontSize: 12, marginTop: 4 },
+
+  // Location
+  locationRow: { flexDirection: 'row', alignItems: 'center' },
+  locationInfo: { flex: 1, backgroundColor: 'white', padding: 12, borderRadius: 8, borderWidth: 1, borderColor: '#ddd', marginRight: 10 },
+  locText: { color: '#333' },
+  locBtn: { flexDirection: 'row', backgroundColor: APP_COLORS.primary, padding: 12, borderRadius: 8, alignItems: 'center' },
+  locBtnText: { color: 'white', marginLeft: 6, fontWeight: '600' },
+
+  // Grid
+  subTitle: { fontSize: 16, color: '#333', marginBottom: 16 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  gridItem: {
+    width: '48%', backgroundColor: 'white', padding: 16, borderRadius: 12, marginBottom: 12,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#ddd', minHeight: 80
   },
-  logoContainer: {
-    alignItems: "center",
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  logoText: {
-    fontFamily: "System",
-    fontSize: 36,
-    fontWeight: "bold",
-    color: APP_COLORS.primary,
-    letterSpacing: 1,
-    textShadowColor: "rgba(0, 0, 0, 0.1)",
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-  },
-  formContainer: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 20,
-    elevation: 2,
-  },
-  tabContainer: {
-    flexDirection: "row",
-    marginBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
-  },
-  tabButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: "center",
-  },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: APP_COLORS.primary,
-  },
-  tabText: {
-    fontSize: 16,
-    color: APP_COLORS.gray,
-  },
-  activeTabText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: APP_COLORS.primary,
-  },
-  userTypeContainer: {
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: "500",
-    marginBottom: 8,
-  },
-  userTypeButtons: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  userTypeButton: {
-    flex: 1,
-    height: 48,
-    borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 4,
-  },
-  activeUserTypeButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderColor: APP_COLORS.primary,
-  },
-  userTypeButtonText: {
-    fontSize: 16,
-    color: APP_COLORS.black,
-  },
-  activeUserTypeButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-  },
-  signUpButton: {
-    backgroundColor: APP_COLORS.primary,
-    height: 48,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 16,
-  },
-  signUpButtonText: {
-    color: APP_COLORS.white,
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  termsText: {
-    textAlign: "center",
-    fontSize: 12,
-    color: APP_COLORS.gray,
-    marginTop: 8,
-  },
-  authLinkContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  authLinkText: {
-    color: APP_COLORS.gray,
-    fontSize: 14,
-  },
-  authLinkAction: {
-    color: APP_COLORS.primary,
-    fontSize: 14,
-    fontWeight: "bold",
-    marginLeft: 6,
-  },
-  safeArea: {
-    flex: 1,
-    backgroundColor: APP_COLORS.background,
-  },
+  gridItemSelected: { backgroundColor: APP_COLORS.primary, borderColor: APP_COLORS.primary },
+  gridText: { fontSize: 14, fontWeight: '600', textAlign: 'center', color: '#333' },
+  gridTextSelected: { color: 'white' },
+  checkIcon: { position: 'absolute', top: 8, right: 8 },
+
+  // Main Button
+  mainBtn: { backgroundColor: APP_COLORS.primary, padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  mainBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
 });

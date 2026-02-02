@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import * as DocumentPicker from "expo-document-picker";
+import { router, useFocusEffect } from "expo-router";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
   Image,
@@ -21,49 +22,44 @@ interface PriestProfile {
   experience?: number;
   religiousTradition?: string;
   ceremonies?: any[];
+  services?: any[];
+  availability?: any;
+  templesAffiliated?: any[];
   [key: string]: any;
 }
 
 const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
 
 const ProfileScreen: React.FC = () => {
+  // ... existing hooks ...
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [profile, setProfile] = useState<PriestProfile | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
-  // console.log("Profile Info:", profile);
-  // console.log("User Info:", userInfo);
 
-  useEffect(() => {
-    getProfile();
-    setProfileCompletion(calculateProfileCompletion());
-  }, []);
+  // Refresh profile when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      getProfile();
+    }, [])
+  );
 
   const getProfile = async () => {
     try {
       const priestProfile = await priestService.getProfile();
       setProfile(priestProfile);
-      // console.log("Fetched profile on mount:", priestProfile);
+
+      // Fetch profile completion from backend
+      try {
+        const completion = await priestService.getProfileCompletion();
+        setProfileCompletion(completion?.completionPercentage || 0);
+      } catch (err) {
+        console.warn("Profile completion fetch failed:", err);
+        setProfileCompletion(0);
+      }
     } catch (err) {
       console.error("Error fetching profile on mount:", err);
     }
-  };
-
-  // Calculate profile completion percentage
-  const calculateProfileCompletion = (): number => {
-    if (!userInfo) return 0;
-
-    let completed = 0;
-    const totalFields = 6;
-
-    if (userInfo.name) completed++;
-    if (userInfo.email) completed++;
-    if (userInfo.phone) completed++;
-    if (profile?.experience) completed++;
-    if (profile?.religiousTradition) completed++;
-    if (profile?.ceremonies && profile?.ceremonies.length > 0) completed++;
-
-    return Math.round((completed / totalFields) * 100);
   };
 
   const handleLogout = (): void => {
@@ -71,22 +67,12 @@ const ProfileScreen: React.FC = () => {
       "Logout",
       "Are you sure you want to logout?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
+        { text: "Cancel", style: "cancel" },
         {
           text: "Logout",
           onPress: async () => {
-            // dispatch logout thunk which clears AsyncStorage and auth state
             await dispatch(logout() as any);
-            // replace navigation stack to login
-            try {
-              router.replace("/login" as any);
-            } catch (e) {
-              // fallback: attempt push
-              router.push("/login" as any);
-            }
+            try { router.replace("/login" as any); } catch (e) { router.push("/login" as any); }
           },
         },
       ],
@@ -95,87 +81,75 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleUpdateProfile = (): void => {
-    router.push({ pathname: "/ProfileSetup", params: { profileData: JSON.stringify(profile), isEditing: true } } as any);
+    router.push({ pathname: "/ProfileSetup", params: { isEditing: true } } as any);
+  };
+
+  const handleFileUpload = async (type: "government_id" | "religious_certificate") => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["application/pdf", "image/jpeg", "image/png"],
+        copyToCacheDirectory: true,
+      });
+
+      if (result.canceled) return;
+
+      const file = result.assets![0];
+      Alert.alert("Uploading...", "Please wait while we upload your document.");
+
+      await priestService.uploadDocument(
+        { uri: file.uri, name: file.name, type: file.mimeType || "application/pdf" },
+        type
+      );
+
+      // Alert.alert("Success", "Document uploaded successfully!");
+      getProfile();
+    } catch (error: any) {
+      Alert.alert("Error", error.toString());
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={{ flex: 1 }}>
-        <View
-          style={[
-            styles.header,
-            styles.headerShadow,
-            { paddingTop: HEADER_TOP_PADDING },
-          ]}
-        >
-          <View style={styles.headerContent}>
-            <Text style={styles.headerTitle}>Profile</Text>
-            <TouchableOpacity onPress={() => router.push("/Help")}>
-              <Ionicons
-                name="help-circle-outline"
-                size={24}
-                color={APP_COLORS.white}
-              />
-            </TouchableOpacity>
-          </View>
-        </View>
-
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+          {/* ... Header ... */}
+          {/* ... Header ... */}
           <View style={styles.profileHeader}>
             <Image
-              source={require("../../../assets/images/default-profile.png")}
+              source={profile?.profilePicture ? { uri: profile.profilePicture } : require("../../../assets/images/default-profile.png")}
               style={styles.profileImage}
             />
-            <TouchableOpacity
-              style={styles.editProfileButton}
-              // onPress={handleUpdateProfile}
-            >
-              <Ionicons
-                name="camera-outline"
-                size={20}
-                color={APP_COLORS.white}
-              />
+            <TouchableOpacity style={styles.editProfileButton} onPress={handleUpdateProfile}>
+              <Ionicons name="camera-outline" size={20} color={APP_COLORS.white} />
             </TouchableOpacity>
-            <Text style={styles.userName}>
-              {userInfo?.name || "Pandit Sharma"}
-            </Text>
-            <Text style={styles.userRole}>
-              Priest • {(profile?.experience as any) || 0} years experience
-            </Text>
+            <Text style={styles.userName}>{userInfo?.name || "Pandit Sharma"}</Text>
+            <Text style={styles.userRole}>Priest • {(profile?.experience as any) || 0} years experience</Text>
 
-            <View style={styles.completionContainer}>
-              <View style={styles.completionBar}>
-                <View
-                  style={[
-                    styles.completionProgress,
-                    {
-                      width: `${profileCompletion}%`,
-                    },
-                  ]}
-                />
+            {profileCompletion < 100 && (
+              <View style={styles.completionContainer}>
+                <View style={styles.completionBar}>
+                  <View style={[styles.completionProgress, { width: `${profileCompletion}%` }]} />
+                </View>
+                <Text style={styles.completionText}>Profile {profileCompletion}% Complete</Text>
               </View>
-              <Text style={styles.completionText}>
-                Profile {profileCompletion}% Complete
-              </Text>
-            </View>
+            )}
           </View>
 
+          {/* Personal Details */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Personal Details</Text>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.editButton}
-              onPress={handleUpdateProfile}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 1, section: 'personalDetails' } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.infoCard}>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Full Name</Text>
-              <Text style={styles.infoValue}>
-                {userInfo?.name || "Pandit Sharma"}
-              </Text>
+              <Text style={styles.infoValue}>{userInfo?.name || "Pandit Sharma"}</Text>
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Years of Experience</Text>
@@ -183,20 +157,78 @@ const ProfileScreen: React.FC = () => {
             </View>
             <View style={styles.infoRow}>
               <Text style={styles.infoLabel}>Religious Tradition</Text>
+              <Text style={styles.infoValue}>{profile?.religiousTradition || "Tradition"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Languages Spoken</Text>
               <Text style={styles.infoValue}>
-                {profile?.religiousTradition || "Tradition"}
+                <Text style={styles.infoValue}>
+                  {(() => {
+                    const langs = profile?.userId?.languagesSpoken;
+                    if (!langs || langs.length === 0) return 'Not specified';
+                    if (typeof langs[0] === 'object') {
+                      return langs.map((l: any) => l.name || JSON.stringify(l)).join(', ');
+                    }
+                    return langs.join(', ');
+                  })()}
+                </Text>
+              </Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Description</Text>
+              <Text style={styles.infoValue}>{profile?.description || 'Not provided'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Location</Text>
+              <Text style={styles.infoValue}>
+                {profile?.address
+                  ? profile.address
+                  : profile?.location && profile.location.coordinates[0] !== 0
+                    ? `Lat: ${profile.location.coordinates[1].toFixed(4)}, Lng: ${profile.location.coordinates[0].toFixed(4)}`
+                    : 'Not set'}
               </Text>
             </View>
           </View>
 
+          {/* Services moved to ServicesTab */}
+
+          {/* Availability */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Availability</Text>
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 4 } } as any)}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.infoCard}>
+            {profile?.availability ? (
+              Object.entries(profile.availability).map(([day, slots]: [string, any]) => {
+                // Availability is stored as an array of slots per day. We currently use only the first slot.
+                const data = Array.isArray(slots) ? slots[0] : slots;
+                if (!data || !data.available) return null;
+                return (
+                  <View style={[styles.infoRow, { flexDirection: 'row', justifyContent: 'space-between' }]} key={day}>
+                    <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{day}</Text>
+                    <Text style={styles.infoLabel}>{data.startTime} - {data.endTime}</Text>
+                  </View>
+                );
+              })
+            ) : (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoValue}>Availability not set</Text>
+              </View>
+            )}
+            {/* Show "No availability" if all days are false or object is empty/null, but map handles empty render effectively. 
+                Could add a check if needed, but this is sufficient for now. 
+            */}
+          </View>
+
+          {/* Verification Documents */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Verification Documents</Text>
-            {/* <TouchableOpacity
-              style={styles.editButton}
-              onPress={handleUpdateProfile}
-            >
-              <Text style={styles.editButtonText}>Upload</Text>
-            </TouchableOpacity> */}
           </View>
 
           <View style={styles.documentsCard}>
@@ -210,10 +242,14 @@ const ProfileScreen: React.FC = () => {
               </View>
               <View style={styles.documentInfo}>
                 <Text style={styles.documentTitle}>Government ID</Text>
-                <Text style={styles.documentStatus}>Upload Government ID</Text>
+                <Text style={styles.documentStatus}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Uploaded" : "Upload Government ID"}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton}>
-                <Text style={styles.uploadButtonText}>Upload</Text>
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("government_id")}>
+                <Text style={styles.uploadButtonText}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Re-upload" : "Upload"}
+                </Text>
               </TouchableOpacity>
             </View>
 
@@ -229,27 +265,31 @@ const ProfileScreen: React.FC = () => {
                 <Text style={styles.documentTitle}>
                   Religious Certification
                 </Text>
-                <Text style={styles.documentStatus}>Upload Certification</Text>
+                <Text style={styles.documentStatus}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Uploaded" : "Upload Certification"}
+                </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton}>
-                <Text style={styles.uploadButtonText}>Upload</Text>
+              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("religious_certificate")}>
+                <Text style={styles.uploadButtonText}>
+                  {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Re-upload" : "Upload"}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Temple Affiliation</Text>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.editButton}
-              onPress={handleUpdateProfile}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 3 } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.infoCard}>
             {profile?.templesAffiliated &&
-            profile.templesAffiliated.length > 0 ? (
+              profile.templesAffiliated.length > 0 ? (
               profile.templesAffiliated.map((temple: any, idx: number) => (
                 <View style={styles.infoRow} key={`temple-${idx}`}>
                   <View style={{ flex: 1 }}>
@@ -274,12 +314,12 @@ const ProfileScreen: React.FC = () => {
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
-            {/* <TouchableOpacity
+            <TouchableOpacity
               style={styles.editButton}
-              onPress={handleUpdateProfile}
+              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 1, section: 'contactInfo' } } as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity> */}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.infoCard}>
@@ -297,16 +337,6 @@ const ProfileScreen: React.FC = () => {
             </View>
           </View>
         </ScrollView>
-
-        <TouchableOpacity
-          accessibilityRole="button"
-          accessibilityLabel="Edit profile"
-          accessibilityHint="Opens Profile Setup to edit your profile"
-          onPress={handleUpdateProfile}
-          style={styles.editFab}
-        >
-          <Ionicons name="pencil" size={20} color={APP_COLORS.white} />
-        </TouchableOpacity>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
@@ -515,22 +545,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     color: APP_COLORS.error,
     fontWeight: "bold",
-  },
-  editFab: {
-    position: "absolute",
-    right: 20,
-    bottom: 88,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: APP_COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
   },
 });
 

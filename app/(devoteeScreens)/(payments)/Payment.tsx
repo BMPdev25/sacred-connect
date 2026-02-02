@@ -25,13 +25,35 @@ import devoteeService from "../../../services/devoteeService";
 
 // Format expiry date as MM/YY
 const formatExpiryDate = (text: string) => {
-  // Remove non-digits
+  // Remove all non-digits
   const cleaned = text.replace(/\D/g, '');
+  
+  // Handle deletion - if user is deleting and cleaned is shorter
+  if (cleaned.length === 0) {
+    return '';
+  }
+  
+  // Validate month (first 2 digits should be 01-12)
+  let month = cleaned.slice(0, 2);
+  if (month.length === 1 && parseInt(month) > 1) {
+    // If first digit is > 1, prepend with 0 (e.g., 3 becomes 03)
+    month = '0' + month;
+  } else if (month.length === 2) {
+    const monthNum = parseInt(month);
+    if (monthNum > 12) {
+      month = '12';
+    } else if (monthNum === 0) {
+      month = '01';
+    }
+  }
+  
   // Format as MM/YY
   if (cleaned.length >= 2) {
-    return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4);
+    const year = cleaned.slice(2, 4);
+    return month + '/' + year;
   }
-  return cleaned;
+  
+  return month.slice(0, cleaned.length);
 };
 
 const Payment: React.FC = () => {

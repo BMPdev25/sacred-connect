@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
-  return 'http://192.168.29.44:5000'; // Updated to match current machine IP
+  return 'http://192.168.0.4:5000'; // Updated to match current machine IP
 };
 
 // Create axios instance with proper configuration

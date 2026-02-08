@@ -190,6 +190,15 @@ const priestService = {
   },
 
   /**
+   * Get document URL for viewing
+   * @param documentType - Type of document (government_id, religious_certificate)
+   * @returns {string} URL to the document endpoint
+   */
+  getDocumentUrl: (documentType: string): string => {
+    return `http://192.168.29.44:5000/api/priest/documents/${documentType}`;
+  },
+
+  /**
    * Get notifications for the priest
    * @returns {Promise} Response from the API
    */

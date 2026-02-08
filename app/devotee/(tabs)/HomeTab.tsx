@@ -132,7 +132,7 @@ const HomeScreen: React.FC = () => {
                   onPress={() => handleCeremonyPress(ceremony)}
                 >
                   <Image
-                    source={{ uri: ceremony.image || "https://via.placeholder.com/150" }}
+                    source={{ uri: ceremony.image || ceremony.images?.[0]?.url || "https://via.placeholder.com/150" }}
                     style={styles.ceremonyImage}
                     resizeMode="cover"
                   />

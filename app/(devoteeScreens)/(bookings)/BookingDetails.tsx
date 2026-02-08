@@ -160,9 +160,9 @@ const BookingDetailsScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
           <View style={styles.ceremonyCard}>
-            {booking?.ceremony?.image && (
+            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url) && (
               <Image
-                source={{ uri: booking.ceremony.image }}
+                source={{ uri: booking.ceremony.image || booking.ceremony.images?.[0]?.url }}
                 style={styles.ceremonyImage}
               />
             )}

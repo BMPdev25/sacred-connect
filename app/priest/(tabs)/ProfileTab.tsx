@@ -1,10 +1,14 @@
 import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import { router, useFocusEffect } from "expo-router";
 import React, { useEffect, useState, useCallback } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Image,
+  Linking,
+  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -36,6 +40,8 @@ const ProfileScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [profile, setProfile] = useState<PriestProfile | null>(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [downloadingDoc, setDownloadingDoc] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
 
   // Refresh profile when screen comes into focus
   useFocusEffect(
@@ -87,29 +93,134 @@ const ProfileScreen: React.FC = () => {
   const handleFileUpload = async (type: "government_id" | "religious_certificate") => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ["application/pdf", "image/jpeg", "image/png"],
+        type: ["application/pdf"], // PDF only for verification documents
         copyToCacheDirectory: true,
       });
 
       if (result.canceled) return;
 
       const file = result.assets![0];
-      Alert.alert("Uploading...", "Please wait while we upload your document.");
+
+      // Validate file type
+      if (!file.mimeType?.includes('pdf')) {
+        Alert.alert("Invalid File", "Please upload a PDF file only.");
+        return;
+      }
+
+      setUploadingDoc(true);
 
       await priestService.uploadDocument(
-        { uri: file.uri, name: file.name, type: file.mimeType || "application/pdf" },
+        { uri: file.uri, name: file.name, type: "application/pdf" },
         type
       );
 
-      // Alert.alert("Success", "Document uploaded successfully!");
+      setUploadingDoc(false);
+      Alert.alert("Success", "Document uploaded successfully!");
       getProfile();
     } catch (error: any) {
+      setUploadingDoc(false);
       Alert.alert("Error", error.toString());
+    }
+  };
+
+  const handleViewDocument = async (type: "government_id" | "religious_certificate") => {
+    const doc = profile?.verificationDocuments?.find((d: any) => d.type === type);
+    if (doc) {
+      try {
+        setDownloadingDoc(true);
+
+        // Get token from SecureStore
+        const SecureStore = require('expo-secure-store');
+        const token = await SecureStore.getItemAsync('userToken');
+
+        if (!token) {
+          setDownloadingDoc(false);
+          Alert.alert("Error", "Please login again to view documents");
+          return;
+        }
+
+        const baseUrl = "http://192.168.29.44:5000";
+        const fileName = doc.fileName || `${type}.pdf`;
+        // Ensure unique filename to avoid caching issues
+        const uniqueFileName = `${Date.now()}_${fileName}`;
+        const fileUri = `${FileSystem.documentDirectory}${uniqueFileName}`;
+
+        // Download with auth header
+        const downloadResult = await FileSystem.downloadAsync(
+          `${baseUrl}/api/priest/documents/${type}`,
+          fileUri,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        setDownloadingDoc(false);
+
+        if (downloadResult.status === 200) {
+          // Check if the file was downloaded correctly
+          const fileInfo = await FileSystem.getInfoAsync(downloadResult.uri);
+          console.log("Downloaded file info:", fileInfo);
+
+          if (!fileInfo.exists || (fileInfo as any).size === 0) {
+            Alert.alert("Error", "Downloaded file is empty");
+            return;
+          }
+
+          // Get content URI for sharing with other apps
+          const contentUri = await FileSystem.getContentUriAsync(downloadResult.uri);
+          console.log("Content URI:", contentUri);
+
+          // Try to open using IntentLauncher (Android) for direct PDF viewing
+          try {
+            const IntentLauncher = require('expo-intent-launcher');
+            await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+              data: contentUri,
+              flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+              type: 'application/pdf',
+            });
+          } catch (intentError) {
+            // IntentLauncher not available or failed, try Linking
+            console.log("IntentLauncher failed, trying Linking:", intentError);
+            const canOpen = await Linking.canOpenURL(contentUri);
+            if (canOpen) {
+              await Linking.openURL(contentUri);
+            } else {
+              Alert.alert("Error", "No PDF viewer app found. Please install a PDF reader.");
+            }
+          }
+        } else {
+          Alert.alert("Error", `Failed to download document (Status: ${downloadResult.status})`);
+        }
+      } catch (error: any) {
+        setDownloadingDoc(false);
+        console.error("View document error:", error);
+        Alert.alert("Error", error.message || "Could not open document");
+      }
+    } else {
+      Alert.alert("No Document", "No document has been uploaded yet.");
     }
   };
 
   return (
     <View style={styles.container}>
+      {/* Loading Modal for PDF Upload/Download */}
+      <Modal
+        transparent={true}
+        visible={downloadingDoc || uploadingDoc}
+        animationType="fade"
+      >
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <View style={{ backgroundColor: 'white', padding: 24, borderRadius: 12, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={APP_COLORS.primary} />
+            <Text style={{ marginTop: 12, fontSize: 16, color: '#333' }}>
+              {uploadingDoc ? 'Uploading document...' : 'Downloading document...'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
+
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
           {/* ... Header ... */}
@@ -246,11 +357,18 @@ const ProfileScreen: React.FC = () => {
                   {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Uploaded" : "Upload Government ID"}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("government_id")}>
-                <Text style={styles.uploadButtonText}>
-                  {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Re-upload" : "Upload"}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") && (
+                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.info }]} onPress={() => handleViewDocument("government_id")}>
+                    <Text style={styles.uploadButtonText}>View</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("government_id")}>
+                  <Text style={styles.uploadButtonText}>
+                    {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") ? "Re-upload" : "Upload PDF"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.documentItem}>
@@ -269,11 +387,18 @@ const ProfileScreen: React.FC = () => {
                   {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Uploaded" : "Upload Certification"}
                 </Text>
               </View>
-              <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("religious_certificate")}>
-                <Text style={styles.uploadButtonText}>
-                  {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Re-upload" : "Upload"}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") && (
+                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.info }]} onPress={() => handleViewDocument("religious_certificate")}>
+                    <Text style={styles.uploadButtonText}>View</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.uploadButton} onPress={() => handleFileUpload("religious_certificate")}>
+                  <Text style={styles.uploadButtonText}>
+                    {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") ? "Re-upload" : "Upload PDF"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </View>
 

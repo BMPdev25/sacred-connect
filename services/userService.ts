@@ -5,7 +5,8 @@ const userService = {
   // Profile Management
   getProfile: async (): Promise<any> => {
     try {
-      const response = await api.get('/api/user/profile');
+
+      const response = await api.get('/api/users/profile');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -14,7 +15,7 @@ const userService = {
 
   updateProfile: async (profileData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/api/user/profile', profileData);
+      const response = await api.put('/api/users/profile', profileData);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -34,7 +35,7 @@ const userService = {
         name: 'profile.jpg',
       } as any);
 
-      const response = await api.post('/api/user/profile/picture', formData, {
+      const response = await api.post('/api/users/profile/picture', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -47,7 +48,7 @@ const userService = {
 
   deleteProfilePicture: async (): Promise<any> => {
     try {
-      const response = await api.delete('/api/user/profile/picture');
+      const response = await api.delete('/api/users/profile/picture');
       return response.data;
     } catch (error: any) {
       throw error;
@@ -57,7 +58,7 @@ const userService = {
   // Security Features
   changePassword: async (currentPassword: string, newPassword: string): Promise<any> => {
     try {
-      const response = await api.post('/api/user/security/change-password', {
+      const response = await api.post('/api/users/security/change-password', {
         currentPassword,
         newPassword,
       });
@@ -69,7 +70,7 @@ const userService = {
 
   updateSecuritySettings: async (settings: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/api/user/security/settings', settings);
+      const response = await api.put('/api/users/security/settings', settings);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -79,7 +80,7 @@ const userService = {
   // Privacy Settings
   updatePrivacySettings: async (settings: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/api/user/privacy/settings', settings);
+      const response = await api.put('/api/users/privacy/settings', settings);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -89,7 +90,7 @@ const userService = {
   // Notification Preferences
   updateNotificationPreferences: async (preferences: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put('/api/user/notifications', preferences);
+      const response = await api.put('/api/users/notifications', preferences);
       return response.data;
     } catch (error: any) {
       throw error;
@@ -99,7 +100,7 @@ const userService = {
   // Account Management
   deleteAccount: async (password: string, confirmationText: string): Promise<any> => {
     try {
-      const response = await api.delete('/api/user/account', {
+      const response = await api.delete('/api/users/account', {
         data: { password, confirmationText },
       });
       return response.data;

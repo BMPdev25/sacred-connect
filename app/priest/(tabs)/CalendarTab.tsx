@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,6 +8,38 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
 import { Ionicons } from '@expo/vector-icons';
+
+// Memoized booking card component for better list performance
+const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: any; isLarge: boolean }) => (
+    <TouchableOpacity
+        style={cardStyle}
+        onPress={() => router.push({
+            pathname: "/PriestBookingDetails",
+            params: { booking: JSON.stringify(item) }
+        })}
+        activeOpacity={0.9}
+    >
+        <View style={[styles.timeStripe, isLarge && styles.timeStripeLarge]}>
+            <Text style={[styles.timeText, isLarge && styles.timeTextLarge]}>
+                {item.startTime || item.time || '00:00'}
+            </Text>
+        </View>
+        <View style={[styles.cardContent, isLarge && styles.cardContentCenter]}>
+            <Text style={[styles.ceremonyName, isLarge && styles.textLarge]}>
+                {item.ceremonyType || item.ceremony}
+            </Text>
+            <Text style={[styles.clientName, isLarge && styles.textMedium]}>
+                {item.devoteeId?.name || 'Client'}
+            </Text>
+            <View style={[styles.locationRow, isLarge && { marginTop: 8 }]}>
+                <Ionicons name="location-outline" size={isLarge ? 20 : 14} color={APP_COLORS.gray} />
+                <Text style={[styles.locationText, isLarge && styles.textMedium]} numberOfLines={2}>
+                    {item.location?.address || `${item.location?.city || 'Location'}`}
+                </Text>
+            </View>
+        </View>
+    </TouchableOpacity>
+));
 
 export default function CalendarTab() {
     const { userInfo } = useSelector((state: RootState) => state.auth);
@@ -40,7 +72,7 @@ export default function CalendarTab() {
 
             // Convert to sections array for AgendaList
             // [{ title: '2023-10-22', data: [...] }]
-            const sectionData = Object.keys(grouped).sort().reverse().map(date => ({
+            const sectionData = Object.keys(grouped).sort((a, b) => a.localeCompare(b)).map(date => ({
                 title: date,
                 data: grouped[date]
             }));
@@ -62,42 +94,17 @@ export default function CalendarTab() {
 
     const totalItems = useMemo(() => sections.reduce((acc, s) => acc + s.data.length, 0), [sections]);
 
-    const getCardStyles = useCallback(() => {
+    const cardStyle = useMemo(() => {
         if (totalItems === 1) return [styles.card, styles.cardSingle];
         if (totalItems === 2) return [styles.card, styles.cardDouble];
         return styles.card;
     }, [totalItems]);
 
+    const isLarge = totalItems <= 2;
+
     const renderItem = useCallback(({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={getCardStyles()}
-            onPress={() => router.push({
-                pathname: "/PriestBookingDetails",
-                params: { booking: JSON.stringify(item) }
-            })}
-            activeOpacity={0.9}
-        >
-            <View style={[styles.timeStripe, totalItems <= 2 && styles.timeStripeLarge]}>
-                <Text style={[styles.timeText, totalItems <= 2 && styles.timeTextLarge]}>
-                    {item.startTime || item.time || '00:00'}
-                </Text>
-            </View>
-            <View style={[styles.cardContent, totalItems <= 2 && styles.cardContentCenter]}>
-                <Text style={[styles.ceremonyName, totalItems <= 2 && styles.textLarge]}>
-                    {item.ceremonyType || item.ceremony}
-                </Text>
-                <Text style={[styles.clientName, totalItems <= 2 && styles.textMedium]}>
-                    {item.devoteeId?.name || 'Client'}
-                </Text>
-                <View style={[styles.locationRow, totalItems <= 2 && { marginTop: 8 }]}>
-                    <Ionicons name="location-outline" size={totalItems <= 2 ? 20 : 14} color={APP_COLORS.gray} />
-                    <Text style={[styles.locationText, totalItems <= 2 && styles.textMedium]} numberOfLines={2}>
-                        {item.location?.address || `${item.location?.city || 'Location'}`}
-                    </Text>
-                </View>
-            </View>
-        </TouchableOpacity>
-    ), [getCardStyles, totalItems]);
+        <BookingCard item={item} cardStyle={cardStyle} isLarge={isLarge} />
+    ), [cardStyle, isLarge]);
 
     const theme = useMemo(() => ({
         selectedDayBackgroundColor: APP_COLORS.primary,

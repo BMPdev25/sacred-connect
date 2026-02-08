@@ -1,5 +1,5 @@
 // src/services/priestService.js
-import api from '../api';
+import api, { API_BASE_URL } from '../api';
 
 /**
  * Service for priest-related API calls
@@ -195,7 +195,7 @@ const priestService = {
    * @returns {string} URL to the document endpoint
    */
   getDocumentUrl: (documentType: string): string => {
-    return `http://192.168.29.44:5000/api/priest/documents/${documentType}`;
+    return `${API_BASE_URL}/api/priest/documents/${documentType}`;
   },
 
   /**

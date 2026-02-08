@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
 import * as FileSystem from "expo-file-system/legacy";
 import { router, useFocusEffect } from "expo-router";
+import { API_BASE_URL } from "../../../api";
 import React, { useEffect, useState, useCallback } from "react";
 import {
   ActivityIndicator,
@@ -139,7 +140,7 @@ const ProfileScreen: React.FC = () => {
           return;
         }
 
-        const baseUrl = "http://192.168.29.44:5000";
+        const baseUrl = API_BASE_URL;
         const fileName = doc.fileName || `${type}.pdf`;
         // Ensure unique filename to avoid caching issues
         const uniqueFileName = `${Date.now()}_${fileName}`;

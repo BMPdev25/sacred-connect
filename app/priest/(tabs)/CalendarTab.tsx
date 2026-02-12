@@ -8,6 +8,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
 import { Ionicons } from '@expo/vector-icons';
+import { AvailabilityManager } from '../../../components/AvailabilityManager';
 
 // Memoized booking card component for better list performance
 const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: any; isLarge: boolean }) => (
@@ -46,6 +47,7 @@ export default function CalendarTab() {
     const [sections, setSections] = useState<any[]>([]);
     const [markedDates, setMarkedDates] = useState<any>({});
     const [loading, setLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'bookings' | 'availability'>('bookings');
 
     // Default to today
     const today = new Date().toISOString().split('T')[0];
@@ -123,37 +125,62 @@ export default function CalendarTab() {
 
     return (
         <View style={styles.container}>
-            <CalendarProvider
-                date={today}
-                showTodayButton
-                theme={theme}
-            >
-                <ExpandableCalendar
-                    firstDay={1}
-                    markedDates={markedDates}
-                    theme={theme}
-                    disablePan={false}
-                    hideKnob={false}
-                    style={styles.calendar}
-                />
+            <View style={styles.headerTabs}>
+                <TouchableOpacity
+                    style={[styles.tab, viewMode === 'bookings' && styles.activeTab]}
+                    onPress={() => setViewMode('bookings')}
+                >
+                    <Text style={[styles.tabText, viewMode === 'bookings' && styles.activeTabText]}>Bookings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, viewMode === 'availability' && styles.activeTab]}
+                    onPress={() => setViewMode('availability')}
+                >
+                    <Text style={[styles.tabText, viewMode === 'availability' && styles.activeTabText]}>Availability</Text>
+                </TouchableOpacity>
+            </View>
 
-                <View style={styles.listContainer}>
-                    {loading ? (
-                        <ActivityIndicator style={{ marginTop: 20 }} color={APP_COLORS.primary} />
-                    ) : sections.length > 0 ? (
-                        <AgendaList
-                            sections={sections}
-                            renderItem={renderItem}
-                            sectionStyle={styles.sectionHeader}
-                            contentContainerStyle={{ paddingBottom: 100 }}
+            {viewMode === 'bookings' ? (
+                loading ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+                    </View>
+                ) : (
+                    <CalendarProvider
+                        date={today}
+                        showTodayButton
+                        theme={theme}
+                        // Add key to force re-render when switching back to this view or when data changes significantly if needed
+                        key={sections.length > 0 ? 'loaded' : 'empty'}
+                    >
+                        <ExpandableCalendar
+                            firstDay={1}
+                            markedDates={markedDates}
+                            theme={theme}
+                            disablePan={false}
+                            hideKnob={false}
+                            style={styles.calendar}
                         />
-                    ) : (
-                        <View style={styles.empty}>
-                            <Text style={styles.emptyText}>No upcoming bookings found.</Text>
+
+                        <View style={styles.listContainer}>
+                            {sections.length > 0 ? (
+                                <AgendaList
+                                    sections={sections}
+                                    renderItem={renderItem}
+                                    sectionStyle={styles.sectionHeader}
+                                    contentContainerStyle={{ paddingBottom: 100 }}
+                                />
+                            ) : (
+                                <View style={styles.empty}>
+                                    <Text style={styles.emptyText}>No upcoming bookings found.</Text>
+                                </View>
+                            )}
                         </View>
-                    )}
-                </View>
-            </CalendarProvider>
+                    </CalendarProvider>
+                )
+            ) : (
+                <AvailabilityManager />
+            )}
         </View>
     );
 }
@@ -162,6 +189,29 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: APP_COLORS.background,
+    },
+    headerTabs: {
+        flexDirection: 'row',
+        padding: 16,
+        gap: 12,
+        backgroundColor: APP_COLORS.white,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+        backgroundColor: APP_COLORS.lightGray + '40',
+    },
+    activeTab: {
+        backgroundColor: APP_COLORS.primary,
+    },
+    tabText: {
+        fontWeight: 'bold',
+        color: APP_COLORS.gray,
+    },
+    activeTabText: {
+        color: APP_COLORS.white,
     },
     calendar: {
         paddingTop: 0, // Ensure no top padding
@@ -273,5 +323,10 @@ const styles = StyleSheet.create({
     emptyText: {
         color: APP_COLORS.gray,
         fontSize: 16,
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });

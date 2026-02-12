@@ -182,6 +182,22 @@ const PriestTabs = () => {
           tabBarStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="weekly-schedule"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/ProfileSetup"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }

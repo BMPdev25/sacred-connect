@@ -65,6 +65,23 @@ export default function RequestsTab() {
                     </View>
                     <View style={{ marginLeft: 10, flex: 1 }}>
                         <Text style={styles.userName}>{item.devoteeId?.name || 'Devotee'}</Text>
+                        {item.devoteeId?.rating && (
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                                <Ionicons name="star" size={12} color="#FFD700" />
+                                <Text style={{
+                                    marginLeft: 4,
+                                    fontSize: 12,
+                                    fontWeight: 'bold',
+                                    color: (item.devoteeId.rating.average || 0) > 4.5 ? APP_COLORS.success :
+                                        (item.devoteeId.rating.average || 0) >= 3.0 ? APP_COLORS.warning : APP_COLORS.error
+                                }}>
+                                    {item.devoteeId.rating.average?.toFixed(1) || "0.0"}
+                                </Text>
+                                <Text style={{ fontSize: 12, color: APP_COLORS.gray, marginLeft: 2 }}>
+                                    ({item.devoteeId.rating.count || 0} reviews)
+                                </Text>
+                            </View>
+                        )}
                         <Text style={styles.timestamp}>Requested on {new Date(item.createdAt || Date.now()).toLocaleDateString()}</Text>
                     </View>
                 </View>

@@ -14,28 +14,34 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
-import { RootState } from "../../../redux/store";
+import { RootState, AppDispatch } from "../../../redux/store";
+import { getEarnings } from "../../../redux/slices/priestSlice";
 import priestService from "../../../services/priestService";
 import { useNotifications } from "../../../context/NotificationContext";
 import ProfileCompletionBanner from "../../../components/ProfileCompletionBanner";
 import { SkeletonCard } from "../../../components/SkeletonCard";
+import { HomeStatusToggle } from "../../../components/HomeStatusToggle";
+import RatingStars from "../../../components/RatingStars";
+import RatingModal from "../../../components/RatingModal";
+
 
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
+  const earnings = useSelector((state: RootState) => state.priest.earnings);
+  const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
 
   const [loading, setLoading] = useState<boolean>(true);
   const [allBookings, setAllBookings] = useState<any[]>([]);
-  const [earnings, setEarnings] = useState<any>({
-    thisMonth: 0,
-    growthPercentage: 0,
-    availableBalance: 0,
-  });
   const [profileCompletion, setProfileCompletion] = useState<any>(null);
-  const [isOnline, setIsOnline] = useState(false);
+  const [currentAvailability, setCurrentAvailability] = useState<any>(null);
+  const [recentReviews, setRecentReviews] = useState<any[]>([]);
+  const [pendingActions, setPendingActions] = useState<any[]>([]);
+  const [rateModalVisible, setRateModalVisible] = useState(false);
+  const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -48,13 +54,20 @@ const HomeScreen: React.FC = () => {
         if (mounted) setLoading(true);
 
         try {
-          const [bookingsRes, earningsRes, completionRes] = await Promise.allSettled([
-            priestService.getBookings(priestId), // Fetch all to filter locally
-            priestService.getEarnings(priestId),
-            priestService.getProfileCompletion()
+          const results = await Promise.allSettled([
+            priestService.getBookings(priestId),
+            priestService.getProfileCompletion(),
+            priestService.getProfile(),
+            priestService.getRecentReviews(),
+            priestService.getPendingActions()
           ]);
 
+          // Dispatch earnings via redux (single source of truth)
+          dispatch(getEarnings(priestId));
+
           if (!mounted) return;
+
+          const [bookingsRes, completionRes, profileRes, reviewsRes, actionsRes] = results;
 
           if (bookingsRes.status === 'fulfilled') {
             const data = bookingsRes.value;
@@ -62,13 +75,20 @@ const HomeScreen: React.FC = () => {
             setAllBookings(bookings);
           }
 
-          if (earningsRes.status === 'fulfilled') {
-            const e = earningsRes.value;
-            setEarnings(e?.data || e || { thisMonth: 0, growthPercentage: 0, availableBalance: 0 });
-          }
-
           if (completionRes.status === 'fulfilled') {
             setProfileCompletion(completionRes.value);
+          }
+
+          if (profileRes.status === 'fulfilled') {
+            setCurrentAvailability(profileRes.value.currentAvailability);
+          }
+
+          if (reviewsRes.status === 'fulfilled') {
+            setRecentReviews(reviewsRes.value);
+          }
+
+          if (actionsRes.status === 'fulfilled') {
+            setPendingActions(actionsRes.value);
           }
 
         } catch (err) {
@@ -128,6 +148,49 @@ const HomeScreen: React.FC = () => {
     if (url) Linking.openURL(url);
   };
 
+  const handleMarkComplete = async (bookingId: string) => {
+    try {
+      await priestService.updateBookingStatus(bookingId, 'completed');
+      Alert.alert("Success", "Booking marked as completed!");
+      // Refresh data (ideally optimize this)
+      setPendingActions(prev => prev.filter(a => a._id !== bookingId));
+    } catch (e: any) {
+      Alert.alert("Error", e.message || "Failed to mark as complete");
+    }
+  };
+
+  const openRateModal = (booking: any) => {
+    setSelectedBookingForRating(booking);
+    setRateModalVisible(true);
+  };
+
+  const handleSubmitRating = async (rating: number, comment: string, tags: string[]) => {
+    if (!selectedBookingForRating) return;
+
+    try {
+      // Submit review
+      await priestService.submitReview({
+        bookingId: selectedBookingForRating._id,
+        reviewerId: userInfo?._id,
+        revieweeId: selectedBookingForRating.devoteeId?._id,
+        rating,
+        comment,
+        tags,
+        role: 'priest_to_devotee'
+      });
+
+      Alert.alert("Success", "Review submitted!");
+      // Remove from pending actions
+      setPendingActions(prev => prev.filter(a => a._id !== selectedBookingForRating._id));
+    } catch (error: any) {
+      console.error("Submit review error:", error);
+      Alert.alert("Error", error.message || "Failed to submit review");
+    } finally {
+      setRateModalVisible(false);
+      setSelectedBookingForRating(null);
+    }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
       <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
@@ -168,15 +231,70 @@ const HomeScreen: React.FC = () => {
         ) : (
           <View style={styles.content}>
 
-            {/* 1. Dashboard Grid - Earnings Summary */}
+            {/* Status Toggle */}
+            <HomeStatusToggle
+              currentStatus={currentAvailability?.status || 'offline'}
+              autoToggle={currentAvailability?.autoToggle ?? true}
+              onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
+              style={{ marginBottom: 20 }}
+            />
+
+            {/* Pending Actions Carousel */}
+            {pendingActions.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Pending Actions</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                  {pendingActions.map((action, index) => (
+                    <View key={index} style={styles.actionCard}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                        <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info + '20' : APP_COLORS.warning + '20' }]}>
+                          <Ionicons
+                            name={action.actionType === 'mark_complete' ? 'checkmark-circle-outline' : 'star-outline'}
+                            size={24}
+                            color={action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning}
+                          />
+                        </View>
+                        <View style={{ marginLeft: 12, flex: 1 }}>
+                          <Text style={styles.actionTitle}>{action.title}</Text>
+                          <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning }]}
+                        onPress={() => action.actionType === 'mark_complete' ? handleMarkComplete(action._id) : openRateModal(action)}
+                      >
+                        <Text style={styles.actionBtnText}>
+                          {action.actionType === 'mark_complete' ? 'Mark Complete' : 'Rate Now'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* 1. Dashboard Grid - Earnings & Puja Stats */}
             <View style={styles.dashboardGrid}>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>This Month</Text>
-                <Text style={styles.statValue}>₹{earnings.thisMonth}</Text>
+                <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
               </View>
               <View style={styles.statCard}>
                 <Text style={styles.statLabel}>Balance</Text>
-                <Text style={styles.statValue}>₹{earnings.availableBalance}</Text>
+                <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
+              </View>
+            </View>
+            <View style={styles.dashboardGrid}>
+              <View style={styles.statCard}>
+                <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.success} style={{ marginBottom: 4 }} />
+                <Text style={styles.statLabel}>Pujas Completed</Text>
+                <Text style={[styles.statValue, { color: APP_COLORS.success }]}>{earnings?.pujasCompleted ?? 0}</Text>
+              </View>
+              <View style={styles.statCard}>
+                <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
+                <Text style={styles.statLabel}>Pujas Pending</Text>
+                <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
               </View>
             </View>
 
@@ -220,7 +338,37 @@ const HomeScreen: React.FC = () => {
               </View>
             )}
 
-            {/* 3. Pending Requests */}
+            {/* 3. Recent Love */}
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Recent Love</Text>
+                <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
+                  <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
+                </TouchableOpacity>
+              </View>
+              {recentReviews.length > 0 ? (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                  {recentReviews.slice(0, 4).map((review, index) => (
+                    <View key={index} style={styles.reviewCard}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                        <View style={styles.reviewerAvatar}>
+                          <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
+                        </View>
+                        <View style={{ marginLeft: 8 }}>
+                          <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
+                          <RatingStars rating={review.rating} size={14} readOnly />
+                        </View>
+                      </View>
+                      <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
+                    </View>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
+              )}
+            </View>
+
+            {/* 4. Pending Requests */}
             {pendingRequests.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
@@ -265,6 +413,19 @@ const HomeScreen: React.FC = () => {
           </View>
         )}
       </ScrollView>
+
+      {/* Rating Modal */}
+      <RatingModal
+        isVisible={rateModalVisible}
+        onClose={() => setRateModalVisible(false)}
+        onSubmit={handleSubmitRating}
+        role="priest"
+        bookingDetails={selectedBookingForRating ? {
+          ceremonyType: selectedBookingForRating.ceremonyType,
+          date: selectedBookingForRating.date,
+          clientName: selectedBookingForRating.devoteeId?.name
+        } : undefined}
+      />
     </View>
   );
 };
@@ -459,6 +620,72 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: APP_COLORS.gray,
     fontSize: 16,
+  },
+  reviewCard: {
+    backgroundColor: APP_COLORS.white,
+    width: 220,
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 12,
+    elevation: 2,
+  },
+  reviewerAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: APP_COLORS.primary + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reviewerName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: APP_COLORS.black,
+  },
+  reviewComment: {
+    lineHeight: 20
+  },
+  actionCard: {
+    backgroundColor: APP_COLORS.white,
+    width: 280,
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.primary
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: APP_COLORS.black,
+    marginBottom: 2
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: APP_COLORS.gray
+  },
+  actionBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  actionBtnText: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14
   }
 });
 

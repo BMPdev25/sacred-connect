@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-    TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform
+    View, Text, StyleSheet, Image, TouchableOpacity,
+    TextInput, Alert, ActivityIndicator, Platform
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +13,7 @@ import priestService from '../../../services/priestService';
 export default function ServiceDetailScreen() {
     const params = useLocalSearchParams();
     const serviceJson = typeof params.service === 'string' ? params.service : '{}';
-    const initialService = JSON.parse(serviceJson);
+    const initialService = React.useMemo(() => JSON.parse(serviceJson), [serviceJson]);
 
     // Form State
     const [price, setPrice] = useState(initialService.price?.toString() || '');
@@ -20,6 +21,14 @@ export default function ServiceDetailScreen() {
     const [newRequirement, setNewRequirement] = useState('');
     const [loading, setLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+
+    // Reset state when navigating to a different service
+    useEffect(() => {
+        setPrice(initialService.price?.toString() || '');
+        setRequirements(initialService.requirements || []);
+        setNewRequirement('');
+        setHasChanges(false);
+    }, [initialService]);
 
     // Ceremony Details (read-only from ceremonyId)
     const ceremony = initialService.ceremonyId || {};
@@ -51,12 +60,22 @@ export default function ServiceDetailScreen() {
             const services = profile.services || [];
 
             // Find and update the specific service
-            // We match by _id or ceremonyId._id if _id is missing on local copy
-            const updatedServices = services.map((s: any) => {
-                const sId = s._id || s.ceremonyId?._id;
-                const targetId = initialService._id || initialService.ceremonyId?._id;
+            // Match by ceremonyId, handling both populated and unpopulated cases
+            const getCeremonyId = (service: any) => {
+                // If ceremonyId is populated (an object), get its _id
+                if (service.ceremonyId && typeof service.ceremonyId === 'object') {
+                    return service.ceremonyId._id?.toString() || service.ceremonyId.toString();
+                }
+                // If ceremonyId is just an ID string
+                return service.ceremonyId?.toString();
+            };
 
-                if (sId === targetId) {
+            const targetCeremonyId = getCeremonyId(initialService);
+
+            const updatedServices = services.map((s: any) => {
+                const serviceCeremonyId = getCeremonyId(s);
+
+                if (serviceCeremonyId === targetCeremonyId) {
                     return {
                         ...s,
                         price: parseFloat(price),
@@ -67,7 +86,8 @@ export default function ServiceDetailScreen() {
             });
 
             await priestService.updateProfile({ services: updatedServices });
-            router.push("/priest/(tabs)/ServicesTab");
+            setHasChanges(false); // Reset after successful save
+            Alert.alert("Success", "Changes saved successfully!");
         } catch (error: any) {
             console.error("Update error:", error);
             Alert.alert("Error", error.message || "Failed to update service");
@@ -78,7 +98,13 @@ export default function ServiceDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <KeyboardAwareScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraScrollHeight={200}
+                extraHeight={150}
+            >
                 {/* Hero Image - Taller & Clean */}
                 <Image
                     source={{ uri: imageUri }}
@@ -200,7 +226,7 @@ export default function ServiceDetailScreen() {
                         ))}
                     </View>
                 </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             {/* Bottom Save Bar - only show when there are changes */}
             {hasChanges && (

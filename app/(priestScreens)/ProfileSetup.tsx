@@ -133,6 +133,9 @@ const ProfileSetup = () => {
   const [availableCeremonies, setAvailableCeremonies] = useState<any[]>([]);
   const [isLoadingCeremonies, setIsLoadingCeremonies] = useState(true);
 
+  /* New Schema Handling */
+  const [existingOverrides, setExistingOverrides] = useState<any[]>([]);
+
   const [availability, setAvailability] = useState({
     monday: { available: false, startTime: "", endTime: "" },
     tuesday: { available: false, startTime: "", endTime: "" },
@@ -241,9 +244,39 @@ const ProfileSetup = () => {
           if (loadedProfile.templesAffiliated && loadedProfile.templesAffiliated.length > 0) {
             setTemplesAffiliated(loadedProfile.templesAffiliated);
           }
-          if (loadedProfile.availability && Object.keys(loadedProfile.availability).length > 0) {
+          if (loadedProfile.availability) {
             console.log('DEBUG: Loaded Availability from profile:', JSON.stringify(loadedProfile.availability));
-            setAvailability(loadedProfile.availability);
+
+            // Handle new schema: weeklySchedule
+            const schedule = loadedProfile.availability.weeklySchedule || {};
+            const overrides = loadedProfile.availability.dateOverrides || [];
+            setExistingOverrides(overrides);
+
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            const newAvailabilityState: any = {};
+
+            if (Object.keys(schedule).length > 0) {
+              days.forEach(day => {
+                const slots = schedule[day];
+                if (slots && slots.length > 0) {
+                  // Assume first slot for now: "09:00-17:00"
+                  const [start, end] = slots[0].split('-');
+                  newAvailabilityState[day] = { available: true, startTime: start, endTime: end };
+                } else {
+                  newAvailabilityState[day] = { available: false, startTime: "09:00", endTime: "18:00" };
+                }
+              });
+              setAvailability(newAvailabilityState);
+            } else if (loadedProfile.availability.monday) {
+              // Fallback for old schema if it exists in DB temporarily
+              setAvailability(loadedProfile.availability);
+            } else {
+              // Default
+              days.forEach(day => {
+                newAvailabilityState[day] = { available: false, startTime: "09:00", endTime: "18:00" };
+              });
+              setAvailability(newAvailabilityState);
+            }
           } else {
             console.log('DEBUG: No availability (or empty) in loaded profile. Populating defaults.');
             const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -428,6 +461,16 @@ const ProfileSetup = () => {
     setIsSubmitting(true);
 
     try {
+      // Construct Weekly Schedule Payload
+      const weeklySchedulePayload: any = {};
+      Object.entries(availability).forEach(([day, data]: [string, any]) => {
+        if (data.available && data.startTime && data.endTime) {
+          weeklySchedulePayload[day] = [`${data.startTime}-${data.endTime}`];
+        } else {
+          weeklySchedulePayload[day] = [];
+        }
+      });
+
       const profileData = {
         experience: parseInt(experience, 10),
         religiousTradition,
@@ -436,7 +479,10 @@ const ProfileSetup = () => {
         templesAffiliated: templesAffiliated.filter(
           (temple: any) => temple.name && temple.address
         ),
-        availability,
+        availability: {
+          weeklySchedule: weeklySchedulePayload,
+          dateOverrides: existingOverrides
+        },
         services: availableCeremonies
           .filter((ceremony) => ceremony.selected)
           .map((ceremony) => ({
@@ -934,35 +980,37 @@ const ProfileSetup = () => {
             </View>
 
             {data.available ? (
-              <View style={styles.timeSlots}>
-                <View style={styles.timeSlot}>
-                  <Text style={styles.timeLabel}>From</Text>
-                  <TextInput
-                    style={[styles.timeInput, styles.smallTimeInput]}
-                    value={data.startTime}
-                    onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
-                    placeholder="09:00"
-                    placeholderTextColor={APP_COLORS.gray}
-                  />
-                  {timeErrors[day] ? (
-                    <Text style={{ color: APP_COLORS.error, marginTop: 6 }}>{timeErrors[day]}</Text>
-                  ) : null}
+              <View style={{ flexDirection: 'column' }}>
+                <View style={styles.timeSlots}>
+                  <View style={[styles.timeSlot, { width: '45%' }]}>
+                    <Text style={styles.timeLabel}>From</Text>
+                    <TextInput
+                      style={[styles.timeInput, styles.smallTimeInput]}
+                      value={data.startTime}
+                      onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
+                      placeholder="09:00"
+                      placeholderTextColor={APP_COLORS.gray}
+                    />
+                  </View>
+                  <View style={[styles.timeSlot, { width: '45%' }]}>
+                    <Text style={styles.timeLabel}>To</Text>
+                    <TextInput
+                      style={[styles.timeInput, styles.smallTimeInput]}
+                      value={data.endTime}
+                      onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
+                      placeholder="18:00"
+                      placeholderTextColor={APP_COLORS.gray}
+                    />
+                  </View>
                 </View>
-                <View style={styles.timeSlot}>
-                  <Text style={styles.timeLabel}>To</Text>
-                  <TextInput
-                    style={[styles.timeInput, styles.smallTimeInput]}
-                    value={data.endTime}
-                    onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
-                    placeholder="18:00"
-                    placeholderTextColor={APP_COLORS.gray}
-                  />
-                </View>
+                {timeErrors[day] ? (
+                  <Text style={{ color: APP_COLORS.error, marginTop: 4 }}>{timeErrors[day]}</Text>
+                ) : null}
                 <TouchableOpacity
-                  style={{ marginLeft: 12, alignSelf: "center" }}
+                  style={{ marginTop: 8, alignSelf: "flex-start" }}
                   onPress={() => applyToAllDays(day)}
                 >
-                  <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all</Text>
+                  <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all days</Text>
                 </TouchableOpacity>
               </View>
             ) : (

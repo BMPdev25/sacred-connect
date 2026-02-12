@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { StatusBar as ExpoStatusBar } from "expo-status-bar";
-import React, { useEffect, useState } from "react";
+import { useFocusEffect } from "expo-router";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -14,9 +15,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
-import { RootState } from "../../../redux/store";
+import { RootState, AppDispatch } from "../../../redux/store";
+import { getEarnings } from "../../../redux/slices/priestSlice";
 import priestService from "../../../services/priestService";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
@@ -24,43 +26,31 @@ const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 const EarningsScreen = () => {
   // ... hooks ...
   const { userInfo } = useSelector((state: RootState) => state.auth);
+  const earningsData = useSelector((state: RootState) => state.priest.earnings);
+  const earningsLoading = useSelector((state: RootState) => state.priest.isLoading);
+  const dispatch = useDispatch<AppDispatch>();
   const [selectedMonth, setSelectedMonth] = useState<string>("current");
   const [withdrawalModalVisible, setWithdrawalModalVisible] = useState(false);
   const [withdrawalAmount, setWithdrawalAmount] = useState("");
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
-  const [earningsData, setEarningsData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchEarningsData();
-  }, []);
-
-  const fetchEarningsData = async () => {
-    try {
-      setLoading(true);
-      const data = await priestService.getEarnings(userInfo?._id, "all");
-      // Use actual API response data instead of hardcoded values
-      setEarningsData(data || {
-        thisMonth: 0,
-        lastMonth: 0,
-        growthPercentage: 0,
-        availableBalance: 0,
-        transactions: [],
-        totalBookings: 0,
-        totalCompletedBookings: 0,
-      });
-    } catch (error) {
-      console.error("Error fetching earnings:", error);
-      Alert.alert("Error", "Failed to load earnings data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      const priestId = userInfo?._id;
+      if (priestId) {
+        setLoading(true);
+        dispatch(getEarnings(priestId)).finally(() => setLoading(false));
+      }
+    }, [userInfo?._id])
+  );
 
   const handleRefresh = async () => {
+    const priestId = userInfo?._id;
+    if (!priestId) return;
     setRefreshing(true);
-    await fetchEarningsData();
+    await dispatch(getEarnings(priestId));
     setRefreshing(false);
   };
 
@@ -91,8 +81,8 @@ const EarningsScreen = () => {
       setWithdrawalModalVisible(false);
       setWithdrawalAmount("");
 
-      // Refresh earnings data
-      await fetchEarningsData();
+      // Refresh earnings data from redux
+      await dispatch(getEarnings(userInfo?._id || ''));
     } catch (error: any) {
       console.error("Withdrawal error:", error);
       Alert.alert(
@@ -240,7 +230,7 @@ const EarningsScreen = () => {
                 >
                   <View style={styles.transactionHeader}>
                     <Text style={styles.transactionName}>
-                      {transaction.description}
+                      {transaction.description?.replace(/^Earnings from /, "")}
                     </Text>
                     <Text style={styles.transactionAmount}>
                       {formatCurrency(transaction.amount)}
@@ -468,12 +458,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   transactionName: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 14,
+    fontWeight: "500",
+    flex: 1, // Allow text to wrap if needed and take available space
+    marginRight: 8, // Add spacing between name and amount
   },
   transactionAmount: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 16,
+    fontWeight: "600",
     color: APP_COLORS.primary,
   },
   transactionClient: {

@@ -22,6 +22,7 @@ import { APP_COLORS } from "../../../constants/Colors";
 import { logout } from "../../../redux/slices/authSlice";
 import { RootState } from "../../../redux/store";
 import priestService from "../../../services/priestService";
+import RatingStars from "../../../components/RatingStars";
 
 interface PriestProfile {
   experience?: number;
@@ -43,6 +44,7 @@ const ProfileScreen: React.FC = () => {
   const [profileCompletion, setProfileCompletion] = useState(0);
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [userReviews, setUserReviews] = useState<any[]>([]);
 
   // Refresh profile when screen comes into focus
   useFocusEffect(
@@ -63,6 +65,16 @@ const ProfileScreen: React.FC = () => {
       } catch (err) {
         console.warn("Profile completion fetch failed:", err);
         setProfileCompletion(0);
+      }
+
+      // Fetch user reviews
+      if (userInfo?._id) {
+        try {
+          const reviews = await priestService.getUserReviews(userInfo._id);
+          setUserReviews(reviews);
+        } catch (err) {
+          console.warn("User reviews fetch failed:", err);
+        }
       }
     } catch (err) {
       console.error("Error fetching profile on mount:", err);
@@ -235,6 +247,20 @@ const ProfileScreen: React.FC = () => {
               <Ionicons name="camera-outline" size={20} color={APP_COLORS.white} />
             </TouchableOpacity>
             <Text style={styles.userName}>{userInfo?.name || "Pandit Sharma"}</Text>
+
+            {/* Overall Rating */}
+            {(profile?.userId as any)?.rating?.count > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={{ fontSize: 16, fontWeight: 'bold', marginRight: 4 }}>
+                  {(profile?.userId as any)?.rating?.average?.toFixed(1)}
+                </Text>
+                <RatingStars rating={(profile?.userId as any)?.rating?.average} size={16} readOnly />
+                <Text style={{ fontSize: 14, color: APP_COLORS.gray, marginLeft: 4 }}>
+                  ({(profile?.userId as any)?.rating?.count} reviews)
+                </Text>
+              </View>
+            )}
+
             <Text style={styles.userRole}>Priest • {(profile?.experience as any) || 0} years experience</Text>
 
             {profileCompletion < 100 && (
@@ -309,33 +335,51 @@ const ProfileScreen: React.FC = () => {
             <Text style={styles.sectionTitle}>Availability</Text>
             <TouchableOpacity
               style={styles.editButton}
-              onPress={() => router.push({ pathname: "/ProfileSetup", params: { isEditing: true, jumpToStep: 4 } } as any)}
+              onPress={() => router.push("/priest/weekly-schedule" as any)}
             >
               <Text style={styles.editButtonText}>Edit</Text>
             </TouchableOpacity>
           </View>
 
           <View style={styles.infoCard}>
-            {profile?.availability ? (
-              Object.entries(profile.availability).map(([day, slots]: [string, any]) => {
-                // Availability is stored as an array of slots per day. We currently use only the first slot.
-                const data = Array.isArray(slots) ? slots[0] : slots;
-                if (!data || !data.available) return null;
+            {(() => {
+              const availability = profile?.availability;
+              const schedule = availability?.weeklySchedule || availability;
+
+              if (!schedule || Object.keys(schedule).length === 0) {
+                return (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoValue}>Availability not set</Text>
+                  </View>
+                );
+              }
+
+              return Object.entries(schedule).map(([day, slots]: [string, any]) => {
+                if (day === 'dateOverrides' || day === 'timeZone' || day === '_id') return null;
+
+                let timeText = "";
+                // New format: ["09:00-17:00"]
+                if (Array.isArray(slots) && slots.length > 0) {
+                  if (typeof slots[0] === 'string') {
+                    timeText = slots.join(', ');
+                  }
+                }
+                // Old format fallback
+                else if (slots && typeof slots === 'object' && slots.startTime) {
+                  if (!slots.available) return null;
+                  timeText = `${slots.startTime} - ${slots.endTime}`;
+                }
+
+                if (!timeText) return null;
+
                 return (
                   <View style={[styles.infoRow, { flexDirection: 'row', justifyContent: 'space-between' }]} key={day}>
                     <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{day}</Text>
-                    <Text style={styles.infoLabel}>{data.startTime} - {data.endTime}</Text>
+                    <Text style={styles.infoLabel}>{timeText}</Text>
                   </View>
                 );
-              })
-            ) : (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoValue}>Availability not set</Text>
-              </View>
-            )}
-            {/* Show "No availability" if all days are false or object is empty/null, but map handles empty render effectively. 
-                Could add a check if needed, but this is sufficient for now. 
-            */}
+              });
+            })()}
           </View>
 
           {/* Verification Documents */}
@@ -462,6 +506,45 @@ const ProfileScreen: React.FC = () => {
               </Text>
             </View>
           </View>
+
+          {/* Reviews Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Reviews ({userReviews.length})</Text>
+          </View>
+
+          {userReviews.length > 0 ? (
+            <View style={styles.infoCard}>
+              {userReviews.slice(0, 5).map((review, index) => (
+                <View key={index} style={{ marginBottom: 16, borderBottomWidth: index < userReviews.length - 1 ? 1 : 0, borderBottomColor: APP_COLORS.lightGray, paddingBottom: 12 }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+                    <Text style={{ fontWeight: 'bold' }}>{review.reviewerId?.name || "User"}</Text>
+                    <Text style={{ fontSize: 12, color: APP_COLORS.gray }}>{new Date(review.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                  <RatingStars rating={review.rating} size={14} readOnly style={{ marginBottom: 4 }} />
+                  <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>"{review.comment}"</Text>
+                  {review.tags && review.tags.length > 0 && (
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: 8, gap: 4 }}>
+                      {review.tags.map((tag: string, i: number) => (
+                        <View key={i} style={{ backgroundColor: APP_COLORS.lightGray, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12 }}>
+                          <Text style={{ fontSize: 10, color: APP_COLORS.primary }}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              ))}
+              {userReviews.length > 5 && (
+                <TouchableOpacity style={{ alignItems: 'center', marginTop: 8 }}>
+                  <Text style={{ color: APP_COLORS.primary, fontWeight: 'bold' }}>See all reviews</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={styles.infoCard}>
+              <Text style={{ textAlign: 'center', color: APP_COLORS.gray, padding: 16 }}>No reviews yet</Text>
+            </View>
+          )}
+
         </ScrollView>
 
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>

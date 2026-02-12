@@ -251,6 +251,73 @@ const priestService = {
       throw error?.response?.data?.message || 'Failed to fetch document. Please try again.';
     }
   },
+  /**
+   * Toggle priest status
+   * @param {Object} data - { status: 'available'|'offline', autoToggle?: boolean }
+   * @returns {Promise} Response from the API
+   */
+  toggleStatus: async (data: { status?: string, autoToggle?: boolean }): Promise<any> => {
+    try {
+      const response = await api.put('/api/priest/status', data);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to update status. Please try again.';
+    }
+  },
+
+  /**
+   * Get recent reviews
+   * @returns {Promise} Response from the API
+   */
+  getRecentReviews: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/reviews/recent');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch recent reviews. Please try again.';
+    }
+  },
+
+  /**
+   * Get user reviews
+   * @param {string} userId - The user ID
+   * @returns {Promise} Response from the API
+   */
+  getUserReviews: async (userId: string): Promise<any> => {
+    try {
+      const response = await api.get(`/api/reviews/user/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch user reviews. Please try again.';
+    }
+  },
+
+  /**
+   * Get pending actions
+   * @returns {Promise} Response from the API
+   */
+  getPendingActions: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/bookings/pending-actions');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch pending actions. Please try again.';
+    }
+  },
+
+  /**
+   * Submit a review
+   * @param {Object} reviewData - The review data
+   * @returns {Promise} Response from the API
+   */
+  submitReview: async (reviewData: any): Promise<any> => {
+    try {
+      const response = await api.post('/api/reviews/submit', reviewData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
+    }
+  },
 };
 
 export default priestService;

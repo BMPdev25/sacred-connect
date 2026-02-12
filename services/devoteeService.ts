@@ -171,16 +171,29 @@ const devoteeService = {
 
   /**
    * Submit a review for a priest
-   * @param {string} priestId - The priest ID
    * @param {Object} reviewData - The review data
    * @returns {Promise} Response from the API
    */
-  submitReview: async (priestId: string, reviewData: Record<string, any>): Promise<any> => {
+  submitReview: async (reviewData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post(`/api/devotee/priests/${priestId}/reviews`, reviewData);
+      const response = await api.post('/api/reviews/submit', reviewData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
+    }
+  },
+
+  /**
+   * Get pending actions for devotee
+   * @returns {Promise} Response from the API
+   */
+  getPendingActions: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/devotee/pending-actions');
+      return response.data;
+    } catch (error: any) {
+      console.error('getPendingActions error:', error);
+      return []; // Return empty array on error to prevent UI crash
     }
   },
 

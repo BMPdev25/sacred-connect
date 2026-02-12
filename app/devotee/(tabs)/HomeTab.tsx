@@ -19,6 +19,8 @@ import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
 import ceremonyService from "../../../services/ceremonyService";
+import RatingModal from "../../../components/RatingModal";
+import { Alert } from "react-native";
 
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
@@ -34,26 +36,68 @@ const HomeScreen: React.FC = () => {
 
   // Mock data for recommended priests
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
+  const [pendingActions, setPendingActions] = useState<any[]>([]);
+  const [rateModalVisible, setRateModalVisible] = useState(false);
+  const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
 
   useEffect(() => {
-    const fetchRecommendedPriests = async () => {
+    const fetchData = async () => {
       try {
-        // Try the regular search for priests
-        const response = await devoteeService.searchPriests({ limit: 10 });
+        const [priestsRes, actionsRes] = await Promise.allSettled([
+          devoteeService.searchPriests({ limit: 10 }),
+          devoteeService.getPendingActions()
+        ]);
 
-        if (response && response.priests.length > 0) {
-          setRecommendedPriests(response.priests);
+        if (priestsRes.status === 'fulfilled' && priestsRes.value?.priests?.length > 0) {
+          setRecommendedPriests(priestsRes.value.priests);
         } else {
           setRecommendedPriests([]);
         }
+
+        if (actionsRes.status === 'fulfilled') {
+          setPendingActions(actionsRes.value);
+        }
+
       } catch (err) {
-        console.error("Error fetching recommended priests:", err);
-        // Set mock data if there's an error
-        setRecommendedPriests([]);
+        console.error("Error fetching home data:", err);
       }
     };
-    fetchRecommendedPriests();
+    fetchData();
   }, []);
+
+  const openRateModal = (booking: any) => {
+    // Booking structure from getPendingActions might be slightly different
+    // The structure returned from backend is: { ..., booking: { ... } }
+    // We need to pass the inner booking object or construct what's needed
+    setSelectedBookingForRating(booking.booking);
+    setRateModalVisible(true);
+  };
+
+  const handleSubmitRating = async (rating: number, comment: string, tags: string[]) => {
+    if (!selectedBookingForRating) return;
+
+    try {
+      await devoteeService.submitReview({
+        bookingId: selectedBookingForRating._id,
+        reviewerId: userInfo?._id,
+        revieweeId: selectedBookingForRating.priestId,
+        rating,
+        comment,
+        tags,
+        role: 'devotee_to_priest'
+      });
+
+      Alert.alert("Success", "Review submitted!");
+      // Remove from pending actions
+      setPendingActions(prev => prev.filter(a => a.booking._id !== selectedBookingForRating._id));
+    } catch (error: any) {
+      console.error("Submit review error:", error);
+      Alert.alert("Error", error.message || "Failed to submit review");
+    } finally {
+      setRateModalVisible(false);
+      setSelectedBookingForRating(null);
+    }
+  };
 
   const handleSearch = () => {
     if (!searchQuery.trim()) return;
@@ -114,6 +158,35 @@ const HomeScreen: React.FC = () => {
             </Text>
           </TouchableOpacity>
         </View>
+
+        {/* Pending Actions */}
+        {pendingActions.length > 0 && (
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Pending Actions</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+              {pendingActions.map((action, index) => (
+                <View key={index} style={styles.actionCard}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                    <View style={[styles.actionIcon, { backgroundColor: APP_COLORS.warning + '20' }]}>
+                      <Ionicons name="star-outline" size={24} color={APP_COLORS.warning} />
+                    </View>
+                    <View style={{ marginLeft: 12, flex: 1 }}>
+                      <Text style={styles.actionTitle}>{action.title}</Text>
+                      <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: APP_COLORS.warning }]}
+                    onPress={() => openRateModal(action)}
+                  >
+                    <Text style={styles.actionBtnText}>Rate Experience</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         <View style={styles.ceremoniesContainer}>
           <Text style={styles.sectionTitle}>Popular Ceremonies</Text>
@@ -235,6 +308,18 @@ const HomeScreen: React.FC = () => {
           ))}
         </View>
       </ScrollView>
+
+      <RatingModal
+        isVisible={rateModalVisible}
+        onClose={() => setRateModalVisible(false)}
+        onSubmit={handleSubmitRating}
+        role="devotee"
+        bookingDetails={selectedBookingForRating ? {
+          ceremonyType: selectedBookingForRating.ceremonyType,
+          date: selectedBookingForRating.date,
+          clientName: selectedBookingForRating.priestName
+        } : undefined}
+      />
     </View>
   );
 };
@@ -446,6 +531,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
+  sectionContainer: {
+    marginBottom: 24,
+  },
+  horizontalScroll: {
+    paddingLeft: 16,
+    paddingRight: 8,
+  },
+  actionCard: {
+    backgroundColor: APP_COLORS.white,
+    width: 260,
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.warning
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: APP_COLORS.black,
+    marginBottom: 2
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: APP_COLORS.gray
+  },
+  actionBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  actionBtnText: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14
+  }
 });
 
 export default HomeScreen;

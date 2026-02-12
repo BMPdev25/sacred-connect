@@ -53,18 +53,24 @@ api.interceptors.response.use(
   },
   async (error) => {
     // Check if error is due to unauthorized access (token expired/invalid)
-    if (error.response && error.response.status === 401) {
-      console.log('🔒 Token expired or invalid - Auto-logout initiated');
+      // Check if the error is from the login endpoint
+      // If it is, we don't want to auto-logout, we just want to return the error
+      // to the component so it can display "Invalid credentials"
+      const requestUrl = error.config?.url || '';
+      const isLoginRequest = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/firebase-login') || requestUrl.includes('/auth/register');
       
-      try {
-        // Clear stored credentials
-        await SecureStore.deleteItemAsync('userToken');
-        await SecureStore.deleteItemAsync('userInfo');
+      if (error.response && error.response.status === 401 && !isLoginRequest) {
+        console.log('🔒 Token expired or invalid - Auto-logout initiated');
         
-        // Call logout callback if set (to clear Redux state)
-        if (logoutCallback) {
-          logoutCallback();
-        }
+        try {
+          // Clear stored credentials
+          await SecureStore.deleteItemAsync('userToken');
+          await SecureStore.deleteItemAsync('userInfo');
+          
+          // Call logout callback if set (to clear Redux state)
+          if (logoutCallback) {
+            logoutCallback();
+          }
         
         // Redirect to login screen
         // Use replace to prevent going back to authenticated screens

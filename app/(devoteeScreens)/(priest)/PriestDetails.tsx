@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   ScrollView,
@@ -108,9 +109,37 @@ const PriestDetails: React.FC = () => {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading priest details...</Text>
-      </View>
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Priest Details</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <ScrollView contentContainerStyle={{ padding: 16 }}>
+          {/* Profile skeleton */}
+          <View style={{ alignItems: "center", marginBottom: 24 }}>
+            <View style={{ width: 100, height: 100, borderRadius: 50, backgroundColor: APP_COLORS.lightGray, marginBottom: 12 }} />
+            <View style={{ width: 160, height: 20, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 8 }} />
+            <View style={{ width: 120, height: 14, borderRadius: 4, backgroundColor: APP_COLORS.lightGray }} />
+          </View>
+          {/* Stats row skeleton */}
+          <View style={{ flexDirection: "row", justifyContent: "space-around", marginBottom: 24 }}>
+            {[1, 2, 3].map(i => (
+              <View key={i} style={{ alignItems: "center" }}>
+                <View style={{ width: 40, height: 20, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 4 }} />
+                <View style={{ width: 60, height: 12, borderRadius: 4, backgroundColor: APP_COLORS.lightGray }} />
+              </View>
+            ))}
+          </View>
+          {/* Content lines skeleton */}
+          {[1, 2, 3, 4, 5].map(i => (
+            <View key={i} style={{ width: `${90 - i * 10}%`, height: 14, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 12 }} />
+          ))}
+          <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginTop: 16 }} />
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 

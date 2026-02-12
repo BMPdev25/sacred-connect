@@ -342,26 +342,40 @@ const PriestSearch: React.FC = () => {
 
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsText}>
-          {priests.length}{" "}
-          {priests.length === 1 ? "priest" : "priests"} found
+          {loading ? "Loading..." : `${priests.length} ${priests.length === 1 ? "priest" : "priests"} found`}
         </Text>
 
-        <FlatList
-          data={priests}
-          renderItem={renderPriestItem}
-          keyExtractor={(item) => `${item._id}`}
-          contentContainerStyle={styles.priestsList}
-          showsVerticalScrollIndicator={false}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Ionicons name="search" size={60} color={APP_COLORS.lightGray} />
-              <Text style={styles.emptyText}>No priests found</Text>
-              <Text style={styles.emptySubtext}>
-                Try adjusting your search criteria
-              </Text>
-            </View>
-          }
-        />
+        {loading ? (
+          <View style={{ paddingTop: 8 }}>
+            {[1, 2, 3, 4].map(i => (
+              <View key={i} style={[styles.priestCard, { opacity: 1 - i * 0.15 }]}>
+                <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: APP_COLORS.lightGray }} />
+                <View style={[styles.priestInfo, { justifyContent: "center" }]}>
+                  <View style={{ width: 140, height: 16, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 8 }} />
+                  <View style={{ width: 100, height: 12, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 6 }} />
+                  <View style={{ width: 80, height: 12, borderRadius: 4, backgroundColor: APP_COLORS.lightGray }} />
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <FlatList
+            data={priests}
+            renderItem={renderPriestItem}
+            keyExtractor={(item) => `${item._id}`}
+            contentContainerStyle={styles.priestsList}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="search" size={60} color={APP_COLORS.lightGray} />
+                <Text style={styles.emptyText}>No priests found</Text>
+                <Text style={styles.emptySubtext}>
+                  Try adjusting your search criteria
+                </Text>
+              </View>
+            }
+          />
+        )}
       </View>
     </SafeAreaView>
   );

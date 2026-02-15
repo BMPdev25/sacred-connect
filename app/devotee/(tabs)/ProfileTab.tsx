@@ -1,524 +1,980 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Alert,
   Image,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Switch,
   Text,
   TouchableOpacity,
   View,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useDispatch, useSelector } from "react-redux";
+import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { APP_COLORS } from "../../../constants/Colors";
-import { logout } from "../../../redux/slices/authSlice";
+import { logout, updateUserProfile } from "../../../redux/slices/authSlice";
 import { updateNotificationPreferences } from "../../../redux/slices/userSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
+import Card from "../../../components/Card";
+import api from "../../../api";
 
-const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
-
+// ─── Component ────────────────────────────────────────────────────────────
 const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
+  const insets = useSafeAreaInsets();
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
-  // console.log('User Info:', userInfo);
+  // Local state for profile data
+  const [isLoading, setIsLoading] = useState(false);
+  const [profileData, setProfileData] = useState<any>(null);
 
-  // Edit mode state
-  // const [isEditMode, setIsEditMode] = useState(false);
-  // const [name, setName] = useState(userInfo?.name || '');
-  // const [email, setEmail] = useState(userInfo?.email || '');
-  // const [phone, setPhone] = useState(userInfo?.phone || '');
+  // Personal Details State
+  const [personalDetails, setPersonalDetails] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    dateOfBirth: new Date(),
+  });
+  const [isPersonalModalVisible, setIsPersonalModalVisible] = useState(false);
+  const [isSavingPersonal, setIsSavingPersonal] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
-  // Notification preferences (initialize from Redux user slice when available)
+  // Family Details State
+  const [familyDetails, setFamilyDetails] = useState({
+    gotra: "",
+    nakshatra: "",
+    rashi: "",
+  });
+  const [isFamilyModalVisible, setIsFamilyModalVisible] = useState(false);
+  const [isSavingFamily, setIsSavingFamily] = useState(false);
+
+  // Photo Upload State
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+
+  // Notification preferences
   const authUserInfo = useSelector((state: RootState) => state.auth.userInfo);
   const userNotifications = (authUserInfo as any)?.notifications || {
     email: { bookingUpdates: true, promotions: false, reminders: true },
     push: { bookingUpdates: true, promotions: false, reminders: true },
   };
 
-  const [notifyUpcomingBookings, setNotifyUpcomingBookings] = useState<boolean>(
+  const [notifyUpcoming, setNotifyUpcoming] = useState<boolean>(
     userNotifications.push?.bookingUpdates ?? true
   );
-  const [notifyBookingConfirmations, setNotifyBookingConfirmations] =
-    useState<boolean>(userNotifications.push?.reminders ?? true);
+  const [notifyConfirmations, setNotifyConfirmations] = useState<boolean>(
+    userNotifications.push?.reminders ?? true
+  );
   const [notifyPromotions, setNotifyPromotions] = useState<boolean>(
     userNotifications.push?.promotions ?? false
   );
 
-  // Dispatch changes to the server when toggles change
-  const onToggleNotifyUpcomingBookings = (value: boolean) => {
-    setNotifyUpcomingBookings(value);
-    dispatch(
-      updateNotificationPreferences({ push: { bookingUpdates: value } } as any)
-    );
+  // Fetch profile data on mount or focus
+  const fetchProfile = async () => {
+    try {
+      setIsLoading(true);
+      const response = await api.get('/api/users/profile');
+      if (response.data && response.data.success) {
+        const data = response.data.data;
+        setProfileData(data);
+
+        // Update Redux if needed (optional, but good for consistency)
+        // dispatch(updateUserProfile(data));
+
+        if (data.familyDetails) {
+          setFamilyDetails({
+            gotra: data.familyDetails.gotra || "",
+            nakshatra: data.familyDetails.nakshatra || "",
+            rashi: data.familyDetails.rashi || "",
+          });
+        }
+
+        // Populate Personal Details
+        setPersonalDetails({
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
+          dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : new Date(),
+        });
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const onToggleNotifyBookingConfirmations = (value: boolean) => {
-    setNotifyBookingConfirmations(value);
-    dispatch(
-      updateNotificationPreferences({ push: { reminders: value } } as any)
-    );
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchProfile();
+    }, [])
+  );
 
-  const onToggleNotifyPromotions = (value: boolean) => {
-    setNotifyPromotions(value);
-    dispatch(
-      updateNotificationPreferences({ push: { promotions: value } } as any)
-    );
+  const onToggle = (
+    key: "bookingUpdates" | "reminders" | "promotions",
+    value: boolean,
+    setter: (v: boolean) => void
+  ) => {
+    setter(value);
+    dispatch(updateNotificationPreferences({ push: { [key]: value } } as any));
   };
 
   const handleLogout = () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to logout?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
+    Alert.alert("Logout", "Are you sure you want to logout?", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Logout",
+        style: "destructive",
+        onPress: async () => {
+          await dispatch(logout());
+          try {
+            router.replace("/login" as any);
+          } catch (e) {
+            router.push("/login" as any);
+          }
         },
-        {
-          text: "Logout",
-          onPress: async () => {
-            // dispatch logout thunk which clears AsyncStorage and auth state
-            await dispatch(logout());
-            // replace navigation stack to login
-            try {
-              router.replace("/login" as any);
-            } catch (e) {
-              // fallback: attempt push
-              router.push("/login" as any);
-            }
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+      },
+    ]);
   };
 
-  // const handleSaveProfile = () => {
-  //   if (!name || !email || !phone) {
-  //     Alert.alert('Error', 'Please fill all required fields');
-  //     return;
-  //   }
+  // ─── Photo Upload Logic ─────────────────────────────────────────────────
+  const handlePickImage = async () => {
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
-  //   // In a real app, this would dispatch an API call to update the profile
-  //   // For now, we'll just update the local state
-  //   dispatch(updateProfile({
-  //     name,
-  //     email,
-  //     phone,
-  //   })).then((result) => {
-  //     if (!(result as any)?.error) {
-  //       // Ensures latest profile is loaded after update
-  //       dispatch(loadUser());
-  //       setIsEditMode(false);
-  //       Alert.alert('Success', 'Profile updated successfully');
-  //     }
-  //   });
-  // };
+      if (permissionResult.granted === false) {
+        Alert.alert("Permission Required", "You need to grant access to your photos to upload a profile picture.");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        uploadProfilePicture(result.assets[0]);
+      }
+    } catch (error) {
+      console.error("Error picking image:", error);
+      Alert.alert("Error", "Failed to pick image");
+    }
+  };
+
+  const uploadProfilePicture = async (asset: ImagePicker.ImagePickerAsset) => {
+    try {
+      setIsUploadingPhoto(true);
+
+      const formData = new FormData();
+      // @ts-ignore - React Native FormData expects specific object structure
+      formData.append('profilePicture', {
+        uri: asset.uri,
+        name: asset.fileName || 'profile.jpg',
+        type: asset.mimeType || 'image/jpeg',
+      });
+
+      const response = await api.post('/api/users/profile/picture', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data && response.data.success) {
+        // Update local state
+        setProfileData((prev: any) => ({
+          ...prev,
+          profilePicture: response.data.data.profilePicture
+        }));
+
+        // Update Redux state so header avatar updates immediately
+        dispatch(updateUserProfile({
+          profilePicture: response.data.data.profilePicture
+        }));
+
+        Alert.alert("Success", "Profile picture updated successfully");
+      }
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      Alert.alert("Upload Failed", error.response?.data?.message || "Failed to upload profile picture");
+    } finally {
+      setIsUploadingPhoto(false);
+    }
+  };
+
+  // ─── Personal Details Logic ──────────────────────────────────────────────
+  const savePersonalDetails = async () => {
+    if (!personalDetails.name.trim() || !personalDetails.email.trim() || !personalDetails.phone.trim()) {
+      Alert.alert("Error", "Name, Email and Phone are required");
+      return;
+    }
+
+    try {
+      setIsSavingPersonal(true);
+      const response = await api.put('/api/users/profile', {
+        name: personalDetails.name,
+        email: personalDetails.email,
+        phone: personalDetails.phone,
+        dateOfBirth: personalDetails.dateOfBirth.toISOString()
+      });
+
+      if (response.data && response.data.success) {
+        setProfileData((prev: any) => ({
+          ...prev,
+          name: response.data.data.name,
+          email: response.data.data.email,
+          phone: response.data.data.phone,
+          dateOfBirth: response.data.data.dateOfBirth
+        }));
+
+        // Update Redux for global state
+        dispatch(updateUserProfile({
+          name: response.data.data.name,
+          email: response.data.data.email,
+          phone: response.data.data.phone
+        }));
+
+        setIsPersonalModalVisible(false);
+      }
+    } catch (error: any) {
+      console.error("Save personal details error:", error);
+      Alert.alert("Error", error.response?.data?.message || "Failed to save personal details");
+    } finally {
+      setIsSavingPersonal(false);
+    }
+  };
+
+  // ─── Family Details Logic ───────────────────────────────────────────────
+  const saveFamilyDetails = async () => {
+    try {
+      setIsSavingFamily(true);
+      const response = await api.put('/api/users/profile', {
+        familyDetails: familyDetails
+      });
+
+      if (response.data && response.data.success) {
+        setProfileData((prev: any) => ({
+          ...prev,
+          familyDetails: response.data.data.familyDetails
+        }));
+        setIsFamilyModalVisible(false);
+        // Alert.alert("Success", "Family details updated successfully");
+      }
+    } catch (error: any) {
+      console.error("Save family details error:", error);
+      Alert.alert("Error", error.response?.data?.message || "Failed to save family details");
+    } finally {
+      setIsSavingFamily(false);
+    }
+  };
+
+  const firstName = userInfo?.name?.split(" ")[0] || "Devotee";
+  const userProfilePic = profileData?.profilePicture?.url || userInfo?.profilePicture?.url;
+
+  // Menu item helper
+  const MenuItem = ({
+    icon,
+    label,
+    onPress,
+    color = APP_COLORS.saffron,
+    showChevron = true,
+  }: {
+    icon: string;
+    label: string;
+    onPress: () => void;
+    color?: string;
+    showChevron?: boolean;
+  }) => (
+    <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
+      <View style={[styles.menuIconWrap, { backgroundColor: color + "15" }]}>
+        <Ionicons name={icon as any} size={20} color={color} />
+      </View>
+      <Text style={styles.menuLabel}>{label}</Text>
+      {showChevron && <Ionicons name="chevron-forward" size={18} color={APP_COLORS.gray} />}
+    </TouchableOpacity>
+  );
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View
-        style={[
-          styles.header,
-          {
-            paddingTop: HEADER_TOP_PADDING,
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 4,
-            elevation: 4,
-            borderBottomWidth: 1,
-            borderBottomColor: APP_COLORS.lightGray,
-          },
-        ]}
-      >
-        <Text style={styles.headerTitle}>Profile</Text>
-        <TouchableOpacity onPress={() => router.push("/Help")}>
-          <Ionicons
-            name="help-circle-outline"
-            size={24}
-            color={APP_COLORS.gray}
-          />
-        </TouchableOpacity>
-      </View>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <StatusBar style="dark" />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
 
-      <ScrollView style={styles.content}>
+        {/* ── Profile Header ──────────────────────────── */}
         <View style={styles.profileHeader}>
-          <Image
-            source={require("../../../assets/images/default-profile.png")}
-            style={styles.profileImage}
-          />
-          <Text style={styles.userName}>{userInfo?.name || "User Name"}</Text>
-        </View>
-
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Personal Information</Text>
+          <View style={styles.avatarContainer}>
+            {isUploadingPhoto ? (
+              <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: APP_COLORS.lightGray }]}>
+                <ActivityIndicator color={APP_COLORS.saffron} />
+              </View>
+            ) : (
+              <Image
+                source={
+                  userProfilePic
+                    ? { uri: userProfilePic }
+                    : require("../../../assets/images/default-profile.png")
+                }
+                style={styles.avatar}
+              />
+            )}
+            <TouchableOpacity
+              style={styles.editAvatarBtn}
+              onPress={handlePickImage}
+              disabled={isUploadingPhoto}
+            >
+              <Ionicons name="camera" size={14} color={APP_COLORS.white} />
+            </TouchableOpacity>
           </View>
-
-          <View style={styles.infoContainer}>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Email</Text>
-              <Text style={styles.infoValue}>
-                {userInfo?.email || "email@example.com"}
+          <View style={styles.nameRatingContainer}>
+            <Text style={styles.userName}>{userInfo?.name || "Devotee"}</Text>
+            <View style={styles.ratingBadge}>
+              <Ionicons name="star" size={12} color={APP_COLORS.white} />
+              <Text style={styles.ratingText}>
+                {profileData?.rating?.average?.toFixed(1) || userInfo?.rating?.average?.toFixed(1) || "5.0"}
               </Text>
             </View>
-            <View style={styles.infoItem}>
-              <Text style={styles.infoLabel}>Phone</Text>
-              <Text style={styles.infoValue}>
-                {userInfo?.phone || "+91 XXXXX XXXXX"}
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notification Preferences</Text>
-          <View style={styles.notificationItem}>
-            <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Upcoming Bookings</Text>
-              <Text style={styles.notificationDescription}>
-                Receive reminders for your upcoming ceremonies
-              </Text>
-            </View>
-            <Switch
-              value={notifyUpcomingBookings}
-              onValueChange={onToggleNotifyUpcomingBookings}
-              trackColor={{
-                false: APP_COLORS.lightGray,
-                true: APP_COLORS.primary + "80",
-              }}
-              thumbColor={
-                notifyUpcomingBookings ? APP_COLORS.primary : APP_COLORS.gray
-              }
-            />
-          </View>
-          <View style={styles.notificationItem}>
-            <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>
-                Booking Confirmations
-              </Text>
-              <Text style={styles.notificationDescription}>
-                Receive notifications for booking confirmations and updates
-              </Text>
-            </View>
-            <Switch
-              value={notifyBookingConfirmations}
-              onValueChange={onToggleNotifyBookingConfirmations}
-              trackColor={{
-                false: APP_COLORS.lightGray,
-                true: APP_COLORS.primary + "80",
-              }}
-              thumbColor={
-                notifyBookingConfirmations
-                  ? APP_COLORS.primary
-                  : APP_COLORS.gray
-              }
-            />
-          </View>
-          <View style={styles.notificationItem}>
-            <View style={styles.notificationInfo}>
-              <Text style={styles.notificationTitle}>Promotions & News</Text>
-              <Text style={styles.notificationDescription}>
-                Receive updates about promotions and new features
-              </Text>
-            </View>
-            <Switch
-              value={notifyPromotions}
-              onValueChange={onToggleNotifyPromotions}
-              trackColor={{
-                false: APP_COLORS.lightGray,
-                true: APP_COLORS.primary + "80",
-              }}
-              thumbColor={
-                notifyPromotions ? APP_COLORS.primary : APP_COLORS.gray
-              }
-            />
           </View>
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <TouchableOpacity
-            style={styles.accountOption}
-            onPress={() => router.push("/(devoteeScreens)/profile/ManageAddresses")}
-          >
-            <Ionicons
-              name="location-outline"
-              size={24}
-              color={APP_COLORS.primary}
-            />
-            <Text style={styles.accountOptionText}>Saved Addresses</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.accountOption}
-            onPress={() => router.push("/SecurityAndPrivacy" as any)}
-          >
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={24}
-              color={APP_COLORS.primary}
-            />
-            <Text style={styles.accountOptionText}>Security & Privacy</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.accountOption}
-            onPress={() => router.push("/PaymentMethods")}
-          >
-            <Ionicons
-              name="card-outline"
-              size={24}
-              color={APP_COLORS.primary}
-            />
-            <Text style={styles.accountOptionText}>Payment Methods</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.accountOption}
-            onPress={() => router.push("/Help")}
-          >
-            <Ionicons
-              name="help-circle-outline"
-              size={24}
-              color={APP_COLORS.primary}
-            />
-            <Text style={styles.accountOptionText}>Help & Support</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.accountOption}
-            onPress={() => router.push("/TermsAndConditions")}
-          >
-            <Ionicons
-              name="document-text-outline"
-              size={24}
-              color={APP_COLORS.primary}
-            />
-            <Text style={styles.accountOptionText}>Terms & Conditions</Text>
-          </TouchableOpacity>
+        {/* ── Personal Details ────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>👤 Personal Details</Text>
+          <Card>
+            <View style={styles.detailRow}>
+              <View style={[styles.menuIconWrap, { backgroundColor: APP_COLORS.saffron + "15" }]}>
+                <Ionicons name="person-outline" size={20} color={APP_COLORS.saffron} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Full Name</Text>
+                <Text style={styles.detailValue}>{profileData?.name || userInfo?.name || "-"}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={[styles.menuIconWrap, { backgroundColor: APP_COLORS.saffron + "15" }]}>
+                <Ionicons name="mail-outline" size={20} color={APP_COLORS.saffron} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Email Address</Text>
+                <Text style={styles.detailValue}>{profileData?.email || userInfo?.email || "-"}</Text>
+              </View>
+            </View>
+
+            <View style={styles.detailRow}>
+              <View style={[styles.menuIconWrap, { backgroundColor: APP_COLORS.saffron + "15" }]}>
+                <Ionicons name="call-outline" size={20} color={APP_COLORS.saffron} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Phone Number</Text>
+                <Text style={styles.detailValue}>{profileData?.phone || userInfo?.phone || "-"}</Text>
+              </View>
+            </View>
+
+            <View style={[styles.detailRow, { borderBottomWidth: 0 }]}>
+              <View style={[styles.menuIconWrap, { backgroundColor: APP_COLORS.saffron + "15" }]}>
+                <Ionicons name="calendar-outline" size={20} color={APP_COLORS.saffron} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.detailLabel}>Date of Birth</Text>
+                <Text style={styles.detailValue}>
+                  {profileData?.dateOfBirth
+                    ? new Date(profileData.dateOfBirth).toLocaleDateString()
+                    : "-"}
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.editFamilyBtn, { marginTop: 8 }]}
+              onPress={() => setIsPersonalModalVisible(true)}
+            >
+              <Ionicons name="create-outline" size={16} color={APP_COLORS.saffron} />
+              <Text style={styles.editFamilyText}>Edit Personal Details</Text>
+            </TouchableOpacity>
+          </Card>
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+        {/* ── My Family ───────────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>🏠 My Family</Text>
+          <Card style={styles.familyCard}>
+            <View style={styles.familyRow}>
+              <View style={styles.familyItem}>
+                <Text style={styles.familyLabel}>Gotra</Text>
+                <Text style={styles.familyValue}>{familyDetails.gotra || "-"}</Text>
+              </View>
+              <View style={styles.familyDivider} />
+              <View style={styles.familyItem}>
+                <Text style={styles.familyLabel}>Nakshatra</Text>
+                <Text style={styles.familyValue}>{familyDetails.nakshatra || "-"}</Text>
+              </View>
+              <View style={styles.familyDivider} />
+              <View style={styles.familyItem}>
+                <Text style={styles.familyLabel}>Rashi</Text>
+                <Text style={styles.familyValue}>{familyDetails.rashi || "-"}</Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.editFamilyBtn}
+              onPress={() => setIsFamilyModalVisible(true)}
+            >
+              <Ionicons name="create-outline" size={16} color={APP_COLORS.saffron} />
+              <Text style={styles.editFamilyText}>Edit Details</Text>
+            </TouchableOpacity>
+          </Card>
+        </View>
+
+        {/* ── Account ─────────────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>⚙️ Account</Text>
+          <Card>
+            <MenuItem
+              icon="location-outline"
+              label="Saved Addresses"
+              onPress={() => router.push("/(devoteeScreens)/profile/ManageAddresses")}
+            />
+            <MenuItem
+              icon="card-outline"
+              label="Payment Methods"
+              onPress={() => router.push("/PaymentMethods")}
+            />
+          </Card>
+        </View>
+
+        {/* ── Notifications ───────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>🔔 Notifications</Text>
+          <Card>
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleTitle}>Upcoming Bookings</Text>
+                <Text style={styles.toggleDesc}>Reminders for your ceremonies</Text>
+              </View>
+              <Switch
+                value={notifyUpcoming}
+                onValueChange={(v) => onToggle("bookingUpdates", v, setNotifyUpcoming)}
+                trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.saffron + "60" }}
+                thumbColor={notifyUpcoming ? APP_COLORS.saffron : APP_COLORS.gray}
+              />
+            </View>
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleTitle}>Booking Confirmations</Text>
+                <Text style={styles.toggleDesc}>Updates on booking status</Text>
+              </View>
+              <Switch
+                value={notifyConfirmations}
+                onValueChange={(v) => onToggle("reminders", v, setNotifyConfirmations)}
+                trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.saffron + "60" }}
+                thumbColor={notifyConfirmations ? APP_COLORS.saffron : APP_COLORS.gray}
+              />
+            </View>
+            <View style={[styles.toggleRow, { borderBottomWidth: 0 }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.toggleTitle}>Promotions & News</Text>
+                <Text style={styles.toggleDesc}>Special offers and updates</Text>
+              </View>
+              <Switch
+                value={notifyPromotions}
+                onValueChange={(v) => onToggle("promotions", v, setNotifyPromotions)}
+                trackColor={{ false: APP_COLORS.lightGray, true: APP_COLORS.saffron + "60" }}
+                thumbColor={notifyPromotions ? APP_COLORS.saffron : APP_COLORS.gray}
+              />
+            </View>
+          </Card>
+        </View>
+
+        {/* ── App ─────────────────────────────────────── */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>ℹ️ App</Text>
+          <Card>
+            <MenuItem
+              icon="help-circle-outline"
+              label="Help & Support"
+              onPress={() => router.push("/Help")}
+              color={APP_COLORS.info}
+            />
+            <MenuItem
+              icon="document-text-outline"
+              label="Privacy Policy"
+              onPress={() => router.push("/TermsAndConditions")}
+              color={APP_COLORS.gray}
+            />
+            <MenuItem
+              icon="shield-checkmark-outline"
+              label="Security & Privacy"
+              onPress={() => router.push("/SecurityAndPrivacy" as any)}
+              color={APP_COLORS.success}
+            />
+          </Card>
+        </View>
+
+        {/* ── Logout ──────────────────────────────────── */}
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.7}>
           <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
-          <Text style={styles.logoutButtonText}>Logout</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
 
-        <View style={styles.versionInfo}>
-          <Text style={styles.versionText}>Sacred Connect v1.0.0</Text>
+        <Text style={styles.versionText}>BookMyPujari v1.0.0</Text>
+      </ScrollView >
+
+      {/* ── Edit Personal Details Modal ──────────────── */}
+      < Modal
+        visible={isPersonalModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsPersonalModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Personal Details</Text>
+              <TouchableOpacity onPress={() => setIsPersonalModalVisible(false)}>
+                <Ionicons name="close" size={24} color={APP_COLORS.gray} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={personalDetails.name}
+                  onChangeText={(text) => setPersonalDetails({ ...personalDetails, name: text })}
+                  placeholder="Enter Name"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={personalDetails.email}
+                  onChangeText={(text) => setPersonalDetails({ ...personalDetails, email: text })}
+                  placeholder="Enter Email"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone</Text>
+                <TextInput
+                  style={styles.input}
+                  value={personalDetails.phone}
+                  onChangeText={(text) => setPersonalDetails({ ...personalDetails, phone: text })}
+                  placeholder="Enter Phone"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Date of Birth</Text>
+                <TouchableOpacity
+                  style={styles.input}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <Text>{personalDetails.dateOfBirth.toLocaleDateString()}</Text>
+                </TouchableOpacity>
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={personalDetails.dateOfBirth}
+                    mode="date"
+                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                    onChange={(event, selectedDate) => {
+                      setShowDatePicker(false);
+                      if (selectedDate) {
+                        setPersonalDetails({ ...personalDetails, dateOfBirth: selectedDate });
+                      }
+                    }}
+                    maximumDate={new Date()}
+                  />
+                )}
+              </View>
+
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={savePersonalDetails}
+                disabled={isSavingPersonal}
+              >
+                {isSavingPersonal ? (
+                  <ActivityIndicator color={APP_COLORS.white} />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </Modal >
+
+      {/* ── Edit Family Modal ───────────────────────── */}
+      < Modal
+        visible={isFamilyModalVisible}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setIsFamilyModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Family Details</Text>
+              <TouchableOpacity onPress={() => setIsFamilyModalVisible(false)}>
+                <Ionicons name="close" size={24} color={APP_COLORS.gray} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Gotra</Text>
+              <TextInput
+                style={styles.input}
+                value={familyDetails.gotra}
+                onChangeText={(text) => setFamilyDetails({ ...familyDetails, gotra: text })}
+                placeholder="Enter Gotra"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Nakshatra</Text>
+              <TextInput
+                style={styles.input}
+                value={familyDetails.nakshatra}
+                onChangeText={(text) => setFamilyDetails({ ...familyDetails, nakshatra: text })}
+                placeholder="Enter Nakshatra"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Rashi (Zodiac)</Text>
+              <TextInput
+                style={styles.input}
+                value={familyDetails.rashi}
+                onChangeText={(text) => setFamilyDetails({ ...familyDetails, rashi: text })}
+                placeholder="Enter Rashi"
+              />
+            </View>
+
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={saveFamilyDetails}
+              disabled={isSavingFamily}
+            >
+              {isSavingFamily ? (
+                <ActivityIndicator color={APP_COLORS.white} />
+              ) : (
+                <Text style={styles.saveButtonText}>Save Details</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal >
+
+    </View >
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
   },
-  header: {
-    backgroundColor: APP_COLORS.white,
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-  },
-  content: {
-    flex: 1,
-  },
+
+  // Profile Header
   profileHeader: {
-    backgroundColor: APP_COLORS.white,
     alignItems: "center",
-    padding: 24,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    backgroundColor: APP_COLORS.surface,
+    paddingVertical: 28,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  profileImage: {
+  avatarContainer: {
+    position: "relative",
+    marginBottom: 14,
+  },
+  avatar: {
     width: 100,
     height: 100,
     borderRadius: 50,
-    marginBottom: 16,
+    borderWidth: 3,
+    borderColor: APP_COLORS.saffron + "40",
   },
-  editProfileButton: {
+  editAvatarBtn: {
     position: "absolute",
-    top: 96,
-    right: "50%",
-    marginRight: -50,
-    backgroundColor: APP_COLORS.primary,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    bottom: 2,
+    right: 2,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: APP_COLORS.saffron,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 3,
-    borderColor: APP_COLORS.white,
+    borderWidth: 2,
+    borderColor: APP_COLORS.surface,
   },
   userName: {
-    fontSize: 20,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "800",
+    color: APP_COLORS.headingText,
   },
-  editNameContainer: {
-    width: "80%",
+  nameRatingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
   },
-  editNameInput: {
-    fontSize: 20,
-    fontWeight: "bold",
-    textAlign: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.primary,
+  ratingBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.saffron,
+    paddingHorizontal: 8,
     paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
   },
-  section: {
-    backgroundColor: APP_COLORS.white,
-    margin: 16,
-    marginBottom: 0,
-    borderRadius: 10,
-    padding: 16,
-    elevation: 2,
+  ratingText: {
+    color: APP_COLORS.white,
+    fontSize: 12,
+    fontWeight: '700',
   },
-  sectionHeader: {
+  levelBadge: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 16,
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 20,
+    gap: 6,
+    marginBottom: 6,
+  },
+  levelText: {
+    fontSize: 12,
+    fontWeight: "700",
+    color: APP_COLORS.saffron,
+  },
+  userPhone: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+  },
+
+  // Sections
+  sectionContainer: {
+    paddingHorizontal: 16,
+    marginTop: 22,
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+    marginBottom: 10,
+    marginLeft: 2,
   },
-  editButton: {
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: APP_COLORS.primary + "20",
+
+  // Family Card
+  familyCard: {
+    paddingBottom: 8,
   },
-  editButtonText: {
-    fontSize: 12,
-    color: APP_COLORS.primary,
-    fontWeight: "bold",
-  },
-  infoContainer: {
-    marginBottom: 8,
-  },
-  infoItem: {
-    marginBottom: 16,
-  },
-  infoLabel: {
-    fontSize: 12,
-    color: APP_COLORS.gray,
-    marginBottom: 4,
-  },
-  infoValue: {
-    fontSize: 16,
-  },
-  editContainer: {
-    marginBottom: 8,
-  },
-  inputContainer: {
-    marginBottom: 16,
-  },
-  inputLabel: {
-    fontSize: 12,
-    color: APP_COLORS.gray,
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    fontSize: 16,
-  },
-  editActions: {
+  familyRow: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-around",
+    marginBottom: 14,
   },
-  cancelButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: APP_COLORS.gray,
-  },
-  cancelButtonText: {
-    color: APP_COLORS.gray,
-    fontWeight: "bold",
-  },
-  saveButton: {
-    backgroundColor: APP_COLORS.primary,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
-  },
-  saveButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-  },
-  notificationItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  familyItem: {
     alignItems: "center",
-    marginBottom: 16,
-  },
-  notificationInfo: {
     flex: 1,
-    marginRight: 16,
   },
-  notificationTitle: {
-    fontSize: 16,
-    fontWeight: "500",
+  familyLabel: {
+    fontSize: 11,
+    color: APP_COLORS.gray,
+    fontWeight: "600",
     marginBottom: 4,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
-  notificationDescription: {
+  familyValue: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+    textAlign: 'center',
+  },
+  familyDivider: {
+    width: 1,
+    backgroundColor: APP_COLORS.divider,
+  },
+  editFamilyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: APP_COLORS.divider,
+  },
+  editFamilyText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: APP_COLORS.saffron,
+  },
+
+  // Menu Items
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.divider,
+  },
+  menuIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 14,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: "500",
+    color: APP_COLORS.bodyText,
+  },
+
+  // Toggle Rows
+  toggleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.divider,
+  },
+  toggleTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: APP_COLORS.bodyText,
+    marginBottom: 2,
+  },
+  toggleDesc: {
     fontSize: 12,
     color: APP_COLORS.gray,
   },
-  accountOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
-  },
-  accountOptionText: {
-    marginLeft: 16,
-    fontSize: 16,
-  },
+
+  // Logout
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
     marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: APP_COLORS.error,
+    marginTop: 28,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.error + "40",
+    backgroundColor: APP_COLORS.error + "08",
+    gap: 8,
   },
-  logoutButtonText: {
-    marginLeft: 8,
+  logoutText: {
+    fontSize: 16,
+    fontWeight: "700",
     color: APP_COLORS.error,
-    fontWeight: "bold",
   },
-  versionInfo: {
-    alignItems: "center",
-    paddingBottom: 24,
-  },
+
+  // Version
   versionText: {
+    textAlign: "center",
     fontSize: 12,
     color: APP_COLORS.gray,
+    marginTop: 16,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: APP_COLORS.surface,
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: APP_COLORS.headingText,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: APP_COLORS.bodyText,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
+    borderRadius: 12,
+    padding: 12,
+    fontSize: 16,
+    backgroundColor: APP_COLORS.background,
+  },
+  saveButton: {
+    backgroundColor: APP_COLORS.saffron,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  saveButtonText: {
+    color: APP_COLORS.white,
+    fontWeight: '700',
+    fontSize: 16,
+  },
+
+  // Personal Details Rows
+  detailRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.divider,
+  },
+  detailLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginBottom: 2,
+  },
+  detailValue: {
+    fontSize: 15,
+    color: APP_COLORS.headingText,
+    fontWeight: "500",
   },
 });
 

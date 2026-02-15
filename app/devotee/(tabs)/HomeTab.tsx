@@ -3,11 +3,11 @@ import { router } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Dimensions,
   Image,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -20,62 +20,89 @@ import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
 import ceremonyService from "../../../services/ceremonyService";
 import RatingModal from "../../../components/RatingModal";
+import Card from "../../../components/Card";
+import PrimaryButton from "../../../components/PrimaryButton";
+import { useNotifications } from "../../../context/NotificationContext";
 import { Alert } from "react-native";
 
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+// ─── Mock Data (renders immediately, no backend dependency) ───────────────
+const MOCK_PANCHANG = {
+  title: "Today is Ekadashi",
+  subtitle: "Auspicious for Vishnu Puja & Fasting",
+  nakshatra: "Rohini",
+  tithi: "Ekadashi",
+};
+
+const MOCK_BANNERS = [
+  { id: "1", title: "Ganesh Chaturthi Special", subtitle: "10% Off on all Ganesh Pujas", color: "#FF9933" },
+  { id: "2", title: "Navratri Celebrations", subtitle: "Book Durga Puja early", color: "#C62828" },
+  { id: "3", title: "New Priest Onboarded", subtitle: "Pandit Sharma now available", color: "#2E7D32" },
+];
+
+const MOCK_BOOK_AGAIN = [
+  { id: "1", name: "Satyanarayan Puja", priest: "Pandit Sharma", date: "Jan 15, 2026", price: "₹2,100" },
+  { id: "2", name: "Griha Pravesh", priest: "Pandit Verma", date: "Dec 20, 2025", price: "₹5,500" },
+];
+
+const CATEGORY_DATA = [
+  { id: "1", name: "Havans", icon: "flame-outline" as const, color: "#FF6B35" },
+  { id: "2", name: "Festivals", icon: "sparkles-outline" as const, color: "#E91E63" },
+  { id: "3", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933" },
+  { id: "4", name: "Ancestors", icon: "people-outline" as const, color: "#7B1FA2" },
+];
+
+// ─── Component ────────────────────────────────────────────────────────────
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const insets = useSafeAreaInsets();
 
   // Fetch ceremonies from backend
   const { data: ceremoniesData, isLoading: isLoadingCeremonies } = useQuery({
     queryKey: ["ceremonies", "popular"],
-    queryFn: () => ceremonyService.getAllPujas({ limit: 5 }), // Using getAllPujas based on service wrapper
+    queryFn: () => ceremonyService.getAllPujas({ limit: 5 }),
     select: (data) => data.ceremonies || [],
   });
 
-  // Mock data for recommended priests
+  // Fetch recommended priests & pending actions
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
+  const [activeBanner, setActiveBanner] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [priestsRes, actionsRes] = await Promise.allSettled([
           devoteeService.searchPriests({ limit: 10 }),
-          devoteeService.getPendingActions()
+          devoteeService.getPendingActions(),
         ]);
 
-        if (priestsRes.status === 'fulfilled' && priestsRes.value?.priests?.length > 0) {
+        if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
           setRecommendedPriests(priestsRes.value.priests);
         } else {
           setRecommendedPriests([]);
         }
 
-        if (actionsRes.status === 'fulfilled') {
+        if (actionsRes.status === "fulfilled") {
           setPendingActions(actionsRes.value);
         }
-
       } catch (err) {
-        console.error("Error fetching home data:", err);
+        // Fail silently — mock data ensures UI still renders
       }
     };
     fetchData();
   }, []);
 
   const openRateModal = (booking: any) => {
-    // Booking structure from getPendingActions might be slightly different
-    // The structure returned from backend is: { ..., booking: { ... } }
-    // We need to pass the inner booking object or construct what's needed
     setSelectedBookingForRating(booking.booking);
     setRateModalVisible(true);
   };
 
   const handleSubmitRating = async (rating: number, comment: string, tags: string[]) => {
     if (!selectedBookingForRating) return;
-
     try {
       await devoteeService.submitReview({
         bookingId: selectedBookingForRating._id,
@@ -84,14 +111,11 @@ const HomeScreen: React.FC = () => {
         rating,
         comment,
         tags,
-        role: 'devotee_to_priest'
+        role: "devotee_to_priest",
       });
-
       Alert.alert("Success", "Review submitted!");
-      // Remove from pending actions
-      setPendingActions(prev => prev.filter(a => a.booking._id !== selectedBookingForRating._id));
+      setPendingActions((prev) => prev.filter((a) => a.booking._id !== selectedBookingForRating._id));
     } catch (error: any) {
-      console.error("Submit review error:", error);
       Alert.alert("Error", error.message || "Failed to submit review");
     } finally {
       setRateModalVisible(false);
@@ -99,110 +123,191 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    router.push(`/(devoteeScreens)/GlobalSearch?query=${searchQuery}`);
-  };
-
   const handleCeremonyPress = (ceremony: { _id: string; name: string }) => {
     router.push(`/(devoteeScreens)/(pujas)/${ceremony._id}`);
   };
 
-  const handlePriestPress = (priest: any) => {
-    router.push(`/PriestDetails?priestId=${priest._id}`);
-    // navigation.navigate("PriestDetails", { priestId: priest._id });
+  const firstName = userInfo?.name?.split(" ")[0] || "Devotee";
+
+  // Inline notification bell using the global NotificationContext
+  const NotificationBellInline = () => {
+    const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
+    return (
+      <TouchableOpacity style={styles.bellButton} onPress={toggleNotifications}>
+        <Ionicons
+          name={showNotifications ? "notifications" : "notifications-outline"}
+          size={22}
+          color={APP_COLORS.bodyText}
+        />
+        {unreadCount > 0 && <View style={styles.notifDot} />}
+      </TouchableOpacity>
+    );
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
+      <StatusBar style="dark" />
       <ScrollView
         style={styles.container}
-        contentContainerStyle={{ paddingBottom: 24 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        showsVerticalScrollIndicator={false}
       >
-        <View
-          style={[
-            styles.header,
-            {
-              paddingTop: Math.max(insets.top, 24) + 16,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 4,
-              borderBottomWidth: 1,
-              borderBottomColor: APP_COLORS.lightGray,
-            },
-          ]}
-        >
-          <View style={styles.headerContent}>
-            <Text style={styles.welcomeText}>
-              Welcome, {userInfo?.name || "Devotee"}
-            </Text>
-            <Text style={styles.headerTitle}>Find the Perfect Priest</Text>
-            <Text style={styles.headerSubtitle}>
-              Connect with experienced priests for your sacred ceremonies
-            </Text>
+        {/* ── Header ─────────────────────────────────────────── */}
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.greeting}>Namaste, {firstName} 🙏</Text>
+            <Text style={styles.headerSubtitle}>What would you like to do today?</Text>
+          </View>
+          <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.locationPill}>
+              <Ionicons name="location" size={14} color={APP_COLORS.saffron} />
+              <Text style={styles.locationText}>Hyderabad</Text>
+            </TouchableOpacity>
+            <NotificationBellInline />
           </View>
         </View>
 
-        <View style={styles.searchContainer}>
-          <TouchableOpacity
-            style={styles.searchBar}
-            onPress={() => router.push("/(devoteeScreens)/GlobalSearch")}
-            activeOpacity={1}
-          >
-            <Ionicons name="search" size={20} color={APP_COLORS.gray} />
-            <Text style={[styles.searchInput, { color: APP_COLORS.gray, paddingTop: 4 }]}>
-              Search for priests, ceremonies...
-            </Text>
-          </TouchableOpacity>
+        {/* ── Panchang Widget ────────────────────────────────── */}
+        <View style={styles.sectionPadding}>
+          <Card style={styles.panchangCard}>
+            <View style={styles.panchangGradient}>
+              <View style={styles.panchangIconWrap}>
+                <Ionicons name="sunny" size={28} color="#FFA726" />
+              </View>
+              <View style={{ flex: 1, marginLeft: 14 }}>
+                <Text style={styles.panchangTitle}>{MOCK_PANCHANG.title}</Text>
+                <Text style={styles.panchangSub}>{MOCK_PANCHANG.subtitle}</Text>
+                <View style={styles.panchangTags}>
+                  <View style={styles.panchangTag}>
+                    <Text style={styles.panchangTagText}>Nakshatra: {MOCK_PANCHANG.nakshatra}</Text>
+                  </View>
+                  <View style={styles.panchangTag}>
+                    <Text style={styles.panchangTagText}>Tithi: {MOCK_PANCHANG.tithi}</Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          </Card>
         </View>
 
-        {/* Pending Actions */}
+        {/* ── Hero Carousel ──────────────────────────────────── */}
+        <View style={styles.sectionPadding}>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            onMomentumScrollEnd={(e) => {
+              const page = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
+              setActiveBanner(page);
+            }}
+          >
+            {MOCK_BANNERS.map((banner) => (
+              <TouchableOpacity
+                key={banner.id}
+                style={[styles.bannerCard, { backgroundColor: banner.color }]}
+                activeOpacity={0.9}
+              >
+                <Ionicons name="megaphone" size={32} color="rgba(255,255,255,0.3)" style={styles.bannerIcon} />
+                <Text style={styles.bannerTitle}>{banner.title}</Text>
+                <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+          <View style={styles.dotsRow}>
+            {MOCK_BANNERS.map((_, i) => (
+              <View
+                key={i}
+                style={[styles.dot, activeBanner === i && styles.dotActive]}
+              />
+            ))}
+          </View>
+        </View>
+
+        {/* ── Pending Actions ────────────────────────────────── */}
         {pendingActions.length > 0 && (
-          <View style={styles.sectionContainer}>
-            <Text style={styles.sectionTitle}>Pending Actions</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>⚡ Pending Actions</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
               {pendingActions.map((action, index) => (
-                <View key={index} style={styles.actionCard}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                    <View style={[styles.actionIcon, { backgroundColor: APP_COLORS.warning + '20' }]}>
-                      <Ionicons name="star-outline" size={24} color={APP_COLORS.warning} />
+                <Card key={index} style={styles.actionCard}>
+                  <View style={styles.actionRow}>
+                    <View style={styles.actionIconWrap}>
+                      <Ionicons name="star-outline" size={22} color={APP_COLORS.warning} />
                     </View>
-                    <View style={{ marginLeft: 12, flex: 1 }}>
+                    <View style={{ flex: 1, marginLeft: 12 }}>
                       <Text style={styles.actionTitle}>{action.title}</Text>
                       <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
                     </View>
                   </View>
-
-                  <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: APP_COLORS.warning }]}
-                    onPress={() => openRateModal(action)}
-                  >
-                    <Text style={styles.actionBtnText}>Rate Experience</Text>
-                  </TouchableOpacity>
-                </View>
+                  <PrimaryButton title="Rate Experience" onPress={() => openRateModal(action)} size="sm" />
+                </Card>
               ))}
             </ScrollView>
           </View>
         )}
 
-        <View style={styles.ceremoniesContainer}>
-          <Text style={styles.sectionTitle}>Popular Ceremonies</Text>
+        {/* ── Book Again ─────────────────────────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🔁 Book Again</Text>
+          </View>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+            {MOCK_BOOK_AGAIN.map((item) => (
+              <Card key={item.id} style={styles.bookAgainCard} onPress={() => { }}>
+                <View style={styles.bookAgainIcon}>
+                  <Ionicons name="flame" size={24} color={APP_COLORS.saffron} />
+                </View>
+                <Text style={styles.bookAgainName} numberOfLines={1}>{item.name}</Text>
+                <Text style={styles.bookAgainPriest}>{item.priest}</Text>
+                <Text style={styles.bookAgainDate}>{item.date}</Text>
+                <PrimaryButton title="Repeat" onPress={() => { }} size="sm" variant="outline" style={{ marginTop: 8 }} />
+              </Card>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* ── Shop by Category ───────────────────────────────── */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🕉️ Book by Category</Text>
+          <View style={styles.categoryGrid}>
+            {CATEGORY_DATA.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={styles.categoryCard}
+                activeOpacity={0.85}
+                onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+              >
+                <View style={[styles.categoryIconWrap, { backgroundColor: cat.color + "18" }]}>
+                  <Ionicons name={cat.icon} size={32} color={cat.color} />
+                </View>
+                <Text style={styles.categoryName}>{cat.name}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* ── Popular Ceremonies (from API) ───────────────────── */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>🌟 Popular Ceremonies</Text>
+            <TouchableOpacity onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}>
+              <Text style={styles.viewAllLink}>View All</Text>
+            </TouchableOpacity>
+          </View>
           {isLoadingCeremonies ? (
-            <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginLeft: 16, alignSelf: 'flex-start' }} />
+            <ActivityIndicator size="small" color={APP_COLORS.saffron} style={{ marginTop: 16 }} />
           ) : (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.ceremoniesScroll}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
             >
               {ceremoniesData?.map((ceremony: any) => (
                 <TouchableOpacity
                   key={ceremony._id}
                   style={styles.ceremonyCard}
                   onPress={() => handleCeremonyPress(ceremony)}
+                  activeOpacity={0.85}
                 >
                   <Image
                     source={{ uri: ceremony.image || ceremony.images?.[0]?.url || "https://via.placeholder.com/150" }}
@@ -217,95 +322,13 @@ const HomeScreen: React.FC = () => {
                 style={[styles.ceremonyCard, styles.viewAllCard]}
                 onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
               >
-                <View style={styles.viewAllContent}>
-                  <Text style={styles.viewAllText}>View All</Text>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={20}
-                    color={APP_COLORS.primary}
-                  />
+                <View style={styles.viewAllBox}>
+                  <Ionicons name="arrow-forward-circle" size={32} color={APP_COLORS.saffron} />
+                  <Text style={styles.viewAllCardText}>View All</Text>
                 </View>
               </TouchableOpacity>
             </ScrollView>
           )}
-        </View>
-
-        <View style={styles.priestsContainer}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended Priests</Text>
-            <TouchableOpacity
-              onPress={() => router.navigate("/PriestSearch")}
-            >
-              <Text style={styles.viewAllTextSmall}>View All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {recommendedPriests.map((priest) => (
-            <TouchableOpacity
-              key={priest._id}
-              style={styles.priestCard}
-              onPress={() => handlePriestPress(priest)}
-            >
-              <Image
-                source={
-                  priest.profilePicture
-                    ? { uri: priest.profilePicture }
-                    : require("../../../assets/images/pandit1.jpg")
-                }
-                style={styles.priestImage}
-              />
-              <View style={styles.priestInfo}>
-                <Text style={styles.priestName}>{priest.name}</Text>
-                <View style={styles.priestDetails}>
-                  <Text style={styles.priestDetail}>
-                    {priest.religiousTradition}
-                  </Text>
-                  <Text style={styles.priestDetail}>
-                    {priest.experience} years exp
-                  </Text>
-                </View>
-                <View style={styles.ratingContainer}>
-                  <Ionicons name="star" size={16} color="#FFD700" />
-                  <Text style={styles.ratingText}>
-                    {priest.ratings?.average || 0} ({priest.ratings?.count || 0}
-                    )
-                  </Text>
-                </View>
-                <View style={styles.specialtiesContainer}>
-                  {priest.services
-                    ?.slice(0, 2)
-                    .map((service: any, index: number) => (
-                      <View
-                        key={`${priest._id}-ceremony-${index}-${service.name}`}
-                        style={styles.specialtyBadge}
-                      >
-                        <Text style={styles.specialtyText}>{service.name}</Text>
-                      </View>
-                    ))}
-                  {priest.services?.length > 2 && (
-                    <View
-                      key={`${priest._id}-more-ceremonies`}
-                      style={styles.specialtyBadge}
-                    >
-                      <Text style={styles.specialtyText}>
-                        +{priest.services.length - 2} more
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-              <View style={styles.bookNowContainer}>
-                <TouchableOpacity
-                  style={styles.bookNowButton}
-                  onPress={() =>
-                    router.navigate(`/BookCeremony?priestId=${priest._id}`)
-                  }
-                >
-                  <Text style={styles.bookNowText}>Book Now</Text>
-                </TouchableOpacity>
-              </View>
-            </TouchableOpacity>
-          ))}
         </View>
       </ScrollView>
 
@@ -314,81 +337,303 @@ const HomeScreen: React.FC = () => {
         onClose={() => setRateModalVisible(false)}
         onSubmit={handleSubmitRating}
         role="devotee"
-        bookingDetails={selectedBookingForRating ? {
-          ceremonyType: selectedBookingForRating.ceremonyType,
-          date: selectedBookingForRating.date,
-          clientName: selectedBookingForRating.priestName
-        } : undefined}
+        bookingDetails={
+          selectedBookingForRating
+            ? {
+              ceremonyType: selectedBookingForRating.ceremonyType,
+              date: selectedBookingForRating.date,
+              clientName: selectedBookingForRating.priestName,
+            }
+            : undefined
+        }
       />
     </View>
   );
 };
 
+// ─── Styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
   },
+
+  // Header
   header: {
-    backgroundColor: APP_COLORS.primary,
-    paddingBottom: 24,
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 20,
+    backgroundColor: APP_COLORS.surface,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  headerContent: {
-    paddingHorizontal: 16,
-  },
-  welcomeText: {
-    color: APP_COLORS.white,
-    opacity: 0.8,
-    fontSize: 14,
-    marginBottom: 4,
-  },
-  headerTitle: {
-    color: APP_COLORS.white,
+  greeting: {
     fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 8,
+    fontWeight: "800",
+    color: APP_COLORS.headingText,
+    marginBottom: 2,
   },
   headerSubtitle: {
-    color: APP_COLORS.white,
-    opacity: 0.9,
     fontSize: 14,
+    color: APP_COLORS.gray,
   },
-  searchContainer: {
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  searchBar: {
+  headerRight: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 8,
-    padding: 12,
-    elevation: 4,
+    gap: 10,
   },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
+  locationPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  locationText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: APP_COLORS.saffron,
+  },
+  bellButton: {
+    position: "relative",
+    padding: 4,
+  },
+  notifDot: {
+    position: "absolute",
+    top: 3,
+    right: 3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: APP_COLORS.error,
+  },
+
+  // Panchang
+  panchangCard: {
+    backgroundColor: "#FFF8F0",
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.saffron,
+  },
+  panchangGradient: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+  panchangIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFF3E0",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  panchangTitle: {
     fontSize: 16,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+    marginBottom: 2,
   },
-  ceremoniesContainer: {
-    marginBottom: 24,
+  panchangSub: {
+    fontSize: 13,
+    color: APP_COLORS.bodyText,
+    marginBottom: 8,
+  },
+  panchangTags: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  panchangTag: {
+    backgroundColor: APP_COLORS.saffron + "15",
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  panchangTagText: {
+    fontSize: 11,
+    color: APP_COLORS.saffron,
+    fontWeight: "600",
+  },
+
+  // Banner Carousel
+  bannerCard: {
+    width: SCREEN_WIDTH - 32,
+    height: 140,
+    borderRadius: 16,
+    padding: 20,
+    justifyContent: "flex-end",
+    marginRight: 0,
+    overflow: "hidden",
+  },
+  bannerIcon: {
+    position: "absolute",
+    top: 16,
+    right: 16,
+  },
+  bannerTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    marginBottom: 4,
+  },
+  bannerSubtitle: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
+    fontWeight: "500",
+  },
+  dotsRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 10,
+    gap: 6,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: APP_COLORS.lightGray,
+  },
+  dotActive: {
+    width: 20,
+    backgroundColor: APP_COLORS.saffron,
+  },
+
+  // Sections
+  section: {
+    marginTop: 24,
+  },
+  sectionPadding: {
+    paddingHorizontal: 16,
+    marginTop: 20,
+  },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 16,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
     paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  ceremoniesScroll: {
-    paddingLeft: 16,
-    paddingRight: 8,
+  viewAllLink: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: APP_COLORS.saffron,
   },
+
+  // Pending Actions
+  actionCard: {
+    width: 260,
+    marginRight: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.warning,
+  },
+  actionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  actionIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: APP_COLORS.warning + "18",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: APP_COLORS.black,
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+
+  // Book Again
+  bookAgainCard: {
+    width: 170,
+    marginRight: 12,
+    alignItems: "center",
+  },
+  bookAgainIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: APP_COLORS.saffronLight,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  bookAgainName: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+    textAlign: "center",
+  },
+  bookAgainPriest: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+  bookAgainDate: {
+    fontSize: 11,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+
+  // Category Grid
+  categoryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  categoryCard: {
+    width: (SCREEN_WIDTH - 44) / 2,
+    backgroundColor: APP_COLORS.surface,
+    borderRadius: 16,
+    paddingVertical: 24,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  categoryIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+  },
+
+  // Ceremonies
   ceremonyCard: {
-    width: 140,
-    height: 180,
-    borderRadius: 10,
+    width: 150,
+    height: 190,
+    borderRadius: 16,
     marginRight: 12,
     overflow: "hidden",
   },
@@ -398,188 +643,35 @@ const styles = StyleSheet.create({
   },
   ceremonyOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    backgroundColor: "rgba(0,0,0,0.3)",
+    borderRadius: 16,
   },
   ceremonyName: {
     position: "absolute",
-    bottom: 16,
+    bottom: 14,
     left: 12,
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 16,
+    right: 12,
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 15,
   },
   viewAllCard: {
     backgroundColor: APP_COLORS.background,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: APP_COLORS.lightGray,
     borderStyle: "dashed",
   },
-  viewAllContent: {
+  viewAllBox: {
     alignItems: "center",
+    gap: 6,
   },
-  viewAllText: {
-    color: APP_COLORS.primary,
-    fontWeight: "bold",
-    marginBottom: 8,
-  },
-  priestsContainer: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  viewAllTextSmall: {
-    color: APP_COLORS.primary,
+  viewAllCardText: {
+    color: APP_COLORS.saffron,
+    fontWeight: "700",
     fontSize: 14,
   },
-  priestCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    marginBottom: 16,
-    padding: 16,
-    flexDirection: "row",
-    elevation: 2,
-  },
-  priestImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  priestInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  priestName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  priestDetails: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  priestDetail: {
-    fontSize: 12,
-    color: APP_COLORS.gray,
-    marginRight: 8,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: APP_COLORS.black,
-    marginLeft: 4,
-  },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  specialtyBadge: {
-    backgroundColor: APP_COLORS.primary + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  specialtyText: {
-    fontSize: 10,
-    color: APP_COLORS.primary,
-  },
-  bookNowContainer: {
-    justifyContent: "center",
-  },
-  bookNowButton: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-  },
-  bookNowText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 12,
-  },
-  upcomingBookingsContainer: {
-    marginBottom: 24,
-    paddingHorizontal: 16,
-  },
-  upcomingBookingCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    elevation: 2,
-  },
-  upcomingBookingContent: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  upcomingBookingText: {
-    marginLeft: 12,
-    fontSize: 16,
-    fontWeight: "500",
-  },
-  sectionContainer: {
-    marginBottom: 24,
-  },
-  horizontalScroll: {
-    paddingLeft: 16,
-    paddingRight: 8,
-  },
-  actionCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 260,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.warning
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
-    marginBottom: 2
-  },
-  actionDesc: {
-    fontSize: 12,
-    color: APP_COLORS.gray
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8
-  },
-  actionBtnText: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14
-  }
 });
 
 export default HomeScreen;

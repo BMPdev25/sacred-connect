@@ -372,32 +372,46 @@ const HomeScreen: React.FC = () => {
             {pendingRequests.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Pending Requests ({pendingRequests.length})</Text>
+                  <Text style={styles.sectionTitle}>Puja Requests ({pendingRequests.length})</Text>
+                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
+                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
+                  </TouchableOpacity>
                 </View>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
                   {pendingRequests.map((req, index) => (
-                    <View key={index} style={styles.requestCard}>
-                      <Text style={styles.reqTitle}>{req.ceremonyType || req.ceremony}</Text>
-                      <Text style={styles.reqClient}>{req.devoteeId?.name}</Text>
-                      <Text style={styles.reqDate}>
-                        {new Date(req.date).toLocaleDateString()}
-                      </Text>
-
-                      <View style={styles.reqActions}>
-                        <TouchableOpacity
-                          style={[styles.smallBtn, { backgroundColor: APP_COLORS.error + '20' }]}
-                          onPress={() => handleReject(req._id)}
-                        >
-                          <Text style={[styles.smallBtnText, { color: APP_COLORS.error }]}>Reject</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={[styles.smallBtn, { backgroundColor: APP_COLORS.success + '20' }]}
-                          onPress={() => handleAccept(req._id)}
-                        >
-                          <Text style={[styles.smallBtnText, { color: APP_COLORS.success }]}>Accept</Text>
-                        </TouchableOpacity>
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.requestCard}
+                      activeOpacity={0.7}
+                      onPress={() => router.push({
+                        pathname: "/priest/(priestScreens)/PujaRequestDetails" as any,
+                        params: { bookingId: req._id },
+                      })}
+                    >
+                      <View style={styles.reqCardTop}>
+                        <View style={styles.reqPendingBadge}>
+                          <Text style={styles.reqPendingText}>PENDING</Text>
+                        </View>
+                        <Text style={styles.reqPrice}>₹{req.basePrice}</Text>
                       </View>
-                    </View>
+                      <Text style={styles.reqTitle}>{req.ceremonyType || req.ceremony}</Text>
+                      <View style={styles.reqDetailRow}>
+                        <Ionicons name="person-outline" size={14} color={APP_COLORS.gray} />
+                        <Text style={styles.reqClient}>{req.devoteeId?.name || 'Devotee'}</Text>
+                      </View>
+                      <View style={styles.reqDetailRow}>
+                        <Ionicons name="calendar-outline" size={14} color={APP_COLORS.gray} />
+                        <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}</Text>
+                      </View>
+                      <View style={styles.reqDetailRow}>
+                        <Ionicons name="time-outline" size={14} color={APP_COLORS.gray} />
+                        <Text style={styles.reqDate}>{req.startTime || 'TBD'}</Text>
+                      </View>
+                      <View style={styles.reqTapHint}>
+                        <Text style={styles.reqTapText}>Tap for details</Text>
+                        <Ionicons name="chevron-forward" size={14} color={APP_COLORS.primary} />
+                      </View>
+                    </TouchableOpacity>
                   ))}
                 </ScrollView>
               </View>
@@ -577,40 +591,71 @@ const styles = StyleSheet.create({
   },
   requestCard: {
     backgroundColor: APP_COLORS.white,
-    width: 200,
+    width: 220,
     padding: 16,
     borderRadius: 16,
     marginRight: 12,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.warning,
+  },
+  reqCardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  reqPendingBadge: {
+    backgroundColor: APP_COLORS.warning + '20',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  reqPendingText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: APP_COLORS.warning,
+  },
+  reqPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: APP_COLORS.success,
   },
   reqTitle: {
     fontSize: 16,
     fontWeight: 'bold',
+    color: APP_COLORS.black,
+    marginBottom: 8,
+  },
+  reqDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
     marginBottom: 4,
   },
   reqClient: {
-    fontSize: 14,
+    fontSize: 13,
     color: APP_COLORS.gray,
-    marginBottom: 2,
   },
   reqDate: {
     fontSize: 12,
     color: APP_COLORS.gray,
-    marginBottom: 12,
   },
-  reqActions: {
+  reqTapHint: {
     flexDirection: 'row',
-    gap: 8,
-  },
-  smallBtn: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+    gap: 4,
   },
-  smallBtnText: {
+  reqTapText: {
     fontSize: 12,
-    fontWeight: 'bold',
+    color: APP_COLORS.primary,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',

@@ -198,6 +198,15 @@ const PriestTabs = () => {
           tabBarStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="(priestScreens)/PujaRequestDetails"
+        options={{
+          href: null,
+          title: "Puja Request",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }

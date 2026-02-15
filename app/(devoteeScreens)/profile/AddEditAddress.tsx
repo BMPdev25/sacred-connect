@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, ScrollView, TouchableOpacity, Alert, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
 import devoteeService from '../../../services/devoteeService';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,6 +11,7 @@ export default function AddEditAddressScreen() {
     const params = useLocalSearchParams();
     const isEdit = !!params.address;
     const initialAddress = isEdit ? JSON.parse(params.address as string) : {};
+    const insets = useSafeAreaInsets();
 
     const [form, setForm] = useState({
         street: initialAddress.street || '',
@@ -58,7 +60,7 @@ export default function AddEditAddressScreen() {
     return (
         <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.container}
+            style={[styles.container, { paddingTop: insets.top }]}
         >
             <Stack.Screen options={{ title: isEdit ? 'Edit Address' : 'Add Address' }} />
             <ScrollView contentContainerStyle={styles.scrollContent}>

@@ -54,12 +54,18 @@ const PriestSearch: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   // Fetch priests function
-  const fetchPriests = async (query = "", ceremony = "") => {
+  const fetchPriests = async (query = "", ceremony = "", religion = "", rating = "") => {
     try {
       setLoading(true);
       const params: any = { limit: 50 };
       if (query) params.search = query;
       if (ceremony && ceremony !== "All Ceremonies") params.ceremony = ceremony;
+      if (religion) params.religion = religion;
+      if (rating) {
+        // Extract minimum rating number from strings like "4.5 & above"
+        const minRating = parseFloat(rating);
+        if (!isNaN(minRating)) params.minRating = minRating;
+      }
 
       const response = await devoteeService.searchPriests(params);
       setPriests(response.priests || []);
@@ -77,14 +83,14 @@ const PriestSearch: React.FC = () => {
 
   // Handle search submission
   const handleSearch = () => {
-    fetchPriests(searchQuery, selectedCeremony);
+    fetchPriests(searchQuery, selectedCeremony, selectedReligion, selectedRating);
   };
 
   // Handle ceremony selection and trigger search
   const handleCeremonySelect = (ceremony: string) => {
     const newCeremony = ceremony === selectedCeremony ? "" : ceremony;
     setSelectedCeremony(newCeremony);
-    fetchPriests(searchQuery, newCeremony);
+    fetchPriests(searchQuery, newCeremony, selectedReligion, selectedRating);
   };
 
   const handlePriestPress = (priest: Priest) => {
@@ -175,7 +181,7 @@ const PriestSearch: React.FC = () => {
 
     // Set new timeout
     timeoutRef.current = setTimeout(() => {
-      fetchPriests(text, selectedCeremony);
+      fetchPriests(text, selectedCeremony, selectedReligion, selectedRating);
     }, 500);
   };
 
@@ -326,13 +332,17 @@ const PriestSearch: React.FC = () => {
                 setSelectedCeremony("");
                 setSelectedReligion("");
                 setSelectedRating("");
+                fetchPriests(searchQuery, "", "", "");
               }}
             >
               <Text style={styles.clearFiltersText}>Clear All</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.applyFiltersButton}
-              onPress={() => setShowFilters(false)}
+              onPress={() => {
+                setShowFilters(false);
+                fetchPriests(searchQuery, selectedCeremony, selectedReligion, selectedRating);
+              }}
             >
               <Text style={styles.applyFiltersText}>Apply Filters</Text>
             </TouchableOpacity>

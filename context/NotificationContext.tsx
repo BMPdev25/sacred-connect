@@ -34,18 +34,26 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
 
         try {
             let allBookings: any[] = [];
+            let dbNotifications: any[] = [];
 
             if ((userInfo as any).userType === 'priest') {
                 // Priest: use priestService
                 const bookings = await priestService.getBookings(userInfo._id);
                 allBookings = Array.isArray(bookings) ? bookings : bookings?.data || [];
             } else {
-                // Devotee: use devotee bookings endpoint
-                try {
-                    const response = await api.get('/api/devotee/bookings');
-                    allBookings = Array.isArray(response.data) ? response.data : response.data?.data || [];
-                } catch {
-                    allBookings = [];
+                // Devotee: fetch bookings AND db notifications in parallel
+                const [bookingsRes, dbNotifRes] = await Promise.allSettled([
+                    api.get('/api/devotee/bookings'),
+                    api.get('/api/devotee/notifications'),
+                ]);
+                if (bookingsRes.status === 'fulfilled') {
+                    const d = bookingsRes.value.data;
+                    allBookings = Array.isArray(d) ? d : d?.data || [];
+                }
+                if (dbNotifRes.status === 'fulfilled') {
+                    dbNotifications = Array.isArray(dbNotifRes.value.data)
+                        ? dbNotifRes.value.data
+                        : [];
                 }
             }
 
@@ -93,6 +101,20 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     type: "booking",
                     data: b,
                 });
+            });
+
+            // 3. DB-backed notifications (accept/reject events) — devotee only
+            dbNotifications.forEach((n: any) => {
+                const alreadyExists = generatedNotifications.some(g => g.id === `db-${n._id}`);
+                if (!alreadyExists) {
+                    generatedNotifications.unshift({
+                        id: `db-${n._id}`,
+                        message: n.message,
+                        read: n.read || false,
+                        type: n.type || 'booking',
+                        data: n,
+                    });
+                }
             });
 
             setNotifications(generatedNotifications);

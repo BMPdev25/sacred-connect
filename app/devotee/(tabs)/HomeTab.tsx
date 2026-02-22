@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router, useFocusEffect } from "expo-router";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -10,11 +10,13 @@ import {
   Text,
   TouchableOpacity,
   View,
+  RefreshControl,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { useSelector } from "react-redux";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
@@ -23,78 +25,133 @@ import RatingModal from "../../../components/RatingModal";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { useNotifications } from "../../../context/NotificationContext";
-import { Alert } from "react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// ─── Mock Data (renders immediately, no backend dependency) ───────────────
-const MOCK_PANCHANG = {
-  title: "Today is Ekadashi",
-  subtitle: "Auspicious for Vishnu Puja & Fasting",
-  nakshatra: "Rohini",
-  tithi: "Ekadashi",
+// ─── Mock Data (fallback) ───────────────
+const FALLBACK_PANCHANG = {
+  title: "Devotion Daily",
+  subtitle: "Connect with the divine",
+  nakshatra: "Search",
+  tithi: "Today",
 };
 
-const MOCK_BANNERS = [
-  { id: "1", title: "Ganesh Chaturthi Special", subtitle: "10% Off on all Ganesh Pujas", color: "#FF9933" },
-  { id: "2", title: "Navratri Celebrations", subtitle: "Book Durga Puja early", color: "#C62828" },
-  { id: "3", title: "New Priest Onboarded", subtitle: "Pandit Sharma now available", color: "#2E7D32" },
+const FALLBACK_BANNERS = [
+  { _id: "1", title: "Sacred Connect", subtitle: "Your spiritual partner", color: "#FF9933" },
 ];
 
-const MOCK_BOOK_AGAIN = [
-  { id: "1", name: "Satyanarayan Puja", priest: "Pandit Sharma", date: "Jan 15, 2026", price: "₹2,100" },
-  { id: "2", name: "Griha Pravesh", priest: "Pandit Verma", date: "Dec 20, 2025", price: "₹5,500" },
-];
-
-const CATEGORY_DATA = [
-  { id: "1", name: "Havans", icon: "flame-outline" as const, color: "#FF6B35" },
-  { id: "2", name: "Festivals", icon: "sparkles-outline" as const, color: "#E91E63" },
-  { id: "3", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933" },
-  { id: "4", name: "Ancestors", icon: "people-outline" as const, color: "#7B1FA2" },
+const FALLBACK_CATEGORIES = [
+  { _id: "1", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────
 const HomeScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
 
   // Fetch ceremonies from backend
-  const { data: ceremoniesData, isLoading: isLoadingCeremonies } = useQuery({
+  const { data: ceremoniesData, isLoading: isLoadingCeremonies, refetch: refetchCeremonies } = useQuery({
     queryKey: ["ceremonies", "popular"],
     queryFn: () => ceremonyService.getAllPujas({ limit: 5 }),
     select: (data) => data.ceremonies || [],
   });
 
-  // Fetch recommended priests & pending actions
+  // Fetch recommended priests, pending actions & my requests
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
+  const [myRequests, setMyRequests] = useState<any[]>([]);
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
   const [activeBanner, setActiveBanner] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentCity, setCurrentCity] = useState("Hyderabad");
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+
+  // Dynamic Metadata State
+  const [panchang, setPanchang] = useState(FALLBACK_PANCHANG);
+  const [banners, setBanners] = useState(FALLBACK_BANNERS);
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+
+  const fetchData = async () => {
+    try {
+      const [priestsRes, actionsRes, addressRes, recentRes, bannersRes, panchangRes, categoriesRes] = await Promise.allSettled([
+        devoteeService.searchPriests({ limit: 10 }),
+        devoteeService.getPendingActions(),
+        devoteeService.getAddresses(),
+        devoteeService.getBookings('completed'),
+        devoteeService.getBanners(),
+        devoteeService.getPanchang(),
+        devoteeService.getCategories()
+      ]);
+
+      if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
+        setRecommendedPriests(priestsRes.value.priests);
+      }
+
+      if (actionsRes.status === "fulfilled") {
+        setPendingActions(actionsRes.value);
+      }
+
+      if (addressRes.status === "fulfilled" && Array.isArray(addressRes.value)) {
+        const defaultAddr = addressRes.value.find(a => a.isDefault) || addressRes.value[0];
+        if (defaultAddr?.city) {
+          setCurrentCity(defaultAddr.city);
+        }
+      }
+
+      if (recentRes.status === "fulfilled") {
+        const bookings = Array.isArray(recentRes.value) ? recentRes.value : recentRes.value?.data || [];
+        setRecentBookings(bookings.slice(0, 5));
+      }
+
+      if (bannersRes.status === "fulfilled" && bannersRes.value?.length > 0) {
+        setBanners(bannersRes.value);
+      }
+
+      if (panchangRes.status === "fulfilled" && panchangRes.value) {
+        setPanchang(panchangRes.value);
+      }
+
+      if (categoriesRes.status === "fulfilled" && categoriesRes.value?.length > 0) {
+        setCategories(categoriesRes.value);
+      }
+    } catch (err) {
+      console.error("Home feed error:", err);
+      Alert.alert("Error", "Failed to load home feed. Please swipe down to refresh.");
+    }
+  };
+
+  const loadRequests = async () => {
+    try {
+      const requests = await devoteeService.getMyRequests();
+      setMyRequests(Array.isArray(requests) ? requests.slice(0, 5) : []);
+    } catch {
+      // silently ignore
+    }
+  };
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([
+      fetchData(),
+      loadRequests(),
+      refetchCeremonies(),
+    ]);
+    setRefreshing(false);
+  }, [refetchCeremonies]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [priestsRes, actionsRes] = await Promise.allSettled([
-          devoteeService.searchPriests({ limit: 10 }),
-          devoteeService.getPendingActions(),
-        ]);
-
-        if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
-          setRecommendedPriests(priestsRes.value.priests);
-        } else {
-          setRecommendedPriests([]);
-        }
-
-        if (actionsRes.status === "fulfilled") {
-          setPendingActions(actionsRes.value);
-        }
-      } catch (err) {
-        // Fail silently — mock data ensures UI still renders
-      }
-    };
     fetchData();
   }, []);
+
+  // Refresh booking requests whenever tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      loadRequests();
+    }, [])
+  );
+
 
   const openRateModal = (booking: any) => {
     setSelectedBookingForRating(booking.booking);
@@ -127,6 +184,12 @@ const HomeScreen: React.FC = () => {
     router.push(`/(devoteeScreens)/(pujas)/${ceremony._id}`);
   };
 
+  const handleRepeatBooking = (booking: any) => {
+    if (booking.priestId?._id) {
+      router.push(`/(devoteeScreens)/(priest)/PriestDetails?priestId=${booking.priestId._id}`);
+    }
+  };
+
   const firstName = userInfo?.name?.split(" ")[0] || "Devotee";
 
   // Inline notification bell using the global NotificationContext
@@ -151,6 +214,9 @@ const HomeScreen: React.FC = () => {
         style={styles.container}
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
       >
         {/* ── Header ─────────────────────────────────────────── */}
         <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
@@ -159,9 +225,9 @@ const HomeScreen: React.FC = () => {
             <Text style={styles.headerSubtitle}>What would you like to do today?</Text>
           </View>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.locationPill}>
+            <TouchableOpacity style={styles.locationPill} onPress={() => router.push('/(devoteeScreens)/profile/ManageAddresses')}>
               <Ionicons name="location" size={14} color={APP_COLORS.saffron} />
-              <Text style={styles.locationText}>Hyderabad</Text>
+              <Text style={styles.locationText}>{currentCity}</Text>
             </TouchableOpacity>
             <NotificationBellInline />
           </View>
@@ -175,14 +241,14 @@ const HomeScreen: React.FC = () => {
                 <Ionicons name="sunny" size={28} color="#FFA726" />
               </View>
               <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={styles.panchangTitle}>{MOCK_PANCHANG.title}</Text>
-                <Text style={styles.panchangSub}>{MOCK_PANCHANG.subtitle}</Text>
+                <Text style={styles.panchangTitle}>{panchang.title}</Text>
+                <Text style={styles.panchangSub}>{panchang.subtitle}</Text>
                 <View style={styles.panchangTags}>
                   <View style={styles.panchangTag}>
-                    <Text style={styles.panchangTagText}>Nakshatra: {MOCK_PANCHANG.nakshatra}</Text>
+                    <Text style={styles.panchangTagText}>Nakshatra: {panchang.nakshatra}</Text>
                   </View>
                   <View style={styles.panchangTag}>
-                    <Text style={styles.panchangTagText}>Tithi: {MOCK_PANCHANG.tithi}</Text>
+                    <Text style={styles.panchangTagText}>Tithi: {panchang.tithi}</Text>
                   </View>
                 </View>
               </View>
@@ -201,9 +267,9 @@ const HomeScreen: React.FC = () => {
               setActiveBanner(page);
             }}
           >
-            {MOCK_BANNERS.map((banner) => (
+            {banners.map((banner) => (
               <TouchableOpacity
-                key={banner.id}
+                key={banner._id || banner.id}
                 style={[styles.bannerCard, { backgroundColor: banner.color }]}
                 activeOpacity={0.9}
               >
@@ -214,7 +280,7 @@ const HomeScreen: React.FC = () => {
             ))}
           </ScrollView>
           <View style={styles.dotsRow}>
-            {MOCK_BANNERS.map((_, i) => (
+            {banners.map((_, i) => (
               <View
                 key={i}
                 style={[styles.dot, activeBanner === i && styles.dotActive]}
@@ -222,6 +288,50 @@ const HomeScreen: React.FC = () => {
             ))}
           </View>
         </View>
+
+        {/* ── My Requests ────────────────────────────────────── */}
+        {myRequests.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>📋 My Requests</Text>
+              <TouchableOpacity onPress={() => router.push('/(devoteeScreens)/MyBookings' as any)}>
+                <Text style={styles.viewAllLink}>View All</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {myRequests.map((req: any, idx: number) => {
+                const statusColor =
+                  req.status === 'confirmed' ? '#2E7D32' :
+                    req.status === 'cancelled' ? '#C62828' :
+                      '#E65100';
+                const statusBg =
+                  req.status === 'confirmed' ? '#E8F5E9' :
+                    req.status === 'cancelled' ? '#FFEBEE' :
+                      '#FFF3E0';
+                const statusIcon =
+                  req.status === 'confirmed' ? 'checkmark-circle' :
+                    req.status === 'cancelled' ? 'close-circle' :
+                      'hourglass-outline';
+                const statusLabel =
+                  req.status === 'confirmed' ? 'Confirmed' :
+                    req.status === 'cancelled' ? 'Declined' :
+                      'Pending';
+                const priestName = req.priestId?.name || 'Priest';
+                return (
+                  <View key={req._id || idx} style={[styles.reqCard, { borderLeftColor: statusColor }]}>
+                    <View style={[styles.reqStatusBadge, { backgroundColor: statusBg }]}>
+                      <Ionicons name={statusIcon as any} size={13} color={statusColor} />
+                      <Text style={[styles.reqStatusText, { color: statusColor }]}>{statusLabel}</Text>
+                    </View>
+                    <Text style={styles.reqCeremony} numberOfLines={1}>{req.ceremonyType || 'Ceremony'}</Text>
+                    <Text style={styles.reqPriestName} numberOfLines={1}>{priestName}</Text>
+                    <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
+                  </View>
+                );
+              })}
+            </ScrollView>
+          </View>
+        )}
 
         {/* ── Pending Actions ────────────────────────────────── */}
         {pendingActions.length > 0 && (
@@ -246,39 +356,42 @@ const HomeScreen: React.FC = () => {
           </View>
         )}
 
-        {/* ── Book Again ─────────────────────────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🔁 Book Again</Text>
+        {recentBookings.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>🔁 Book Again</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+              {recentBookings.map((item) => (
+                <Card key={item._id} style={styles.bookAgainCard} onPress={() => handleRepeatBooking(item)}>
+                  <View style={styles.bookAgainIcon}>
+                    <Ionicons name="flame" size={24} color={APP_COLORS.saffron} />
+                  </View>
+                  <Text style={styles.bookAgainName} numberOfLines={1}>{item.ceremonyType}</Text>
+                  <Text style={styles.bookAgainPriest}>{item.priestId?.name}</Text>
+                  <Text style={styles.bookAgainDate}>
+                    {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                  </Text>
+                  <PrimaryButton title="Repeat" onPress={() => handleRepeatBooking(item)} size="sm" variant="outline" style={{ marginTop: 8 }} />
+                </Card>
+              ))}
+            </ScrollView>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-            {MOCK_BOOK_AGAIN.map((item) => (
-              <Card key={item.id} style={styles.bookAgainCard} onPress={() => { }}>
-                <View style={styles.bookAgainIcon}>
-                  <Ionicons name="flame" size={24} color={APP_COLORS.saffron} />
-                </View>
-                <Text style={styles.bookAgainName} numberOfLines={1}>{item.name}</Text>
-                <Text style={styles.bookAgainPriest}>{item.priest}</Text>
-                <Text style={styles.bookAgainDate}>{item.date}</Text>
-                <PrimaryButton title="Repeat" onPress={() => { }} size="sm" variant="outline" style={{ marginTop: 8 }} />
-              </Card>
-            ))}
-          </ScrollView>
-        </View>
+        )}
 
         {/* ── Shop by Category ───────────────────────────────── */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>🕉️ Book by Category</Text>
           <View style={styles.categoryGrid}>
-            {CATEGORY_DATA.map((cat) => (
+            {categories.map((cat) => (
               <TouchableOpacity
-                key={cat.id}
+                key={cat._id || cat.id}
                 style={styles.categoryCard}
                 activeOpacity={0.85}
                 onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
               >
-                <View style={[styles.categoryIconWrap, { backgroundColor: cat.color + "18" }]}>
-                  <Ionicons name={cat.icon} size={32} color={cat.color} />
+                <View style={[styles.categoryIconWrap, { backgroundColor: (cat.color || APP_COLORS.saffron) + "18" }]}>
+                  <Ionicons name={cat.icon as any} size={32} color={cat.color || APP_COLORS.saffron} />
                 </View>
                 <Text style={styles.categoryName}>{cat.name}</Text>
               </TouchableOpacity>
@@ -671,6 +784,50 @@ const styles = StyleSheet.create({
     color: APP_COLORS.saffron,
     fontWeight: "700",
     fontSize: 14,
+  },
+
+  // My Requests
+  reqCard: {
+    width: 160,
+    backgroundColor: APP_COLORS.surface,
+    borderRadius: 14,
+    padding: 14,
+    marginRight: 10,
+    borderLeftWidth: 4,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+  },
+  reqStatusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    gap: 4,
+    marginBottom: 8,
+  },
+  reqStatusText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  reqCeremony: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: APP_COLORS.headingText,
+    marginBottom: 4,
+  },
+  reqPriestName: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginBottom: 2,
+  },
+  reqDate: {
+    fontSize: 11,
+    color: APP_COLORS.gray,
   },
 });
 

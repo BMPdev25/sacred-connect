@@ -12,7 +12,8 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-  Modal, // Import Modal
+  Modal,
+  ActivityIndicator,
 } from "react-native";
 // react-native-calendars may not include types in this repo; silence TS for the import
 // @ts-ignore
@@ -20,6 +21,8 @@ import { Calendar } from "react-native-calendars";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
+
+const PLATFORM_FEE_PERCENT = 0.05; // 5% fee
 
 const BookCeremony: React.FC = () => {
   const router = useRouter();
@@ -49,13 +52,51 @@ const BookCeremony: React.FC = () => {
   const today = new Date();
   const minDate = today.toISOString().split("T")[0];
 
-  // Mock time slots
-  const timeSlots = [
-    { id: "1", startTime: "08:00", endTime: "10:00" },
-    { id: "2", startTime: "10:30", endTime: "12:30" },
-    { id: "4", startTime: "15:30", endTime: "17:30" },
-    { id: "5", startTime: "18:00", endTime: "20:00" },
-  ];
+  // Generate dynamic time slots based on priest's weekly availability
+  const getDynamicTimeSlots = () => {
+    if (!selectedDate || !priest?.weeklyAvailability) return [];
+
+    // Get day name from date string
+    const dateObj = new Date(selectedDate);
+    const dayName = dateObj.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+    const dayAvailability = priest.weeklyAvailability[dayName];
+
+    if (!dayAvailability || !dayAvailability.available || !dayAvailability.startTime || !dayAvailability.endTime) {
+      return [];
+    }
+
+    const slots = [];
+    let [startHour, startMin] = dayAvailability.startTime.split(':').map(Number);
+    const [endHour, endMin] = dayAvailability.endTime.split(':').map(Number);
+
+    const endTotalMinutes = endHour * 60 + endMin;
+
+    let currentTotalMinutes = startHour * 60 + startMin;
+    let slotId = 1;
+
+    while (currentTotalMinutes + 120 <= endTotalMinutes) {
+      const sH = Math.floor(currentTotalMinutes / 60);
+      const sM = currentTotalMinutes % 60;
+      const eH = Math.floor((currentTotalMinutes + 120) / 60);
+      const eM = (currentTotalMinutes + 120) % 60;
+
+      const format = (h: number, m: number) =>
+        `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+
+      slots.push({
+        id: slotId.toString(),
+        startTime: format(sH, sM),
+        endTime: format(eH, eM)
+      });
+
+      currentTotalMinutes += 120; // 2 hour slots
+      slotId++;
+    }
+
+    return slots;
+  };
+
+  const dynamicTimeSlots = getDynamicTimeSlots();
 
   useEffect(() => {
     const fetchPriestDetails = async () => {
@@ -143,9 +184,24 @@ const BookCeremony: React.FC = () => {
       Alert.alert("Error", "Please enter the city");
       return;
     }
+
+    // Lead-time validation: 2 hours minimum
+    const now = new Date();
+    const minLeadTime = 2 * 60 * 60 * 1000; // 2 hours
+    const bookingStartTime = new Date(selectedDate);
+    const [h, m] = selectedTime.startTime.split(':').map(Number);
+    bookingStartTime.setHours(h, m, 0, 0);
+
+    if (bookingStartTime.getTime() - now.getTime() < minLeadTime) {
+      Alert.alert(
+        "Invalid Time",
+        "Bookings must be made at least 2 hours in advance to allow for priest preparation."
+      );
+      return;
+    }
     // Calculate total amount
     const basePrice = selectedCeremony.price;
-    const platformFee = Math.round(basePrice * 0.05); // 5% platform fee
+    const platformFee = Math.round(basePrice * PLATFORM_FEE_PERCENT);
     const totalAmount = basePrice + platformFee;
     // Create booking object
     const bookingDetails = {
@@ -176,7 +232,8 @@ const BookCeremony: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading details...</Text>
+        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        <Text style={{ marginTop: 10 }}>Loading details...</Text>
       </View>
     );
   }
@@ -204,16 +261,20 @@ const BookCeremony: React.FC = () => {
     };
   }
 
-  // Check if day is Sunday (disabled)
+  // Use priest.weeklyAvailability to disable dates
   const disabledDates: Record<string, any> = {};
-  let currentDate = new Date(today);
-  for (let i = 0; i < 60; i++) {
-    const dateString = currentDate.toISOString().split("T")[0];
-    if (currentDate.getDay() === 0) {
-      // Sunday
-      disabledDates[dateString] = { disabled: true, disableTouchEvent: true };
+  if (priest.weeklyAvailability) {
+    let currentDate = new Date(today);
+    for (let i = 0; i < 90; i++) { // Check next 90 days
+      const dateString = currentDate.toISOString().split("T")[0];
+      const dayName = currentDate.toLocaleDateString("en-US", { weekday: "long" }).toLowerCase();
+      const dayConfig = priest.weeklyAvailability[dayName];
+
+      if (!dayConfig || !dayConfig.available) {
+        disabledDates[dateString] = { disabled: true, disableTouchEvent: true };
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
     }
-    currentDate.setDate(currentDate.getDate() + 1);
   }
 
   // Merge marked and disabled dates
@@ -292,9 +353,6 @@ const BookCeremony: React.FC = () => {
 
           <View style={styles.formSection}>
             <Text style={styles.sectionTitle}>Select Date</Text>
-            <Text style={styles.sectionSubtitle}>
-              Priest is not available on Sundays
-            </Text>
             <Calendar
               style={styles.calendar}
               theme={{
@@ -320,33 +378,39 @@ const BookCeremony: React.FC = () => {
           {selectedDate && (
             <View style={styles.formSection}>
               <Text style={styles.sectionTitle}>Select Time Slot</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.timeSlotsContainer}
-              >
-                {timeSlots.map((slot) => (
-                  <TouchableOpacity
-                    key={slot.id}
-                    style={[
-                      styles.timeSlotCard,
-                      selectedTime?.id === slot.id &&
-                      styles.selectedTimeSlotCard,
-                    ]}
-                    onPress={() => handleTimeSelect(slot)}
-                  >
-                    <Text
+              {dynamicTimeSlots.length > 0 ? (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.timeSlotsContainer}
+                >
+                  {dynamicTimeSlots.map((slot) => (
+                    <TouchableOpacity
+                      key={slot.id}
                       style={[
-                        styles.timeSlotText,
+                        styles.timeSlotCard,
                         selectedTime?.id === slot.id &&
-                        styles.selectedTimeSlotText,
+                        styles.selectedTimeSlotCard,
                       ]}
+                      onPress={() => handleTimeSelect(slot)}
                     >
-                      {slot.startTime} - {slot.endTime}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+                      <Text
+                        style={[
+                          styles.timeSlotText,
+                          selectedTime?.id === slot.id &&
+                          styles.selectedTimeSlotText,
+                        ]}
+                      >
+                        {slot.startTime} - {slot.endTime}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              ) : (
+                <Text style={{ color: APP_COLORS.error, fontStyle: 'italic' }}>
+                  No available slots for this date. Please try another day.
+                </Text>
+              )}
             </View>
           )}
 
@@ -377,11 +441,11 @@ const BookCeremony: React.FC = () => {
                 <View style={styles.inputContainer}>
                   <Text style={styles.inputLabel}>Address</Text>
                   <TextInput
-                    style={styles.input}
-                    placeholder="Enter complete address"
+                    style={[styles.input, { height: 80 }]}
+                    placeholder="Enter full address"
                     placeholderTextColor={APP_COLORS.gray}
                     value={location}
-                    onChangeText={setLocation}
+                    onChangeText={(text) => setLocation(text.slice(0, 100))}
                     multiline
                   />
                 </View>
@@ -392,7 +456,7 @@ const BookCeremony: React.FC = () => {
                     placeholder="Enter city"
                     placeholderTextColor={APP_COLORS.gray}
                     value={city}
-                    onChangeText={setCity}
+                    onChangeText={(text) => setCity(text.slice(0, 50))}
                   />
                 </View>
               </>
@@ -423,7 +487,7 @@ const BookCeremony: React.FC = () => {
               placeholder="Any specific requirements or information the priest should know"
               placeholderTextColor={APP_COLORS.gray}
               value={notes}
-              onChangeText={setNotes}
+              onChangeText={(text) => setNotes(text.slice(0, 500))}
               multiline
               numberOfLines={4}
             />
@@ -439,9 +503,9 @@ const BookCeremony: React.FC = () => {
                 <Text style={styles.priceValue}>₹{selectedCeremony.price}</Text>
               </View>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Platform Fee (5%)</Text>
+                <Text style={styles.priceLabel}>Platform Fee ({PLATFORM_FEE_PERCENT * 100}%)</Text>
                 <Text style={styles.priceValue}>
-                  ₹{Math.round(selectedCeremony.price * 0.05)}
+                  ₹{Math.round(selectedCeremony.price * PLATFORM_FEE_PERCENT)}
                 </Text>
               </View>
               <View style={styles.divider} />
@@ -450,7 +514,7 @@ const BookCeremony: React.FC = () => {
                 <Text style={styles.totalValue}>
                   ₹
                   {selectedCeremony.price +
-                    Math.round(selectedCeremony.price * 0.05)}
+                    Math.round(selectedCeremony.price * PLATFORM_FEE_PERCENT)}
                 </Text>
               </View>
             </View>

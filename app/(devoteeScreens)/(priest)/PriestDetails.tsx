@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   ActivityIndicator,
   FlatList,
   Image,
@@ -65,10 +66,12 @@ const PriestDetails: React.FC = () => {
   useEffect(() => {
     const fetchPriestDetails = async () => {
       try {
+        console.log("PriestDetails: Fetching for priestIdStr:", priestIdStr);
         const data = await devoteeService.getPriestDetails(priestIdStr);
         setPriest(data);
       } catch (error) {
         console.error("Failed to fetch priest details:", error);
+        Alert.alert("Error", "Failed to load priest details. Please try again.");
       } finally {
         setIsLoading(false);
       }
@@ -383,22 +386,33 @@ const PriestDetails: React.FC = () => {
         {selectedTab === "reviews" && (
           <View style={styles.tabContent}>
             <View style={styles.reviewsHeader}>
-              <Text style={styles.sectionTitle}>Reviews</Text>
-              <View style={styles.ratingContainer}>
-                <Ionicons name="star" size={20} color="#FFD700" />
-                <Text style={styles.overallRating}>
-                  {priest.ratings?.average || 0} • {priest.ratings?.count || 0}{" "}
-                  reviews
-                </Text>
-              </View>
+              <Text style={styles.sectionHeading}>User Reviews</Text>
             </View>
-
-            <FlatList
-              data={priest.reviews || []}
-              renderItem={renderReviewItem}
-              keyExtractor={(item) => `${item.id}`}
-              scrollEnabled={false}
-            />
+            {priest.reviews && priest.reviews.length > 0 ? (
+              priest.reviews.map((review, index) => (
+                <View key={review.id || index} style={styles.reviewCard}>
+                  <View style={styles.reviewHeader}>
+                    <Text style={styles.reviewUser}>{review.user || "Devotee"}</Text>
+                    <View style={styles.reviewRating}>
+                      {Array(5)
+                        .fill(0)
+                        .map((_, i) => (
+                          <Ionicons
+                            key={i}
+                            name={i < (review.rating || 0) ? "star" : "star-outline"}
+                            size={16}
+                            color="#FFD700"
+                          />
+                        ))}
+                    </View>
+                  </View>
+                  <Text style={styles.reviewDate}>{review.date}</Text>
+                  <Text style={styles.reviewComment}>{review.comment}</Text>
+                </View>
+              ))
+            ) : (
+              <Text style={styles.emptyText}>No reviews yet for this priest.</Text>
+            )}
           </View>
         )}
 
@@ -435,14 +449,17 @@ const PriestDetails: React.FC = () => {
       </ScrollView>
 
       <View style={styles.footer}>
-        <View style={styles.priceContainer}>
-          <Text style={styles.priceLabel}>Starting from</Text>
-          <Text style={styles.priceValue}>
-            ₹
-            {priest.ceremonies && priest.ceremonies.length > 0
-              ? Math.min(...priest.ceremonies.map((c) => c.price || 0))
-              : 0}
-          </Text>
+        <View style={styles.footerPriceInfo}>
+          {priest.ceremonies && priest.ceremonies.length > 0 ? (
+            <>
+              <Text style={styles.startingFrom}>Starting from</Text>
+              <Text style={styles.priceValue}>
+                ₹{Math.min(...priest.ceremonies.map((c) => c.price || 0))}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.startingFrom}>Contact for Pricing</Text>
+          )}
         </View>
         <TouchableOpacity
           style={[
@@ -596,6 +613,19 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 12,
   },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: APP_COLORS.black,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 20,
+  },
   aboutSection: {
     marginBottom: 16,
   },
@@ -737,10 +767,10 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: APP_COLORS.lightGray,
   },
-  priceContainer: {
+  footerPriceInfo: {
     flex: 1,
   },
-  priceLabel: {
+  startingFrom: {
     fontSize: 12,
     color: APP_COLORS.gray,
   },

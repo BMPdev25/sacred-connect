@@ -71,9 +71,11 @@ const devoteeService = {
    */
   getPriestDetails: async (priestId: string): Promise<any> => {
     try {
+      console.log("devoteeService: getPriestDetails for id:", priestId);
       const response = await api.get(`/api/devotee/priests/${priestId}`);
       return response.data;
     } catch (error: any) {
+      console.error("devoteeService: getPriestDetails error:", error);
       throw error?.response?.data?.message || 'Failed to fetch priest details. Please try again.';
     }
   },
@@ -108,6 +110,46 @@ const devoteeService = {
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
+    }
+  },
+
+  /**
+   * Get home screen banners
+   */
+  getBanners: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/metadata/banners');
+      return response.data;
+    } catch (error: any) {
+      console.error('getBanners error:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get Panchang data for today or specific date
+   */
+  getPanchang: async (date?: string): Promise<any> => {
+    try {
+      const url = date ? `/api/metadata/panchang?date=${date}` : '/api/metadata/panchang';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('getPanchang error:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Get ceremony categories
+   */
+  getCategories: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/metadata/categories');
+      return response.data;
+    } catch (error: any) {
+      console.error('getCategories error:', error);
+      return [];
     }
   },
 
@@ -276,6 +318,22 @@ const devoteeService = {
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch favorites. Please try again.';
+    }
+  },
+
+  /**
+   * Get active booking requests (pending / confirmed / cancelled) for status tracking
+   * @returns {Promise} Response from the API
+   */
+  getMyRequests: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/devotee/bookings');
+      const all = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      // Only return non-completed bookings so the devotee can track request status
+      return all.filter((b: any) => b.status !== 'completed');
+    } catch (error: any) {
+      console.error('getMyRequests error:', error);
+      return [];
     }
   },
 

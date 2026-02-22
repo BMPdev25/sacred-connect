@@ -21,13 +21,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { APP_COLORS } from "../../constants/Colors";
-import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
-import { updateProfile } from "../../redux/slices/priestSlice";
-import { getAllCeremonies } from "../../api/ceremonyService";
-import priestService from "../../services/priestService"; // Import service
-import LanguagePicker from "../../components/LanguagePicker";
-import api from "../../api";
+import { APP_COLORS } from "../../../constants/Colors";
+import { updateProfile as updateUserProfile } from "../../../redux/slices/authSlice";
+import { updateProfile } from "../../../redux/slices/priestSlice";
+import { getAllCeremonies } from "../../../api/ceremonyService";
+import priestService from "../../../services/priestService"; // Import service
+import LanguagePicker from "../../../components/LanguagePicker";
+import api from "../../../api";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 

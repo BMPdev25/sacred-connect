@@ -11,8 +11,8 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { APP_COLORS } from "../../constants/Colors";
-import priestService from "../../services/priestService";
+import { APP_COLORS } from "../../../constants/Colors";
+import priestService from "../../../services/priestService";
 
 const BookingDetails = () => {
   const params = useLocalSearchParams();

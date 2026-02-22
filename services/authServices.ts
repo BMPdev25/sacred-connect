@@ -12,9 +12,9 @@ const authService = {
    * @param {string} password - User's password
    * @returns {Promise} Response from the API
    */
-  login: async (phone: string, password: string): Promise<any> => {
+  login: async (identifier: string, password: string): Promise<any> => {
     try {
-      const response = await api.post("/api/auth/login", { phone, password });
+      const response = await api.post("/api/auth/login", { identifier, password });
       await SecureStore.setItemAsync("userToken", response.data.token);
       await SecureStore.setItemAsync("userInfo", JSON.stringify(response.data));
       return response.data;

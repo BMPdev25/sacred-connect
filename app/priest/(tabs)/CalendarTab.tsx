@@ -15,7 +15,7 @@ const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: 
     <TouchableOpacity
         style={cardStyle}
         onPress={() => router.push({
-            pathname: "/PriestBookingDetails",
+            pathname: "/priest/PriestBookingDetails",
             params: { booking: JSON.stringify(item) }
         })}
         activeOpacity={0.9}

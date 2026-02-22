@@ -16,86 +16,60 @@ export default function GlobalSearchScreen() {
     const [priests, setPriests] = useState<any[]>([]);
     const [ceremonies, setCeremonies] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    // Debounced search
-    const debouncedSearch = useCallback((text: string) => {
+    const performSearch = useCallback(async (text: string) => {
+        if (!text.trim()) {
+            setPriests([]);
+            setCeremonies([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
-        const timeoutId = setTimeout(async () => {
-            if (!text.trim()) {
-                setPriests([]);
-                setCeremonies([]);
-                setLoading(false);
-                return;
+        try {
+            // Parallel fetch
+            const [priestRes, ceremonyRes] = await Promise.allSettled([
+                devoteeService.searchPriests({ search: text, limit: 10 }),
+                ceremonyService.getAllPujas({ limit: 100 })
+            ]);
+
+            if (priestRes.status === 'fulfilled') {
+                setPriests(priestRes.value.priests || []);
             }
 
-            try {
-                const [priestRes, ceremonyRes] = await Promise.all([
-                    devoteeService.searchPriests({ search: text, limit: 10 }),
-                    ceremonyService.getAllPujas({ limit: 50 }) // Using fetch all and filter as temp solution if searchPujas not ready
-                    // Or use ceremonyService.searchPujas(text) if backend supports it
-                ]);
-
-                // Filter ceremonies locally for now if search API isn't robust
-                const allCeremonies = ceremonyRes.ceremonies || [];
+            if (ceremonyRes.status === 'fulfilled') {
+                const allCeremonies = ceremonyRes.value.ceremonies || [];
                 const filteredCeremonies = allCeremonies.filter((c: any) =>
                     c.name.toLowerCase().includes(text.toLowerCase()) ||
                     c.description?.toLowerCase().includes(text.toLowerCase())
                 );
-
-                setPriests(priestRes.priests || []);
                 setCeremonies(filteredCeremonies);
-            } catch (err) {
-                console.error("Global search error:", err);
-            } finally {
-                setLoading(false);
             }
-        }, 500);
-        return () => clearTimeout(timeoutId);
+        } catch (error) {
+            console.error("Global search error:", error);
+        } finally {
+            setLoading(false);
+        }
     }, []);
-
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleTextChange = (text: string) => {
         setQuery(text);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-        setLoading(true);
-        timeoutRef.current = setTimeout(async () => {
-            if (!text.trim()) {
-                setPriests([]);
-                setCeremonies([]);
-                setLoading(false);
-                return;
-            }
-
-            try {
-                // Parallel fetch
-                const [priestRes, ceremonyRes] = await Promise.all([
-                    devoteeService.searchPriests({ search: text, limit: 5 }),
-                    // Using getAllPujas and filtering client side for now as we know it works
-                    ceremonyService.getAllPujas({ limit: 100 })
-                ]);
-
-                const allCeremonies = ceremonyRes.ceremonies || [];
-                const filteredCeremonies = allCeremonies.filter((c: any) =>
-                    c.name.toLowerCase().includes(text.toLowerCase())
-                );
-
-                setPriests(priestRes.priests || []);
-                setCeremonies(filteredCeremonies);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
+        timeoutRef.current = setTimeout(() => {
+            performSearch(text);
         }, 500);
     };
 
     useEffect(() => {
         if (initialQuery) {
-            handleTextChange(initialQuery);
+            performSearch(initialQuery);
         }
-    }, []);
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [initialQuery, performSearch]);
 
     const renderCeremonyItem = ({ item }: { item: any }) => (
         <TouchableOpacity
@@ -160,24 +134,22 @@ export default function GlobalSearchScreen() {
                     {ceremonies.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Ceremonies ({ceremonies.length})</Text>
-                            <FlatList
-                                data={ceremonies}
-                                renderItem={renderCeremonyItem}
-                                keyExtractor={item => item._id}
-                                scrollEnabled={false}
-                            />
+                            {ceremonies.map((item) => (
+                                <View key={item._id}>
+                                    {renderCeremonyItem({ item })}
+                                </View>
+                            ))}
                         </View>
                     )}
 
                     {priests.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Priests ({priests.length})</Text>
-                            <FlatList
-                                data={priests}
-                                renderItem={renderPriestItem}
-                                keyExtractor={item => item._id}
-                                scrollEnabled={false}
-                            />
+                            {priests.map((item) => (
+                                <View key={item._id}>
+                                    {renderPriestItem({ item })}
+                                </View>
+                            ))}
                         </View>
                     )}
 

@@ -10,7 +10,8 @@ import {
   View,
   Alert,
   Linking,
-  Platform
+  Platform,
+  RefreshControl
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -43,68 +44,77 @@ const HomeScreen: React.FC = () => {
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
 
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    const priestId = userInfo?._id;
+    if (!priestId) return;
+
+    if (!isManualRefresh) setLoading(true);
+
+    try {
+      const results = await Promise.allSettled([
+        priestService.getBookings(priestId),
+        priestService.getProfileCompletion(),
+        priestService.getProfile(),
+        priestService.getRecentReviews(),
+        priestService.getPendingActions()
+      ]);
+
+      // Dispatch earnings via redux (single source of truth)
+      dispatch(getEarnings(priestId));
+
+      const [bookingsRes, completionRes, profileRes, reviewsRes, actionsRes] = results;
+
+      if (bookingsRes.status === 'fulfilled') {
+        const data = bookingsRes.value;
+        const bookings = Array.isArray(data) ? data : data?.data || [];
+        setAllBookings(bookings);
+      }
+
+      if (completionRes.status === 'fulfilled') {
+        setProfileCompletion(completionRes.value);
+      }
+
+      if (profileRes.status === 'fulfilled') {
+        setCurrentAvailability(profileRes.value.currentAvailability);
+      }
+
+      if (reviewsRes.status === 'fulfilled') {
+        setRecentReviews(reviewsRes.value);
+      }
+
+      if (actionsRes.status === 'fulfilled') {
+        setPendingActions(actionsRes.value);
+      }
+
+      // Check for any failures and alert if manual refresh
+      const hasFailures = results.some(r => r.status === 'rejected');
+      if (hasFailures && isManualRefresh) {
+        Alert.alert("Warning", "Some data failed to load. Please try again.");
+      }
+
+    } catch (err) {
+      console.error(err);
+      if (isManualRefresh) {
+        Alert.alert("Error", "Failed to refresh dashboard.");
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [userInfo?._id, dispatch]);
+
   useFocusEffect(
     useCallback(() => {
-      let mounted = true;
-
-      const load = async () => {
-        const priestId = userInfo?._id;
-        if (!priestId) return;
-
-        if (mounted) setLoading(true);
-
-        try {
-          const results = await Promise.allSettled([
-            priestService.getBookings(priestId),
-            priestService.getProfileCompletion(),
-            priestService.getProfile(),
-            priestService.getRecentReviews(),
-            priestService.getPendingActions()
-          ]);
-
-          // Dispatch earnings via redux (single source of truth)
-          dispatch(getEarnings(priestId));
-
-          if (!mounted) return;
-
-          const [bookingsRes, completionRes, profileRes, reviewsRes, actionsRes] = results;
-
-          if (bookingsRes.status === 'fulfilled') {
-            const data = bookingsRes.value;
-            const bookings = Array.isArray(data) ? data : data?.data || [];
-            setAllBookings(bookings);
-          }
-
-          if (completionRes.status === 'fulfilled') {
-            setProfileCompletion(completionRes.value);
-          }
-
-          if (profileRes.status === 'fulfilled') {
-            setCurrentAvailability(profileRes.value.currentAvailability);
-          }
-
-          if (reviewsRes.status === 'fulfilled') {
-            setRecentReviews(reviewsRes.value);
-          }
-
-          if (actionsRes.status === 'fulfilled') {
-            setPendingActions(actionsRes.value);
-          }
-
-        } catch (err) {
-          console.error(err);
-        } finally {
-          if (mounted) setLoading(false);
-        }
-      };
-
-      load();
-
-      return () => {
-        mounted = false;
-      };
-    }, [userInfo?._id])
+      loadData();
+    }, [loadData])
   );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData(true);
+  }, [loadData]);
 
   const pendingRequests = useMemo(() => {
     return allBookings.filter(b => b.status === 'pending');
@@ -119,10 +129,8 @@ const HomeScreen: React.FC = () => {
   const handleAccept = async (bookingId: string) => {
     try {
       await priestService.updateBookingStatus(bookingId, 'confirmed');
-      // Alert.alert("Success", "Booking accepted!");
-      // Reload
-      // fast refresh would be better but simple reload works
-      // In a real app we'd update state locally.
+      // Remove from local state immediately so the carousel updates
+      setAllBookings(prev => prev.filter(b => b._id !== bookingId));
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to accept");
     }
@@ -131,7 +139,8 @@ const HomeScreen: React.FC = () => {
   const handleReject = async (bookingId: string) => {
     try {
       await priestService.updateBookingStatus(bookingId, 'cancelled');
-      // Alert.alert("Success", "Booking rejected");
+      // Remove from local state immediately so the carousel updates
+      setAllBookings(prev => prev.filter(b => b._id !== bookingId));
     } catch (e: any) {
       Alert.alert("Error", e.message || "Failed to reject");
     }
@@ -194,7 +203,13 @@ const HomeScreen: React.FC = () => {
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
       <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
-      <ScrollView contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }} style={styles.container}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+      >
         <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}>
           <View style={styles.headerRow}>
             <View style={styles.headerContent}>

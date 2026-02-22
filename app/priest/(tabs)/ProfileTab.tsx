@@ -16,6 +16,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  RefreshControl
 } from "react-native";
 import { useDispatch, useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
@@ -45,6 +46,7 @@ const ProfileScreen: React.FC = () => {
   const [downloadingDoc, setDownloadingDoc] = useState(false);
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [userReviews, setUserReviews] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Refresh profile when screen comes into focus
   useFocusEffect(
@@ -53,7 +55,8 @@ const ProfileScreen: React.FC = () => {
     }, [])
   );
 
-  const getProfile = async () => {
+  const getProfile = useCallback(async (isManualRefresh = false) => {
+    if (isManualRefresh) setRefreshing(true);
     try {
       const priestProfile = await priestService.getProfile();
       setProfile(priestProfile);
@@ -77,9 +80,18 @@ const ProfileScreen: React.FC = () => {
         }
       }
     } catch (err) {
-      console.error("Error fetching profile on mount:", err);
+      console.error("Error fetching profile:", err);
+      if (isManualRefresh) {
+        Alert.alert("Error", "Failed to refresh profile");
+      }
+    } finally {
+      setRefreshing(false);
     }
-  };
+  }, [userInfo?._id]);
+
+  const onRefresh = useCallback(() => {
+    getProfile(true);
+  }, [getProfile]);
 
   const handleLogout = (): void => {
     Alert.alert(
@@ -100,7 +112,7 @@ const ProfileScreen: React.FC = () => {
   };
 
   const handleUpdateProfile = (): void => {
-    router.push({ pathname: "/ProfileSetup", params: { isEditing: true } } as any);
+    router.push({ pathname: "/priest/ProfileSetup", params: { isEditing: true } } as any);
   };
 
   const handleFileUpload = async (type: "government_id" | "religious_certificate") => {
@@ -235,7 +247,12 @@ const ProfileScreen: React.FC = () => {
       </Modal>
 
       <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingBottom: 32 }}>
+        <ScrollView
+          contentContainerStyle={{ paddingBottom: 32 }}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+        >
           {/* ... Header ... */}
           {/* ... Header ... */}
           <View style={styles.profileHeader}>

@@ -409,21 +409,16 @@ const HomeScreen: React.FC = () => {
                         </View>
                         <Text style={styles.reqPrice}>₹{req.basePrice}</Text>
                       </View>
-                      <Text style={styles.reqTitle}>{req.ceremonyType || req.ceremony}</Text>
+                      <Text style={styles.reqTitle} numberOfLines={1}>{req.ceremonyType || req.ceremony}</Text>
                       <View style={styles.reqDetailRow}>
-                        <Ionicons name="person-outline" size={14} color={APP_COLORS.gray} />
-                        <Text style={styles.reqClient}>{req.devoteeId?.name || 'Devotee'}</Text>
+                        <Ionicons name="person-outline" size={13} color={APP_COLORS.gray} />
+                        <Text style={styles.reqClient} numberOfLines={1}>{req.devoteeId?.name || 'Devotee'}</Text>
                       </View>
                       <View style={styles.reqDetailRow}>
-                        <Ionicons name="calendar-outline" size={14} color={APP_COLORS.gray} />
-                        <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}</Text>
-                      </View>
-                      <View style={styles.reqDetailRow}>
-                        <Ionicons name="time-outline" size={14} color={APP_COLORS.gray} />
-                        <Text style={styles.reqDate}>{req.startTime || 'TBD'}</Text>
+                        <Ionicons name="calendar-outline" size={13} color={APP_COLORS.gray} />
+                        <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}{req.startTime ? ` • ${req.startTime}` : ''}</Text>
                       </View>
                       <View style={styles.reqTapHint}>
-                        <Text style={styles.reqTapText}>Tap for details</Text>
                         <Ionicons name="chevron-forward" size={14} color={APP_COLORS.primary} />
                       </View>
                     </TouchableOpacity>
@@ -606,71 +601,64 @@ const styles = StyleSheet.create({
   },
   requestCard: {
     backgroundColor: APP_COLORS.white,
-    width: 220,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 12,
+    width: 200,
+    padding: 12,
+    borderRadius: 14,
+    marginRight: 10,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    borderLeftWidth: 4,
+    borderLeftWidth: 3,
     borderLeftColor: APP_COLORS.warning,
   },
   reqCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 6,
   },
   reqPendingBadge: {
     backgroundColor: APP_COLORS.warning + '20',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
     borderRadius: 6,
   },
   reqPendingText: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     color: APP_COLORS.warning,
   },
   reqPrice: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: APP_COLORS.success,
   },
   reqTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: APP_COLORS.black,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   reqDetailRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 4,
+    gap: 4,
+    marginBottom: 2,
   },
   reqClient: {
-    fontSize: 13,
+    fontSize: 12,
     color: APP_COLORS.gray,
+    flex: 1,
   },
   reqDate: {
-    fontSize: 12,
+    fontSize: 11,
     color: APP_COLORS.gray,
   },
   reqTapHint: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 10,
-    gap: 4,
-  },
-  reqTapText: {
-    fontSize: 12,
-    color: APP_COLORS.primary,
-    fontWeight: '600',
+    alignItems: 'flex-end',
+    marginTop: 4,
   },
   emptyState: {
     alignItems: 'center',
@@ -696,6 +684,11 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.primary + '20',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: APP_COLORS.primary,
   },
   reviewerName: {
     fontSize: 14,

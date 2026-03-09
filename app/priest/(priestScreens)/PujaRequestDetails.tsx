@@ -106,6 +106,39 @@ const PujaRequestDetails = () => {
         );
     };
 
+    const handleStatusUpdate = (newStatus: "completed" | "cancelled") => {
+        const label = newStatus === "completed" ? "Mark as Completed" : "Cancel Booking";
+        Alert.alert(
+            "Update Status",
+            `Are you sure you want to ${newStatus === "completed" ? "mark this booking as completed" : "cancel this booking"}?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Confirm",
+                    style: newStatus === "cancelled" ? "destructive" : "default",
+                    onPress: async () => {
+                        try {
+                            setSubmitting(true);
+                            await priestService.updateBookingStatus(booking._id, newStatus);
+                            Alert.alert(
+                                "Success",
+                                newStatus === "completed"
+                                    ? "Booking marked as completed!"
+                                    : "Booking has been cancelled.",
+                                [{ text: "OK", onPress: () => router.back() }]
+                            );
+                        } catch (err: any) {
+                            Alert.alert("Error", err?.message || "Failed to update status");
+                        } finally {
+                            setSubmitting(false);
+                        }
+                    },
+                },
+            ],
+            { cancelable: true }
+        );
+    };
+
     const formatDate = (dateStr: string) => {
         try {
             return new Date(dateStr).toLocaleDateString("en-IN", {
@@ -127,7 +160,7 @@ const PujaRequestDetails = () => {
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                         <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Puja Request</Text>
+                    <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
                 </View>
                 <View style={styles.centerContent}>
@@ -146,7 +179,7 @@ const PujaRequestDetails = () => {
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                         <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Puja Request</Text>
+                    <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
                 </View>
                 <View style={styles.centerContent}>
@@ -162,6 +195,8 @@ const PujaRequestDetails = () => {
 
     const devotee = booking.devoteeId;
     const isPending = booking.status === "pending";
+    const isConfirmed = booking.status === "confirmed";
+    const showBottomBar = isPending || isConfirmed;
 
     return (
         <SafeAreaView style={styles.container}>
@@ -170,13 +205,13 @@ const PujaRequestDetails = () => {
                 <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
                     <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Puja Request</Text>
+                <Text style={styles.headerTitle}>Booking Details</Text>
                 <View style={styles.headerPlaceholder} />
             </View>
 
             <ScrollView
                 style={styles.scrollContent}
-                contentContainerStyle={{ paddingBottom: isPending ? 100 : 24 }}
+                contentContainerStyle={{ paddingBottom: showBottomBar ? 100 : 24 }}
             >
                 {/* Status Badge */}
                 <View style={styles.statusRow}>
@@ -367,7 +402,7 @@ const PujaRequestDetails = () => {
                 )}
             </ScrollView>
 
-            {/* Sticky Bottom Action Bar — only for pending bookings */}
+            {/* Sticky Bottom Action Bar */}
             {isPending && (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
@@ -389,6 +424,32 @@ const PujaRequestDetails = () => {
                             <>
                                 <Ionicons name="checkmark-circle-outline" size={20} color={APP_COLORS.white} />
                                 <Text style={styles.acceptBtnText}>Accept</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
+            {isConfirmed && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={[styles.decisionBtn, styles.rejectBtn]}
+                        onPress={() => handleStatusUpdate("cancelled")}
+                        disabled={submitting}
+                    >
+                        <Ionicons name="close-circle-outline" size={20} color={APP_COLORS.error} />
+                        <Text style={styles.rejectBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.decisionBtn, styles.completeBtn]}
+                        onPress={() => handleStatusUpdate("completed")}
+                        disabled={submitting}
+                    >
+                        {submitting ? (
+                            <ActivityIndicator size="small" color={APP_COLORS.white} />
+                        ) : (
+                            <>
+                                <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.white} />
+                                <Text style={styles.acceptBtnText}>Mark Complete</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -619,6 +680,9 @@ const styles = StyleSheet.create({
     },
     acceptBtn: {
         backgroundColor: APP_COLORS.success,
+    },
+    completeBtn: {
+        backgroundColor: APP_COLORS.info || '#2196F3',
     },
     rejectBtnText: {
         color: APP_COLORS.error,

@@ -130,7 +130,7 @@ const NotificationsScreen: React.FC = () => {
           }
           // Handle notification tap
           if (item.type === "booking") {
-            router.push({ pathname: "/priest/PriestBookingDetails", params: { notificationDetails: JSON.stringify(item) } });
+            router.push({ pathname: "/priest/PujaRequestDetails", params: { bookingId: item.bookingId || item._id } });
           } else if (item.type === "payment") {
             router.push("/priest/EarningsTab");
           }

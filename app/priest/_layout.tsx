@@ -41,8 +41,8 @@ const NotificationOverlay = () => {
     closeNotifications();
     if (notification.type === 'booking' && notification.data) {
       router.push({
-        pathname: "/priest/PriestBookingDetails",
-        params: { booking: JSON.stringify(notification.data) }
+        pathname: "/priest/PujaRequestDetails",
+        params: { bookingId: notification.data?._id || notification.data?.bookingId }
       });
     } else if (notification.type === 'earnings') {
       router.push("/priest/EarningsTab");
@@ -207,15 +207,7 @@ const PriestTabs = () => {
           tabBarStyle: { display: "none" },
         }}
       />
-      <Tabs.Screen
-        name="(priestScreens)/PriestBookingDetails"
-        options={{
-          href: null,
-          title: "Booking Details",
-          headerShown: false,
-          tabBarStyle: { display: "none" },
-        }}
-      />
+
       <Tabs.Screen
         name="(priestScreens)/AvailableOffers"
         options={{

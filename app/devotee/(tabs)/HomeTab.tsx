@@ -12,6 +12,7 @@ import {
   View,
   RefreshControl,
   Alert,
+  Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -26,7 +27,8 @@ import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { useNotifications } from "../../../context/NotificationContext";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const { width: WINDOW_WIDTH } = Dimensions.get("window");
+const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
 
 // ─── Mock Data (fallback) ───────────────
 const FALLBACK_PANCHANG = {
@@ -218,230 +220,232 @@ const HomeScreen: React.FC = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* ── Header ─────────────────────────────────────────── */}
-        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.greeting}>Namaste, {firstName} 🙏</Text>
-            <Text style={styles.headerSubtitle}>What would you like to do today?</Text>
+        <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
+          {/* ── Header ─────────────────────────────────────────── */}
+          <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.greeting}>Namaste, {firstName} 🙏</Text>
+              <Text style={styles.headerSubtitle}>What would you like to do today?</Text>
+            </View>
+            <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.locationPill} onPress={() => router.push('/(devoteeScreens)/profile/ManageAddresses')}>
+                <Ionicons name="location" size={14} color={APP_COLORS.saffron} />
+                <Text style={styles.locationText}>{currentCity}</Text>
+              </TouchableOpacity>
+              <NotificationBellInline />
+            </View>
           </View>
-          <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.locationPill} onPress={() => router.push('/(devoteeScreens)/profile/ManageAddresses')}>
-              <Ionicons name="location" size={14} color={APP_COLORS.saffron} />
-              <Text style={styles.locationText}>{currentCity}</Text>
-            </TouchableOpacity>
-            <NotificationBellInline />
-          </View>
-        </View>
 
-        {/* ── Panchang Widget ────────────────────────────────── */}
-        <View style={styles.sectionPadding}>
-          <Card style={styles.panchangCard}>
-            <View style={styles.panchangGradient}>
-              <View style={styles.panchangIconWrap}>
-                <Ionicons name="sunny" size={28} color="#FFA726" />
-              </View>
-              <View style={{ flex: 1, marginLeft: 14 }}>
-                <Text style={styles.panchangTitle}>{panchang.title}</Text>
-                <Text style={styles.panchangSub}>{panchang.subtitle}</Text>
-                <View style={styles.panchangTags}>
-                  <View style={styles.panchangTag}>
-                    <Text style={styles.panchangTagText}>Nakshatra: {panchang.nakshatra}</Text>
-                  </View>
-                  <View style={styles.panchangTag}>
-                    <Text style={styles.panchangTagText}>Tithi: {panchang.tithi}</Text>
+          {/* ── Panchang Widget ────────────────────────────────── */}
+          <View style={styles.sectionPadding}>
+            <Card style={styles.panchangCard}>
+              <View style={styles.panchangGradient}>
+                <View style={styles.panchangIconWrap}>
+                  <Ionicons name="sunny" size={28} color="#FFA726" />
+                </View>
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                  <Text style={styles.panchangTitle}>{panchang.title}</Text>
+                  <Text style={styles.panchangSub}>{panchang.subtitle}</Text>
+                  <View style={styles.panchangTags}>
+                    <View style={styles.panchangTag}>
+                      <Text style={styles.panchangTagText}>Nakshatra: {panchang.nakshatra}</Text>
+                    </View>
+                    <View style={styles.panchangTag}>
+                      <Text style={styles.panchangTagText}>Tithi: {panchang.tithi}</Text>
+                    </View>
                   </View>
                 </View>
               </View>
-            </View>
-          </Card>
-        </View>
-
-        {/* ── Hero Carousel ──────────────────────────────────── */}
-        <View style={styles.sectionPadding}>
-          <ScrollView
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            onMomentumScrollEnd={(e) => {
-              const page = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
-              setActiveBanner(page);
-            }}
-          >
-            {banners.map((banner) => (
-              <TouchableOpacity
-                key={banner._id || banner.id}
-                style={[styles.bannerCard, { backgroundColor: banner.color }]}
-                activeOpacity={0.9}
-              >
-                <Ionicons name="megaphone" size={32} color="rgba(255,255,255,0.3)" style={styles.bannerIcon} />
-                <Text style={styles.bannerTitle}>{banner.title}</Text>
-                <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-          <View style={styles.dotsRow}>
-            {banners.map((_, i) => (
-              <View
-                key={i}
-                style={[styles.dot, activeBanner === i && styles.dotActive]}
-              />
-            ))}
+            </Card>
           </View>
-        </View>
 
-        {/* ── My Requests ────────────────────────────────────── */}
-        {myRequests.length > 0 && (
+          {/* ── Hero Carousel ──────────────────────────────────── */}
+          <View style={styles.sectionPadding}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={(e) => {
+                const page = Math.round(e.nativeEvent.contentOffset.x / (SCREEN_WIDTH - 32));
+                setActiveBanner(page);
+              }}
+            >
+              {banners.map((banner) => (
+                <TouchableOpacity
+                  key={banner._id || banner._id}
+                  style={[styles.bannerCard, { backgroundColor: banner.color }]}
+                  activeOpacity={0.9}
+                >
+                  <Ionicons name="megaphone" size={32} color="rgba(255,255,255,0.3)" style={styles.bannerIcon} />
+                  <Text style={styles.bannerTitle}>{banner.title}</Text>
+                  <Text style={styles.bannerSubtitle}>{banner.subtitle}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.dotsRow}>
+              {banners.map((_, i) => (
+                <View
+                  key={i}
+                  style={[styles.dot, activeBanner === i && styles.dotActive]}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* ── My Requests ────────────────────────────────────── */}
+          {myRequests.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>📋 My Requests</Text>
+                <TouchableOpacity onPress={() => router.push('/(devoteeScreens)/MyBookings' as any)}>
+                  <Text style={styles.viewAllLink}>View All</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                {myRequests.map((req: any, idx: number) => {
+                  const statusColor =
+                    req.status === 'confirmed' ? '#2E7D32' :
+                      req.status === 'cancelled' ? '#C62828' :
+                        '#E65100';
+                  const statusBg =
+                    req.status === 'confirmed' ? '#E8F5E9' :
+                      req.status === 'cancelled' ? '#FFEBEE' :
+                        '#FFF3E0';
+                  const statusIcon =
+                    req.status === 'confirmed' ? 'checkmark-circle' :
+                      req.status === 'cancelled' ? 'close-circle' :
+                        'hourglass-outline';
+                  const statusLabel =
+                    req.status === 'confirmed' ? 'Confirmed' :
+                      req.status === 'cancelled' ? 'Declined' :
+                        'Pending';
+                  const priestName = req.priestId?.name || 'Priest';
+                  return (
+                    <View key={req._id || idx} style={[styles.reqCard, { borderLeftColor: statusColor }]}>
+                      <View style={[styles.reqStatusBadge, { backgroundColor: statusBg }]}>
+                        <Ionicons name={statusIcon as any} size={13} color={statusColor} />
+                        <Text style={[styles.reqStatusText, { color: statusColor }]}>{statusLabel}</Text>
+                      </View>
+                      <Text style={styles.reqCeremony} numberOfLines={1}>{req.ceremonyType || 'Ceremony'}</Text>
+                      <Text style={styles.reqPriestName} numberOfLines={1}>{priestName}</Text>
+                      <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* ── Pending Actions ────────────────────────────────── */}
+          {pendingActions.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>⚡ Pending Actions</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                {pendingActions.map((action, index) => (
+                  <Card key={index} style={styles.actionCard}>
+                    <View style={styles.actionRow}>
+                      <View style={styles.actionIconWrap}>
+                        <Ionicons name="star-outline" size={22} color={APP_COLORS.warning} />
+                      </View>
+                      <View style={{ flex: 1, marginLeft: 12 }}>
+                        <Text style={styles.actionTitle}>{action.title}</Text>
+                        <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
+                      </View>
+                    </View>
+                    <PrimaryButton title="Rate Experience" onPress={() => openRateModal(action)} size="sm" />
+                  </Card>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {recentBookings.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>🔁 Book Again</Text>
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
+                {recentBookings.map((item) => (
+                  <Card key={item._id} style={styles.bookAgainCard} onPress={() => handleRepeatBooking(item)}>
+                    <View style={styles.bookAgainIcon}>
+                      <Ionicons name="flame" size={24} color={APP_COLORS.saffron} />
+                    </View>
+                    <Text style={styles.bookAgainName} numberOfLines={1}>{item.ceremonyType}</Text>
+                    <Text style={styles.bookAgainPriest}>{item.priestId?.name}</Text>
+                    <Text style={styles.bookAgainDate}>
+                      {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </Text>
+                    <PrimaryButton title="Repeat" onPress={() => handleRepeatBooking(item)} size="sm" variant="outline" style={{ marginTop: 8 }} />
+                  </Card>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* ── Shop by Category ───────────────────────────────── */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>🕉️ Book by Category</Text>
+            <View style={styles.categoryGrid}>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat._id || (cat as any)?.id}
+                  style={styles.categoryCard}
+                  activeOpacity={0.85}
+                  onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+                >
+                  <View style={[styles.categoryIconWrap, { backgroundColor: (cat.color || APP_COLORS.saffron) + "18" }]}>
+                    <Ionicons name={cat.icon as any} size={32} color={cat.color || APP_COLORS.saffron} />
+                  </View>
+                  <Text style={styles.categoryName}>{cat.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* ── Popular Ceremonies (from API) ───────────────────── */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>📋 My Requests</Text>
-              <TouchableOpacity onPress={() => router.push('/(devoteeScreens)/MyBookings' as any)}>
+              <Text style={styles.sectionTitle}>🌟 Popular Ceremonies</Text>
+              <TouchableOpacity onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}>
                 <Text style={styles.viewAllLink}>View All</Text>
               </TouchableOpacity>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-              {myRequests.map((req: any, idx: number) => {
-                const statusColor =
-                  req.status === 'confirmed' ? '#2E7D32' :
-                    req.status === 'cancelled' ? '#C62828' :
-                      '#E65100';
-                const statusBg =
-                  req.status === 'confirmed' ? '#E8F5E9' :
-                    req.status === 'cancelled' ? '#FFEBEE' :
-                      '#FFF3E0';
-                const statusIcon =
-                  req.status === 'confirmed' ? 'checkmark-circle' :
-                    req.status === 'cancelled' ? 'close-circle' :
-                      'hourglass-outline';
-                const statusLabel =
-                  req.status === 'confirmed' ? 'Confirmed' :
-                    req.status === 'cancelled' ? 'Declined' :
-                      'Pending';
-                const priestName = req.priestId?.name || 'Priest';
-                return (
-                  <View key={req._id || idx} style={[styles.reqCard, { borderLeftColor: statusColor }]}>
-                    <View style={[styles.reqStatusBadge, { backgroundColor: statusBg }]}>
-                      <Ionicons name={statusIcon as any} size={13} color={statusColor} />
-                      <Text style={[styles.reqStatusText, { color: statusColor }]}>{statusLabel}</Text>
-                    </View>
-                    <Text style={styles.reqCeremony} numberOfLines={1}>{req.ceremonyType || 'Ceremony'}</Text>
-                    <Text style={styles.reqPriestName} numberOfLines={1}>{priestName}</Text>
-                    <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* ── Pending Actions ────────────────────────────────── */}
-        {pendingActions.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>⚡ Pending Actions</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-              {pendingActions.map((action, index) => (
-                <Card key={index} style={styles.actionCard}>
-                  <View style={styles.actionRow}>
-                    <View style={styles.actionIconWrap}>
-                      <Ionicons name="star-outline" size={22} color={APP_COLORS.warning} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 12 }}>
-                      <Text style={styles.actionTitle}>{action.title}</Text>
-                      <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
-                    </View>
-                  </View>
-                  <PrimaryButton title="Rate Experience" onPress={() => openRateModal(action)} size="sm" />
-                </Card>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {recentBookings.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>🔁 Book Again</Text>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 16 }}>
-              {recentBookings.map((item) => (
-                <Card key={item._id} style={styles.bookAgainCard} onPress={() => handleRepeatBooking(item)}>
-                  <View style={styles.bookAgainIcon}>
-                    <Ionicons name="flame" size={24} color={APP_COLORS.saffron} />
-                  </View>
-                  <Text style={styles.bookAgainName} numberOfLines={1}>{item.ceremonyType}</Text>
-                  <Text style={styles.bookAgainPriest}>{item.priestId?.name}</Text>
-                  <Text style={styles.bookAgainDate}>
-                    {new Date(item.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                  </Text>
-                  <PrimaryButton title="Repeat" onPress={() => handleRepeatBooking(item)} size="sm" variant="outline" style={{ marginTop: 8 }} />
-                </Card>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* ── Shop by Category ───────────────────────────────── */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🕉️ Book by Category</Text>
-          <View style={styles.categoryGrid}>
-            {categories.map((cat) => (
-              <TouchableOpacity
-                key={cat._id || cat.id}
-                style={styles.categoryCard}
-                activeOpacity={0.85}
-                onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+            {isLoadingCeremonies ? (
+              <ActivityIndicator size="small" color={APP_COLORS.saffron} style={{ marginTop: 16 }} />
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
               >
-                <View style={[styles.categoryIconWrap, { backgroundColor: (cat.color || APP_COLORS.saffron) + "18" }]}>
-                  <Ionicons name={cat.icon as any} size={32} color={cat.color || APP_COLORS.saffron} />
-                </View>
-                <Text style={styles.categoryName}>{cat.name}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-
-        {/* ── Popular Ceremonies (from API) ───────────────────── */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>🌟 Popular Ceremonies</Text>
-            <TouchableOpacity onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}>
-              <Text style={styles.viewAllLink}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          {isLoadingCeremonies ? (
-            <ActivityIndicator size="small" color={APP_COLORS.saffron} style={{ marginTop: 16 }} />
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ paddingHorizontal: 16 }}
-            >
-              {ceremoniesData?.map((ceremony: any) => (
+                {ceremoniesData?.map((ceremony: any) => (
+                  <TouchableOpacity
+                    key={ceremony._id}
+                    style={styles.ceremonyCard}
+                    onPress={() => handleCeremonyPress(ceremony)}
+                    activeOpacity={0.85}
+                  >
+                    <Image
+                      source={{ uri: ceremony.image || ceremony.images?.[0]?.url || "https://via.placeholder.com/150" }}
+                      style={styles.ceremonyImage}
+                      resizeMode="cover"
+                    />
+                    <View style={styles.ceremonyOverlay} />
+                    <Text style={styles.ceremonyName} numberOfLines={2}>{ceremony.name}</Text>
+                  </TouchableOpacity>
+                ))}
                 <TouchableOpacity
-                  key={ceremony._id}
-                  style={styles.ceremonyCard}
-                  onPress={() => handleCeremonyPress(ceremony)}
-                  activeOpacity={0.85}
+                  style={[styles.ceremonyCard, styles.viewAllCard]}
+                  onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
                 >
-                  <Image
-                    source={{ uri: ceremony.image || ceremony.images?.[0]?.url || "https://via.placeholder.com/150" }}
-                    style={styles.ceremonyImage}
-                    resizeMode="cover"
-                  />
-                  <View style={styles.ceremonyOverlay} />
-                  <Text style={styles.ceremonyName} numberOfLines={2}>{ceremony.name}</Text>
+                  <View style={styles.viewAllBox}>
+                    <Ionicons name="arrow-forward-circle" size={32} color={APP_COLORS.saffron} />
+                    <Text style={styles.viewAllCardText}>View All</Text>
+                  </View>
                 </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={[styles.ceremonyCard, styles.viewAllCard]}
-                onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
-              >
-                <View style={styles.viewAllBox}>
-                  <Ionicons name="arrow-forward-circle" size={32} color={APP_COLORS.saffron} />
-                  <Text style={styles.viewAllCardText}>View All</Text>
-                </View>
-              </TouchableOpacity>
-            </ScrollView>
-          )}
+              </ScrollView>
+            )}
+          </View>
         </View>
       </ScrollView>
 

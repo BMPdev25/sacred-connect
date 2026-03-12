@@ -1,9 +1,11 @@
 import axios, { AxiosInstance } from 'axios';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../utils/storage';
+import { Platform } from 'react-native';
 import { router } from 'expo-router';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
+  if (Platform.OS === 'web') return 'http://localhost:5000';
   return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 };
 

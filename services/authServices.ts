@@ -1,5 +1,5 @@
 // src/services/authService.js
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from '../utils/storage';
 import api from "../api";
 
 /**
@@ -159,6 +159,21 @@ const authService = {
         error?.response?.data?.message ||
         "Password reset failed. Please try again."
       );
+    }
+  },
+
+  /**
+   * Save Expo Push Token to backend
+   * @param {string} pushToken - The device's Expo push token
+   * @returns {Promise} Response from the API
+   */
+  savePushToken: async (pushToken: string): Promise<any> => {
+    try {
+      const response = await api.post("/api/auth/push-token", { pushToken });
+      return response.data;
+    } catch (error: any) {
+      console.warn("Could not save push token:", error?.response?.data?.message || error.message);
+      return null;
     }
   },
 };

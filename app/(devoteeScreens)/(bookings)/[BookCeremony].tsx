@@ -601,6 +601,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   loadingContainer: {
     flex: 1,

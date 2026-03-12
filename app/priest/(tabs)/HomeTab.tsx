@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useEffect } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -43,6 +43,9 @@ const HomeScreen: React.FC = () => {
   const [pendingActions, setPendingActions] = useState<any[]>([]);
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
+  const [isVerified, setIsVerified] = useState<boolean>(true); // assume true until loaded
+  const [completionRate, setCompletionRate] = useState<number>(100);
+  const [ceremonyCount, setCeremonyCount] = useState<number>(0);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -78,6 +81,9 @@ const HomeScreen: React.FC = () => {
 
       if (profileRes.status === 'fulfilled') {
         setCurrentAvailability(profileRes.value.currentAvailability);
+        setIsVerified(profileRes.value.profile?.isVerified ?? profileRes.value.isVerified ?? true);
+        setCompletionRate(profileRes.value.analytics?.completionRate ?? 100);
+        setCeremonyCount(profileRes.value.ceremonyCount ?? 0);
       }
 
       if (reviewsRes.status === 'fulfilled') {
@@ -110,6 +116,15 @@ const HomeScreen: React.FC = () => {
       loadData();
     }, [loadData])
   );
+
+  // Poll for updates every 30s if there are active bookings
+  useEffect(() => {
+    const hasActive = allBookings.some(b => !['completed', 'cancelled'].includes(b.status));
+    if (!hasActive) return;
+
+    const id = setInterval(() => loadData(true), 30000);
+    return () => clearInterval(id);
+  }, [allBookings, loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -210,232 +225,284 @@ const HomeScreen: React.FC = () => {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}>
-          <View style={styles.headerRow}>
-            <View style={styles.headerContent}>
-              <Text style={styles.welcomeText}>Welcome back,</Text>
-              <Text style={styles.headerTitle}>{userInfo?.name || "Priest"}</Text>
-            </View>
-
-            <View style={styles.headerActions}>
-              <TouchableOpacity
-                style={styles.notificationBell}
-                onPress={toggleNotifications}
-              >
-                <Ionicons
-                  name={showNotifications ? "notifications" : "notifications-outline"}
-                  size={28}
-                  color={APP_COLORS.white}
-                />
-                {unreadCount > 0 && <View style={styles.notificationBadge} />}
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-
-        {/* Profile Completion */}
-        {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
-          <ProfileCompletionBanner data={profileCompletion} />
-        )}
-
-        {loading ? (
-          <View style={{ padding: 20 }}>
-            <SkeletonCard />
-            <SkeletonCard />
-          </View>
-        ) : (
-          <View style={styles.content}>
-
-            {/* Status Toggle */}
-            <HomeStatusToggle
-              currentStatus={currentAvailability?.status || 'offline'}
-              autoToggle={currentAvailability?.autoToggle ?? true}
-              onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
-              style={{ marginBottom: 20 }}
-            />
-
-            {/* Pending Actions Carousel */}
-            {pendingActions.length > 0 && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Pending Actions</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {pendingActions.map((action, index) => (
-                    <View key={index} style={styles.actionCard}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                        <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info + '20' : APP_COLORS.warning + '20' }]}>
-                          <Ionicons
-                            name={action.actionType === 'mark_complete' ? 'checkmark-circle-outline' : 'star-outline'}
-                            size={24}
-                            color={action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning}
-                          />
-                        </View>
-                        <View style={{ marginLeft: 12, flex: 1 }}>
-                          <Text style={styles.actionTitle}>{action.title}</Text>
-                          <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning }]}
-                        onPress={() => action.actionType === 'mark_complete' ? handleMarkComplete(action._id) : openRateModal(action)}
-                      >
-                        <Text style={styles.actionBtnText}>
-                          {action.actionType === 'mark_complete' ? 'Mark Complete' : 'Rate Now'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </ScrollView>
+        <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
+          <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}>
+            <View style={styles.headerRow}>
+              <View style={styles.headerContent}>
+                <Text style={styles.welcomeText}>Welcome back,</Text>
+                <Text style={styles.headerTitle}>{userInfo?.name || "Priest"}</Text>
               </View>
-            )}
 
-            {/* 1. Dashboard Grid - Earnings & Puja Stats */}
-            <View style={styles.dashboardGrid}>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>This Month</Text>
-                <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statLabel}>Balance</Text>
-                <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
-              </View>
-            </View>
-            <View style={styles.dashboardGrid}>
-              <View style={styles.statCard}>
-                <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.success} style={{ marginBottom: 4 }} />
-                <Text style={styles.statLabel}>Pujas Completed</Text>
-                <Text style={[styles.statValue, { color: APP_COLORS.success }]}>{earnings?.pujasCompleted ?? 0}</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
-                <Text style={styles.statLabel}>Pujas Pending</Text>
-                <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
-              </View>
-            </View>
-
-            {/* 2. Up Next */}
-            {upNextBooking && (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Up Next</Text>
-                <View style={styles.upNextCard}>
-                  <View style={styles.upNextHeader}>
-                    <Text style={styles.ceremonyTitle}>{upNextBooking.ceremonyType || upNextBooking.ceremony}</Text>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>CONFIRMED</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.detailRow}>
-                    <Ionicons name="person-outline" size={16} color={APP_COLORS.gray} />
-                    <Text style={styles.detailText}>{upNextBooking.devoteeId?.name || "Client"}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
-                    <Text style={styles.detailText}>
-                      {new Date(upNextBooking.date).toLocaleDateString()} • {upNextBooking.startTime || upNextBooking.time}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
-                    <Text style={styles.detailText} numberOfLines={1}>
-                      {upNextBooking.location?.address || "Location details"}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={styles.actionButton}
-                    onPress={() => openMaps(upNextBooking.location)}
-                  >
-                    <Ionicons name="navigate-outline" size={18} color={APP_COLORS.white} />
-                    <Text style={styles.actionButtonText}>Navigate</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            )}
-
-            {/* 3. Recent Love */}
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Recent Love</Text>
-                <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
-                  <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.notificationBell}
+                  onPress={toggleNotifications}
+                >
+                  <Ionicons
+                    name={showNotifications ? "notifications" : "notifications-outline"}
+                    size={28}
+                    color={APP_COLORS.white}
+                  />
+                  {unreadCount > 0 && <View style={styles.notificationBadge} />}
                 </TouchableOpacity>
               </View>
-              {recentReviews.length > 0 ? (
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {recentReviews.slice(0, 4).map((review, index) => (
-                    <View key={index} style={styles.reviewCard}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                        <View style={styles.reviewerAvatar}>
-                          <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
-                        </View>
-                        <View style={{ marginLeft: 8 }}>
-                          <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
-                          <RatingStars rating={review.rating} size={14} readOnly />
-                        </View>
-                      </View>
-                      <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
-                    </View>
-                  ))}
-                </ScrollView>
-              ) : (
-                <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
-              )}
             </View>
+          </View>
 
-            {/* 4. Pending Requests */}
-            {pendingRequests.length > 0 && (
+          {/* Profile Completion */}
+          {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
+            <ProfileCompletionBanner data={profileCompletion} />
+          )}
+
+          {/* Verification Banner */}
+          {!loading && !isVerified && (
+            <TouchableOpacity
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                backgroundColor: APP_COLORS.error + "12",
+                marginHorizontal: 20,
+                marginBottom: 12,
+                padding: 14,
+                borderRadius: 12,
+                borderLeftWidth: 3,
+                borderLeftColor: APP_COLORS.error,
+              }}
+              onPress={() => router.push("/priest/VerificationStatus" as any)}
+            >
+              <Ionicons name="shield-outline" size={22} color={APP_COLORS.error} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontWeight: "bold", color: APP_COLORS.error, fontSize: 14 }}>Profile Not Verified</Text>
+                <Text style={{ fontSize: 12, color: APP_COLORS.gray, marginTop: 2 }}>Upload documents to accept bookings</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={APP_COLORS.error} />
+            </TouchableOpacity>
+          )}
+
+          {/* Reliability Warning Banner */}
+          {!loading && ceremonyCount >= 5 && completionRate < 70 && (
+            <View style={{
+              flexDirection: "row",
+              alignItems: "center",
+              backgroundColor: APP_COLORS.error + "12",
+              marginHorizontal: 20,
+              marginBottom: 12,
+              padding: 14,
+              borderRadius: 12,
+              borderLeftWidth: 3,
+              borderLeftColor: APP_COLORS.error,
+            }}>
+              <Ionicons name="warning" size={24} color={APP_COLORS.error} />
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={{ fontWeight: "bold", color: APP_COLORS.error, fontSize: 14 }}>
+                  Low Reliability Score
+                </Text>
+                <Text style={{ fontSize: 12, color: APP_COLORS.gray, marginTop: 2, lineHeight: 18 }}>
+                  Your completion rate has dropped to {completionRate}%. Completing bookings on time will improve your ranking and visibility.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {loading ? (
+            <View style={{ padding: 20 }}>
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : (
+            <View style={styles.content}>
+
+              {/* Status Toggle */}
+              <HomeStatusToggle
+                currentStatus={currentAvailability?.status || 'offline'}
+                autoToggle={currentAvailability?.autoToggle ?? true}
+                onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
+                style={{ marginBottom: 20 }}
+              />
+
+              {/* Pending Actions Carousel */}
+              {pendingActions.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Pending Actions</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {pendingActions.map((action, index) => (
+                      <View key={index} style={styles.actionCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                          <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info + '20' : APP_COLORS.warning + '20' }]}>
+                            <Ionicons
+                              name={action.actionType === 'mark_complete' ? 'checkmark-circle-outline' : 'star-outline'}
+                              size={24}
+                              color={action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning}
+                            />
+                          </View>
+                          <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={styles.actionTitle}>{action.title}</Text>
+                            <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
+                          </View>
+                        </View>
+
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning }]}
+                          onPress={() => action.actionType === 'mark_complete' ? handleMarkComplete(action._id) : openRateModal(action)}
+                        >
+                          <Text style={styles.actionBtnText}>
+                            {action.actionType === 'mark_complete' ? 'Mark Complete' : 'Rate Now'}
+                          </Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
+
+              {/* 1. Dashboard Grid - Earnings & Puja Stats */}
+              <View style={styles.dashboardGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>This Month</Text>
+                  <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statLabel}>Balance</Text>
+                  <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
+                </View>
+              </View>
+              <View style={styles.dashboardGrid}>
+                <View style={styles.statCard}>
+                  <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.success} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>Pujas Completed</Text>
+                  <Text style={[styles.statValue, { color: APP_COLORS.success }]}>{earnings?.pujasCompleted ?? 0}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>Pujas Pending</Text>
+                  <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
+                </View>
+              </View>
+
+              {/* 2. Up Next */}
+              {upNextBooking && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Up Next</Text>
+                  <View style={styles.upNextCard}>
+                    <View style={styles.upNextHeader}>
+                      <Text style={styles.ceremonyTitle}>{upNextBooking.ceremonyType || upNextBooking.ceremony}</Text>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>CONFIRMED</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.detailRow}>
+                      <Ionicons name="person-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText}>{upNextBooking.devoteeId?.name || "Client"}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText}>
+                        {new Date(upNextBooking.date).toLocaleDateString()} • {upNextBooking.startTime || upNextBooking.time}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText} numberOfLines={1}>
+                        {upNextBooking.location?.address || "Location details"}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => openMaps(upNextBooking.location)}
+                    >
+                      <Ionicons name="navigate-outline" size={18} color={APP_COLORS.white} />
+                      <Text style={styles.actionButtonText}>Navigate</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
+              {/* 3. Recent Love */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Puja Requests ({pendingRequests.length})</Text>
-                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
-                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
+                  <Text style={styles.sectionTitle}>Recent Love</Text>
+                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
+                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
                   </TouchableOpacity>
                 </View>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                  {pendingRequests.map((req, index) => (
-                    <TouchableOpacity
-                      key={index}
-                      style={styles.requestCard}
-                      activeOpacity={0.7}
-                      onPress={() => router.push({
-                        pathname: "/priest/(priestScreens)/PujaRequestDetails" as any,
-                        params: { bookingId: req._id },
-                      })}
-                    >
-                      <View style={styles.reqCardTop}>
-                        <View style={styles.reqPendingBadge}>
-                          <Text style={styles.reqPendingText}>PENDING</Text>
+                {recentReviews.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {recentReviews.slice(0, 4).map((review, index) => (
+                      <View key={index} style={styles.reviewCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                          <View style={styles.reviewerAvatar}>
+                            <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
+                          </View>
+                          <View style={{ marginLeft: 8 }}>
+                            <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
+                            <RatingStars rating={review.rating} size={14} readOnly />
+                          </View>
                         </View>
-                        <Text style={styles.reqPrice}>₹{req.basePrice}</Text>
+                        <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
                       </View>
-                      <Text style={styles.reqTitle} numberOfLines={1}>{req.ceremonyType || req.ceremony}</Text>
-                      <View style={styles.reqDetailRow}>
-                        <Ionicons name="person-outline" size={13} color={APP_COLORS.gray} />
-                        <Text style={styles.reqClient} numberOfLines={1}>{req.devoteeId?.name || 'Devotee'}</Text>
-                      </View>
-                      <View style={styles.reqDetailRow}>
-                        <Ionicons name="calendar-outline" size={13} color={APP_COLORS.gray} />
-                        <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}{req.startTime ? ` • ${req.startTime}` : ''}</Text>
-                      </View>
-                      <View style={styles.reqTapHint}>
-                        <Ionicons name="chevron-forward" size={14} color={APP_COLORS.primary} />
-                      </View>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
+                )}
+              </View>
+
+              {/* 4. Pending Requests */}
+              {pendingRequests.length > 0 && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <Text style={styles.sectionTitle}>Puja Requests ({pendingRequests.length})</Text>
+                    <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
+                      <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
                     </TouchableOpacity>
-                  ))}
-                </ScrollView>
-              </View>
-            )}
+                  </View>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {pendingRequests.map((req, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        style={styles.requestCard}
+                        activeOpacity={0.7}
+                        onPress={() => router.push({
+                          pathname: "/priest/(priestScreens)/PujaRequestDetails" as any,
+                          params: { bookingId: req._id },
+                        })}
+                      >
+                        <View style={styles.reqCardTop}>
+                          <View style={styles.reqPendingBadge}>
+                            <Text style={styles.reqPendingText}>PENDING</Text>
+                          </View>
+                          <Text style={styles.reqPrice}>₹{req.basePrice}</Text>
+                        </View>
+                        <Text style={styles.reqTitle} numberOfLines={1}>{req.ceremonyType || req.ceremony}</Text>
+                        <View style={styles.reqDetailRow}>
+                          <Ionicons name="person-outline" size={13} color={APP_COLORS.gray} />
+                          <Text style={styles.reqClient} numberOfLines={1}>{req.devoteeId?.name || 'Devotee'}</Text>
+                        </View>
+                        <View style={styles.reqDetailRow}>
+                          <Ionicons name="calendar-outline" size={13} color={APP_COLORS.gray} />
+                          <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}{req.startTime ? ` • ${req.startTime}` : ''}</Text>
+                        </View>
+                        <View style={styles.reqTapHint}>
+                          <Ionicons name="chevron-forward" size={14} color={APP_COLORS.primary} />
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                </View>
+              )}
 
-            {!upNextBooking && pendingRequests.length === 0 && (
-              <View style={styles.emptyState}>
-                <Ionicons name="calendar-outline" size={48} color={APP_COLORS.lightGray} />
-                <Text style={styles.emptyStateText}>No upcoming activity</Text>
-              </View>
-            )}
+              {!upNextBooking && pendingRequests.length === 0 && (
+                <View style={styles.emptyState}>
+                  <Ionicons name="calendar-outline" size={48} color={APP_COLORS.lightGray} />
+                  <Text style={styles.emptyStateText}>No upcoming activity</Text>
+                </View>
+              )}
 
-          </View>
-        )}
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Rating Modal */}

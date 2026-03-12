@@ -31,6 +31,9 @@ function getFriendlyLoginError(raw: string): string {
   if (lower.includes('network') || lower.includes('internet') || lower.includes('reach the server') || lower.includes('econnrefused')) {
     return 'Unable to connect. Please check your internet connection and try again.';
   }
+  if (lower.includes('account exists, but is registered as a')) {
+    return raw; // Keep exact backend message for role mismatch
+  }
   if (lower.includes('server error') || lower.includes('500')) {
     return 'Something went wrong on our end. Please try again in a moment.';
   }
@@ -72,7 +75,11 @@ export default function LoginScreen() {
     }
 
     try {
-      const user = await dispatch(login({ identifier: state.identifier, password: state.password })).unwrap();
+      const user = await dispatch(login({
+        identifier: state.identifier,
+        password: state.password,
+        userType: state.userType
+      })).unwrap();
       navigateHome(user?.userType);
     } catch (err: any) {
       const raw = err?.message || err || 'Login failed';
@@ -308,6 +315,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     paddingBottom: 40,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 600 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   logoContainer: {
     alignItems: "center",

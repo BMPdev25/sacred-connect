@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "../../utils/storage";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -37,10 +37,15 @@ export default function Authentication() {
               return;
             }
           } catch (e: any) {
-            // If loadUser fails (likely 401), clear credentials and go to login
-            console.log("Token validation failed - clearing credentials");
+            // If loadUser fails, clear credentials and go to login
+            const errorMessage = e?.message || e?.response?.data?.message || '';
+            console.log("Token validation failed - clearing credentials:", errorMessage);
+
             await SecureStore.deleteItemAsync("userToken");
             await SecureStore.deleteItemAsync("userInfo");
+
+            // If it's a role mismatch error, it means they logged in but with the wrong app type previously.
+            // Just drop them to login, the user will see the error when they try to re-authenticate.
             router.replace("/login" as any);
             return;
           }

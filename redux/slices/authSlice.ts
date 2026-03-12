@@ -1,6 +1,6 @@
 // src/redux/slices/authSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "../../utils/storage";
 import api from "../../api"; // Import the API instance
 import { RootState } from "../store";
 
@@ -26,17 +26,19 @@ interface AuthState {
 interface LoginParams {
   identifier: string;
   password: string;
+  userType?: "devotee" | "priest";
 }
 
 export const login = createAsyncThunk<
   UserInfo,
   LoginParams,
   { rejectValue: string }
->("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
+>("auth/login", async ({ identifier, password, userType }, { rejectWithValue }) => {
   try {
     const response = await api.post("/api/auth/login", {
       identifier,
       password,
+      userType
     });
 
     // Store token in SecureStore

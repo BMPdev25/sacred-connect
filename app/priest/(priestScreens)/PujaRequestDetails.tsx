@@ -22,6 +22,7 @@ const PujaRequestDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    const [countdown, setCountdown] = useState<string | null>(null);
 
     useEffect(() => {
         if (!params.bookingId) {
@@ -49,6 +50,28 @@ const PujaRequestDetails = () => {
             mounted = false;
         };
     }, [params.bookingId]);
+
+    // Countdown timer
+    useEffect(() => {
+        if (!booking?.date) return;
+        const update = () => {
+            const now = new Date().getTime();
+            const target = new Date(booking.date).getTime();
+            const diff = target - now;
+            if (diff <= 0) { setCountdown(null); return; }
+            const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+            let text = '';
+            if (days > 0) text += `${days} day${days > 1 ? 's' : ''} `;
+            if (hours > 0) text += `${hours} hr${hours > 1 ? 's' : ''} `;
+            text += `${mins} min${mins > 1 ? 's' : ''}`;
+            setCountdown(text.trim());
+        };
+        update();
+        const id = setInterval(update, 60000);
+        return () => clearInterval(id);
+    }, [booking?.date]);
 
     const openMaps = () => {
         if (!booking?.location) return;
@@ -106,15 +129,38 @@ const PujaRequestDetails = () => {
         );
     };
 
-    const handleStatusUpdate = (newStatus: "completed" | "cancelled") => {
-        const label = newStatus === "completed" ? "Mark as Completed" : "Cancel Booking";
+    const handleStatusUpdate = (newStatus: "arrived" | "in_progress" | "completed" | "cancelled") => {
+        let title = "";
+        let message = "";
+        let confirmText = "Confirm";
+
+        switch (newStatus) {
+            case "arrived":
+                title = "I have Arrived";
+                message = "Are you sure you want to mark yourself as arrived at the devotee's location?";
+                break;
+            case "in_progress":
+                title = "Start Ritual";
+                message = "Are you sure you want to mark the ritual as started?";
+                break;
+            case "completed":
+                title = "Mark as Completed";
+                message = "Are you sure you want to mark this booking as completed?";
+                break;
+            case "cancelled":
+                title = "Cancel Booking";
+                message = "Are you sure you want to cancel this booking?";
+                confirmText = "Yes, Cancel";
+                break;
+        }
+
         Alert.alert(
-            "Update Status",
-            `Are you sure you want to ${newStatus === "completed" ? "mark this booking as completed" : "cancel this booking"}?`,
+            title,
+            message,
             [
-                { text: "Cancel", style: "cancel" },
+                { text: "No", style: "cancel" },
                 {
-                    text: "Confirm",
+                    text: confirmText,
                     style: newStatus === "cancelled" ? "destructive" : "default",
                     onPress: async () => {
                         try {
@@ -122,10 +168,16 @@ const PujaRequestDetails = () => {
                             await priestService.updateBookingStatus(booking._id, newStatus);
                             Alert.alert(
                                 "Success",
-                                newStatus === "completed"
-                                    ? "Booking marked as completed!"
-                                    : "Booking has been cancelled.",
-                                [{ text: "OK", onPress: () => router.back() }]
+                                `Booking status updated to ${newStatus.replace("_", " ")}!`,
+                                [{ text: "OK", onPress: () => {
+                                    // Refresh or go back? Let's go back to be safe or refresh data
+                                    if (newStatus === "completed" || newStatus === "cancelled") {
+                                        router.back();
+                                    } else {
+                                        // Simple refresh logic - ideally we'd re-fetch
+                                        setBooking({...booking, status: newStatus});
+                                    }
+                                }}]
                             );
                         } catch (err: any) {
                             Alert.alert("Error", err?.message || "Failed to update status");
@@ -196,7 +248,15 @@ const PujaRequestDetails = () => {
     const devotee = booking.devoteeId;
     const isPending = booking.status === "pending";
     const isConfirmed = booking.status === "confirmed";
-    const showBottomBar = isPending || isConfirmed;
+    const isArrived = booking.status === "arrived";
+    const isInProgress = booking.status === "in_progress";
+
+    // Date check: Is today the day of the booking?
+    const isToday = new Date().toISOString().split('T')[0] === new Date(booking.date).toISOString().split('T')[0];
+
+    // Show bottom bar with buttons ONLY if it's today (for operational status) 
+    // OR if it's pending (for accept/reject which can happen anytime)
+    const showBottomBar = isPending || (isToday && (isConfirmed || isArrived || isInProgress));
 
     return (
         <SafeAreaView style={styles.container}>
@@ -240,15 +300,23 @@ const PujaRequestDetails = () => {
                                     ? "hourglass-outline"
                                     : booking.status === "confirmed"
                                         ? "checkmark-circle-outline"
-                                        : "close-circle-outline"
+                                        : booking.status === "arrived"
+                                            ? "location-outline"
+                                            : booking.status === "in_progress"
+                                                ? "flame-outline"
+                                                : booking.status === "completed"
+                                                    ? "checkmark-done-circle-outline"
+                                                    : "close-circle-outline"
                             }
                             size={16}
                             color={
                                 booking.status === "pending"
                                     ? APP_COLORS.warning
-                                    : booking.status === "confirmed"
+                                    : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
                                         ? APP_COLORS.success
-                                        : APP_COLORS.error
+                                        : booking.status === "completed"
+                                            ? APP_COLORS.info
+                                            : APP_COLORS.error
                             }
                         />
                         <Text
@@ -258,19 +326,32 @@ const PujaRequestDetails = () => {
                                     color:
                                         booking.status === "pending"
                                             ? APP_COLORS.warning
-                                            : booking.status === "confirmed"
+                                            : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
                                                 ? APP_COLORS.success
-                                                : APP_COLORS.error,
+                                                : booking.status === "completed"
+                                                    ? APP_COLORS.info
+                                                    : APP_COLORS.error,
                                 },
                             ]}
                         >
-                            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            {booking.status.replace("_", " ").charAt(0).toUpperCase() + booking.status.replace("_", " ").slice(1)}
                         </Text>
                     </View>
                     <Text style={styles.requestedOn}>
                         Requested {new Date(booking.createdAt).toLocaleDateString("en-IN")}
                     </Text>
                 </View>
+
+                {/* Countdown Timer */}
+                {countdown && (booking.status === "pending" || booking.status === "confirmed") && (
+                    <View style={styles.countdownCard}>
+                        <Ionicons name="timer-outline" size={20} color={APP_COLORS.primary} />
+                        <View style={{ marginLeft: 10, flex: 1 }}>
+                            <Text style={styles.countdownLabel}>Starts in</Text>
+                            <Text style={styles.countdownValue}>{countdown}</Text>
+                        </View>
+                    </View>
+                )}
 
                 {/* Ceremony Details */}
                 <View style={styles.card}>
@@ -440,6 +521,60 @@ const PujaRequestDetails = () => {
                         <Text style={styles.rejectBtnText}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
+                        style={[styles.decisionBtn, styles.acceptBtn]}
+                        onPress={() => handleStatusUpdate("arrived")}
+                        disabled={submitting}
+                    >
+                        {submitting ? (
+                            <ActivityIndicator size="small" color={APP_COLORS.white} />
+                        ) : (
+                            <>
+                                <Ionicons name="location-outline" size={20} color={APP_COLORS.white} />
+                                <Text style={styles.acceptBtnText}>I have Arrived</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {isArrived && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={[styles.decisionBtn, styles.rejectBtn]}
+                        onPress={() => handleStatusUpdate("cancelled")}
+                        disabled={submitting}
+                    >
+                        <Ionicons name="close-circle-outline" size={20} color={APP_COLORS.error} />
+                        <Text style={styles.rejectBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.decisionBtn, { backgroundColor: APP_COLORS.primary }]}
+                        onPress={() => handleStatusUpdate("in_progress")}
+                        disabled={submitting}
+                    >
+                        {submitting ? (
+                            <ActivityIndicator size="small" color={APP_COLORS.white} />
+                        ) : (
+                            <>
+                                <Ionicons name="flame-outline" size={20} color={APP_COLORS.white} />
+                                <Text style={styles.acceptBtnText}>Start Ritual</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+                </View>
+            )}
+
+            {isInProgress && (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={[styles.decisionBtn, styles.rejectBtn]}
+                        onPress={() => handleStatusUpdate("cancelled")}
+                        disabled={submitting}
+                    >
+                        <Ionicons name="close-circle-outline" size={20} color={APP_COLORS.error} />
+                        <Text style={styles.rejectBtnText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
                         style={[styles.decisionBtn, styles.completeBtn]}
                         onPress={() => handleStatusUpdate("completed")}
                         disabled={submitting}
@@ -449,7 +584,7 @@ const PujaRequestDetails = () => {
                         ) : (
                             <>
                                 <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.white} />
-                                <Text style={styles.acceptBtnText}>Mark Complete</Text>
+                                <Text style={styles.acceptBtnText}>End Ritual & Complete</Text>
                             </>
                         )}
                     </TouchableOpacity>
@@ -538,6 +673,25 @@ const styles = StyleSheet.create({
     statusText: {
         fontWeight: "bold",
         fontSize: 13,
+    },
+    countdownCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: APP_COLORS.primary + "10",
+        borderRadius: 12,
+        padding: 14,
+        marginBottom: 14,
+        borderLeftWidth: 3,
+        borderLeftColor: APP_COLORS.primary,
+    },
+    countdownLabel: {
+        fontSize: 12,
+        color: APP_COLORS.gray,
+    },
+    countdownValue: {
+        fontSize: 16,
+        fontWeight: "bold",
+        color: APP_COLORS.primary,
     },
     requestedOn: {
         fontSize: 12,

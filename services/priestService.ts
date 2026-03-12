@@ -318,6 +318,19 @@ const priestService = {
       throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
     }
   },
+
+  /**
+   * Accept an instant booking request
+   * @param {string} bookingId - The booking ID
+   */
+  acceptInstantBooking: async (bookingId: string): Promise<any> => {
+    try {
+      const response = await api.post('/api/priest/bookings/instant/accept', { bookingId });
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to accept instant booking.';
+    }
+  },
 };
 
 export default priestService;

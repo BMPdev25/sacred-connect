@@ -8,7 +8,8 @@ import {
     TextInput,
     ScrollView,
     ActivityIndicator,
-    Alert
+    Alert,
+    Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Colors from '../constants/Colors'; // Assuming this exists
@@ -169,6 +170,9 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 20,
         borderTopRightRadius: 20,
         maxHeight: '90%',
+        width: Platform.OS === 'web' ? '100%' : undefined,
+        maxWidth: Platform.OS === 'web' ? 500 : undefined,
+        alignSelf: Platform.OS === 'web' ? 'center' : undefined,
     },
     header: {
         flexDirection: 'row',
@@ -225,7 +229,7 @@ const styles = StyleSheet.create({
         borderColor: '#E0E0E0',
     },
     selectedTag: {
-        backgroundColor: '#FFF5F0', // Light Orange-ish
+        backgroundColor: '#FF6B00',
         borderColor: '#FF6B00',
     },
     tagText: {

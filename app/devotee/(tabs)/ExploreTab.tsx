@@ -11,6 +11,7 @@ import {
     TextInput,
     TouchableOpacity,
     View,
+    Platform,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -18,8 +19,9 @@ import { APP_COLORS } from "../../../constants/Colors";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const SIDEBAR_WIDTH = SCREEN_WIDTH * 0.18;
+const { width: WINDOW_WIDTH } = Dimensions.get("window");
+const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
+const SIDEBAR_WIDTH = 72; // Fixed width for sidebar instead of percentage
 
 // ─── Mock Data ────────────────────────────────────────────────────────────
 const MOCK_CATEGORIES = [
@@ -252,6 +254,9 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: APP_COLORS.background,
+        width: Platform.OS === 'web' ? '100%' : undefined,
+        maxWidth: Platform.OS === 'web' ? 600 : undefined,
+        alignSelf: Platform.OS === 'web' ? 'center' : undefined,
     },
 
     // Search

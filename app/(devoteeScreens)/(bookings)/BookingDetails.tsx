@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   Linking,
@@ -9,12 +9,18 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
+import { useQuery } from "@tanstack/react-query";
+import devoteeService from "../../../services/devoteeService";
 
 const BookingDetailsScreen: React.FC = () => {
   // Helper functions
@@ -37,6 +43,10 @@ const BookingDetailsScreen: React.FC = () => {
         return "Confirmed";
       case "completed":
         return "Completed";
+      case "arrived":
+        return "Priest Arrived";
+      case "in_progress":
+        return "In Progress";
       case "cancelled":
         return "Cancelled";
       default:
@@ -52,6 +62,10 @@ const BookingDetailsScreen: React.FC = () => {
         return APP_COLORS.warning;
       case "completed":
         return APP_COLORS.info;
+      case "arrived":
+        return APP_COLORS.info;
+      case "in_progress":
+        return APP_COLORS.primary;
       case "cancelled":
         return APP_COLORS.error;
       default:
@@ -60,29 +74,139 @@ const BookingDetailsScreen: React.FC = () => {
   };
 
   const params = useLocalSearchParams();
-  let booking: any = null;
-  if (params.booking) {
-    try {
-      booking =
-        typeof params.booking === "string"
-          ? JSON.parse(params.booking)
-          : params.booking;
-    } catch {
-      booking = params.booking;
-    }
-  }
-  console.log("booking details: ", booking);
-  const loading = false;
+  const { bookingId: queryBookingId, booking: stringifiedBooking } = params;
 
-  const handleCallDevotee = () => {
-    const phone = booking?.devotee?.phone;
+  // 1. Initial booking from params
+  const [booking, setBooking] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (stringifiedBooking) {
+      try {
+        setBooking(typeof stringifiedBooking === 'string' ? JSON.parse(stringifiedBooking) : stringifiedBooking);
+      } catch (err) {
+        console.error("Failed to parse booking param", err);
+      }
+    }
+  }, [stringifiedBooking]);
+
+  // 2. Fetch booking
+  const { 
+    data: fetchedBooking, 
+    isLoading: isFetching,
+    error: fetchError,
+    refetch
+  } = useQuery({
+    queryKey: ['booking', queryBookingId],
+    queryFn: async () => {
+      const resp = await devoteeService.getBookingDetails(queryBookingId as string);
+      return resp;
+    },
+    enabled: !!queryBookingId,
+    // Refetch every 10 seconds if booking is active (not terminal)
+    refetchInterval: (data) => {
+      const status = data?.status || booking?.status;
+      return (status && !['completed', 'cancelled'].includes(status)) ? 10000 : false;
+    }
+  });
+
+  // Refetch when screen focused
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
+  // 3. Update state when fetched
+  useEffect(() => {
+    if (fetchedBooking) {
+      setBooking(fetchedBooking);
+    }
+  }, [fetchedBooking]);
+
+  const loading = isFetching && !booking;
+
+  const [countdown, setCountdown] = useState<string | null>(null);
+  useEffect(() => {
+    if (!booking?.date) return;
+    const update = () => {
+      const now = new Date().getTime();
+      const target = new Date(booking.date).getTime();
+      const diff = target - now;
+      if (diff <= 0) { setCountdown(null); return; }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      let text = '';
+      if (days > 0) text += `${days} day${days > 1 ? 's' : ''} `;
+      if (hours > 0) text += `${hours} hr${hours > 1 ? 's' : ''} `;
+      text += `${mins} min${mins > 1 ? 's' : ''}`;
+      setCountdown(text.trim());
+    };
+    update();
+    const id = setInterval(update, 60000);
+    return () => clearInterval(id);
+  }, [booking?.date]);
+
+  const handleCancelBooking = async () => {
+    if (!booking) return;
+
+    const now = new Date().getTime();
+    const target = new Date(booking.date);
+    const [hours, minutes] = (booking.startTime || '00:00').split(':').map(Number);
+    target.setHours(hours, minutes, 0, 0);
+
+    const diffHours = (target.getTime() - now) / (1000 * 60 * 60);
+
+    let warningMessage = "Are you sure you want to cancel this booking?";
+    let subMessage = "";
+
+    if (diffHours > 72) {
+      subMessage = "Cancellation policy: Full refund applies as you are cancelling more than 72 hours in advance.";
+    } else if (diffHours >= 24) {
+      subMessage = "Cancellation policy: You will be refunded the base price, but the platform fee will be retained as a late cancellation fee.";
+    } else {
+      subMessage = "Cancellation policy: Cancellations within 24 hours are non-refundable. The amount will be processed as compensation for the priest.";
+    }
+
+    if (booking.status === "arrived" || booking.status === "in_progress") {
+      subMessage = "Important: The priest has already arrived or started the ritual. Cancellation at this stage is non-refundable and may affect your reliability score significantly.";
+    }
+
+    Alert.alert(
+      "Cancel Booking",
+      `${warningMessage}\n\n${subMessage}`,
+      [
+        { text: "Keep Booking", style: "cancel" },
+        { 
+          text: "Yes, Cancel", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsUpdating(true);
+              await devoteeService.cancelBooking(booking._id, { reason: "Cancelled by devotee" });
+              Alert.alert("Success", "Booking cancelled successfully.");
+              router.push("/devotee/BookingsTab");
+            } catch (err: any) {
+              Alert.alert("Error", err || "Failed to cancel booking.");
+            } finally {
+              setIsUpdating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleCallPriest = () => {
+    const phone = booking?.priestId?.phone;
     if (phone) {
       Linking.openURL(`tel:${phone}`);
     }
   };
 
-  const handleMessageDevotee = () => {
-    const phone = booking?.devotee?.phone;
+  const handleMessagePriest = () => {
+    const phone = booking?.priestId?.phone;
     if (phone) {
       Linking.openURL(`sms:${phone}`);
     }
@@ -203,35 +327,48 @@ const BookingDetailsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Devotee Details */}
-        {booking?.devotee && (
+        {/* Countdown Timer */}
+        {countdown && (booking?.status === "pending" || booking?.status === "confirmed") && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Devotee Information</Text>
+            <View style={styles.countdownCard}>
+              <Ionicons name="timer-outline" size={20} color={APP_COLORS.primary} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.countdownLabel}>Starts in</Text>
+                <Text style={styles.countdownValue}>{countdown}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Priest Information */}
+        {booking?.priestId && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Priest Information</Text>
             <View style={styles.devoteeCard}>
-              {booking.devotee.image && (
+              {booking.priestId.profilePicture && (
                 <Image
-                  source={{ uri: booking.devotee.image }}
+                  source={{ uri: booking.priestId.profilePicture }}
                   style={styles.devoteeImage}
                 />
               )}
               <View style={styles.devoteeInfo}>
                 <Text style={styles.devoteeName}>
-                  {booking.devotee.name || "-"}
+                  {booking.priestId.name || "-"}
                 </Text>
                 <Text style={styles.devoteeEmail}>
-                  {booking.devotee.email || "-"}
+                  {booking.priestId.email || "-"}
                 </Text>
               </View>
               <View style={styles.contactButtons}>
                 <TouchableOpacity
                   style={styles.contactButton}
-                  onPress={handleCallDevotee}
+                  onPress={handleCallPriest}
                 >
                   <Ionicons name="call" size={18} color={APP_COLORS.white} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.contactButton}
-                  onPress={handleMessageDevotee}
+                  onPress={handleMessagePriest}
                 >
                   <Ionicons
                     name="chatbubble"
@@ -323,25 +460,23 @@ const BookingDetailsScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          {booking?.status === "pending" && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton]}
-                onPress={() => {
-                  /* handleUpdateStatus('confirmed') */
-                }}
-              >
-                <Text style={styles.actionButtonText}>Confirm Booking</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => {
-                  /* handleUpdateStatus('cancelled') */
-                }}
-              >
-                <Text style={styles.actionButtonText}>Cancel Booking</Text>
-              </TouchableOpacity>
-            </>
+          {(booking?.status === "pending" || 
+            booking?.status === "confirmed" || 
+            booking?.status === "arrived" || 
+            booking?.status === "in_progress") && (
+            <TouchableOpacity
+              style={[
+                styles.actionButton, 
+                styles.cancelButton,
+                isUpdating && { opacity: 0.5 }
+              ]}
+              onPress={handleCancelBooking}
+              disabled={isUpdating}
+            >
+              <Text style={styles.actionButtonText}>
+                {isUpdating ? "Cancelling..." : "Cancel Booking"}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -588,6 +723,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   loadingContainer: {
     flex: 1,
@@ -657,6 +795,24 @@ const styles = StyleSheet.create({
   backToBookingsText: {
     color: APP_COLORS.primary,
     fontWeight: "bold",
+  },
+  countdownCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_COLORS.primary + "10",
+    borderRadius: 12,
+    padding: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.primary,
+  },
+  countdownLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+  },
+  countdownValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: APP_COLORS.primary,
   },
   detailLabel: {
     fontSize: 14,

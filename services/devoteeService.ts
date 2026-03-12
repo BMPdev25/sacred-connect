@@ -180,6 +180,19 @@ const devoteeService = {
       throw error?.response?.data?.message || 'Failed to create booking. Please try again.';
     }
   },
+  
+  /**
+   * Book an instant ceremony
+   * @param {Object} instantData - The instant booking data (ceremonyType, coords, etc)
+   */
+  bookInstantCeremony: async (instantData: Record<string, any>): Promise<any> => {
+    try {
+      const response = await api.post('/api/devotee/bookings/instant', instantData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to initiate instant booking.';
+    }
+  },
 
   /**
    * Cancel a booking
@@ -189,7 +202,7 @@ const devoteeService = {
    */
   cancelBooking: async (bookingId: string, cancellationData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put(`/api/devotee/bookings/${bookingId}/cancel`, cancellationData);
+      const response = await api.put(`/api/bookings/${bookingId}/cancel-devotee`, cancellationData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to cancel booking. Please try again.';

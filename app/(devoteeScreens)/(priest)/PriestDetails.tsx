@@ -11,6 +11,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
@@ -29,6 +30,8 @@ type Ceremony = {
   id?: string | number;
   name?: string;
   price?: number;
+  ritualSteps?: { title: string, description: string }[];
+  customSteps?: { title: string, description: string }[];
 };
 
 type WeeklyAvailabilityEntry = {
@@ -53,6 +56,8 @@ type Priest = {
   ceremonies?: Ceremony[];
   reviews?: Review[];
   weeklyAvailability?: Record<string, WeeklyAvailabilityEntry>;
+  ceremonyCount?: number;
+  completionRate?: number;
 };
 
 const PriestDetails: React.FC = () => {
@@ -61,6 +66,8 @@ const PriestDetails: React.FC = () => {
   const [priest, setPriest] = useState<Priest | null>(null);
   const [selectedTab, setSelectedTab] = useState("about");
   const [isLoading, setIsLoading] = useState(true);
+  const [showReliabilityModal, setShowReliabilityModal] = useState(false);
+  const [expandedCeremonyId, setExpandedCeremonyId] = useState<string | number | null>(null);
 
   // Fetch priest data from API
   useEffect(() => {
@@ -154,6 +161,16 @@ const PriestDetails: React.FC = () => {
     );
   }
 
+  let reliabilityBadge = null;
+  let reliabilityColor = APP_COLORS.success;
+  let reliabilityText = "Excellent";
+  
+  if (priest.ceremonyCount !== undefined && priest.ceremonyCount >= 5 && priest.completionRate !== undefined) {
+    if (priest.completionRate >= 90) { reliabilityBadge = "🟢"; reliabilityColor = APP_COLORS.success; reliabilityText = "Excellent"; }
+    else if (priest.completionRate >= 70) { reliabilityBadge = "🟡"; reliabilityColor = "#FFC107"; reliabilityText = "Needs Improvement"; }
+    else { reliabilityBadge = "🔴"; reliabilityColor = APP_COLORS.error; reliabilityText = "Poor"; }
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
@@ -196,9 +213,18 @@ const PriestDetails: React.FC = () => {
             </View>
           )}
           <View style={styles.profileInfo}>
-            <Text style={styles.priestName}>
-              {priest.name || "Unknown Priest"}
-            </Text>
+            <TouchableOpacity 
+              style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }} 
+              onPress={() => { if (reliabilityBadge) setShowReliabilityModal(true); }}
+              activeOpacity={reliabilityBadge ? 0.7 : 1}
+            >
+              <Text style={[styles.priestName, { marginBottom: 0 }]}>
+                {priest.name || "Unknown Priest"}
+              </Text>
+              {reliabilityBadge && (
+                <Text style={{ fontSize: 18, marginLeft: 6 }}>{reliabilityBadge}</Text>
+              )}
+            </TouchableOpacity>
             <View style={styles.priestMeta}>
               <Text style={styles.priestDetail}>
                 {priest.religiousTradition || "Hinduism"}
@@ -369,12 +395,76 @@ const PriestDetails: React.FC = () => {
           <View style={styles.tabContent}>
             <Text style={styles.sectionTitle}>Ceremonies & Pricing</Text>
             {(priest.ceremonies || []).map(
-              (ceremony: Ceremony, index: number) => (
-                <View key={index} style={styles.ceremonyRow}>
-                  <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-                  <Text style={styles.ceremonyPrice}>₹{ceremony.price}</Text>
-                </View>
-              )
+              (ceremony: Ceremony, index: number) => {
+                const isExpanded = expandedCeremonyId === (ceremony.id || index);
+                return (
+                  <View key={index} style={styles.ceremonyItemContainer}>
+                    <TouchableOpacity 
+                      style={styles.ceremonyRow}
+                      onPress={() => setExpandedCeremonyId(isExpanded ? null : (ceremony.id || index))}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.ceremonyName}>{ceremony.name}</Text>
+                        <Text style={styles.ceremonyDuration}>Typical duration: 2-3 hours</Text>
+                      </View>
+                      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                        <Text style={styles.ceremonyPrice}>₹{ceremony.price}</Text>
+                        <Ionicons 
+                          name={isExpanded ? "chevron-up" : "chevron-down"} 
+                          size={20} 
+                          color={APP_COLORS.gray} 
+                          style={{ marginLeft: 8 }} 
+                        />
+                      </View>
+                    </TouchableOpacity>
+
+                    {isExpanded && (
+                      <View style={styles.stepsContainer}>
+                        {/* Standard Steps */}
+                        {ceremony.ritualSteps && ceremony.ritualSteps.length > 0 && (
+                          <View style={styles.stepsSection}>
+                            <Text style={styles.stepsSectionTitle}>Standard Inclusions</Text>
+                            {ceremony.ritualSteps.map((step, sIdx) => (
+                              <View key={`std-${sIdx}`} style={styles.stepItem}>
+                                <View style={styles.stepDot} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.stepTitle}>{step.title}</Text>
+                                  <Text style={styles.stepDesc}>{step.description}</Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+
+                        {/* Custom Steps */}
+                        {ceremony.customSteps && ceremony.customSteps.length > 0 && (
+                          <View style={[styles.stepsSection, { borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 }]}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                              <Ionicons name="sparkles" size={16} color={APP_COLORS.primary} style={{ marginRight: 6 }} />
+                              <Text style={[styles.stepsSectionTitle, { marginBottom: 0 }]}>Priest's Custom Additions</Text>
+                            </View>
+                            {ceremony.customSteps.map((step, sIdx) => (
+                              <View key={`cust-${sIdx}`} style={styles.stepItem}>
+                                <View style={[styles.stepDot, { backgroundColor: APP_COLORS.primary }]} />
+                                <View style={{ flex: 1 }}>
+                                  <Text style={styles.stepTitle}>{step.title}</Text>
+                                  <Text style={styles.stepDesc}>{step.description}</Text>
+                                </View>
+                              </View>
+                            ))}
+                          </View>
+                        )}
+
+                        {(!ceremony.ritualSteps || ceremony.ritualSteps.length === 0) && (!ceremony.customSteps || ceremony.customSteps.length === 0) && (
+                          <Text style={{ fontSize: 13, color: APP_COLORS.gray, fontStyle: 'italic', padding: 12 }}>
+                            No specific ritual steps detailed for this ceremony.
+                          </Text>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              }
             )}
             <Text style={styles.pricingNote}>
               * Additional charges may apply for travel beyond 15km and for
@@ -474,6 +564,43 @@ const PriestDetails: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Reliability Modal */}
+      <Modal
+        visible={showReliabilityModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowReliabilityModal(false)}
+      >
+        <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowReliabilityModal(false)}>
+          <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+            <Text style={styles.modalTitle}>Reliability Score</Text>
+            
+            <View style={{ alignItems: 'center', marginVertical: 16 }}>
+              <Text style={{ fontSize: 48 }}>{reliabilityBadge}</Text>
+              <Text style={{ fontSize: 18, fontWeight: 'bold', color: reliabilityColor, marginTop: 8 }}>{reliabilityText}</Text>
+            </View>
+
+            <View style={styles.modalStatRow}>
+              <Text style={styles.modalStatLabel}>Completion Rate:</Text>
+              <Text style={styles.modalStatValue}>{priest?.completionRate}%</Text>
+            </View>
+
+            <View style={styles.modalStatRow}>
+              <Text style={styles.modalStatLabel}>Bookings Completed:</Text>
+              <Text style={styles.modalStatValue}>{priest?.ceremonyCount}</Text>
+            </View>
+            
+            <Text style={styles.modalDescription}>
+              This score indicates the priest's reliability based on their history of completing accepted bookings. (Requires minimum 5 bookings)
+            </Text>
+
+            <TouchableOpacity style={styles.modalCloseButton} onPress={() => setShowReliabilityModal(false)}>
+              <Text style={styles.modalCloseButtonText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -792,6 +919,110 @@ const styles = StyleSheet.create({
     color: APP_COLORS.white,
     fontSize: 16,
     fontWeight: "bold",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    padding: 24,
+    width: "80%",
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  modalStatRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
+  },
+  modalStatLabel: {
+    fontSize: 16,
+    color: APP_COLORS.gray,
+  },
+  modalStatValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  modalDescription: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  modalCloseButton: {
+    backgroundColor: APP_COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
+    width: "100%",
+    alignItems: "center",
+  },
+  modalCloseButtonText: {
+    color: APP_COLORS.white,
+    fontWeight: "bold",
+    fontSize: 16,
+  },
+  ceremonyDuration: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+  ceremonyItemContainer: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: APP_COLORS.lightGray,
+    overflow: 'hidden',
+  },
+  stepsContainer: {
+    backgroundColor: '#fafafa',
+    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  stepsSection: {
+    marginBottom: 16,
+  },
+  stepsSectionTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: APP_COLORS.black,
+  },
+  stepItem: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: APP_COLORS.gray,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  stepTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: APP_COLORS.black,
+  },
+  stepDesc: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
   },
 });
 

@@ -118,10 +118,21 @@ export default function SignUpScreen() {
 
   const validateStep1 = () => {
     const newErrors: any = {};
-    if (!name) newErrors.name = "Name is required";
-    if (!email) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(email)) newErrors.email = "Invalid email";
-    if (!phone) newErrors.phone = "Phone is required";
+    if (!name.trim()) newErrors.name = "Name is required";
+
+    // Require at least one contact method
+    if (!email.trim() && !phone.trim()) {
+      newErrors.email = "Either Email or Phone is required";
+      newErrors.phone = "Either Email or Phone is required";
+    }
+
+    if (email.trim() && !/\S+@\S+\.\S+/.test(email)) {
+      newErrors.email = "Invalid email";
+    }
+    if (phone.trim() && phone.replace(/\D/g, '').length < 10) {
+      newErrors.phone = "Invalid phone number";
+    }
+
     if (!password) newErrors.password = "Password is required";
     else if (password.length < 6) newErrors.password = "Min 6 chars";
     if (password !== confirmPassword) newErrors.confirmPassword = "Passwords mismatch";
@@ -383,7 +394,13 @@ export default function SignUpScreen() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
-  content: { padding: 20, paddingBottom: 50 },
+  content: {
+    padding: 20,
+    paddingBottom: 50,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 600 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
+  },
   backBtn: { marginBottom: 10 },
   headerTitle: { fontSize: 26, fontWeight: "bold", color: APP_COLORS.primary, marginBottom: 4 },
   stepIndicator: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 20 },

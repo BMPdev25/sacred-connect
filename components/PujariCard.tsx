@@ -16,6 +16,14 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
     ? pujari.services?.find((s) => s.ceremonyId === ceremonyId)
     : null;
 
+  // Determine reliability badge
+  let reliabilityBadge = null;
+  if (pujari.ceremonyCount !== undefined && pujari.ceremonyCount >= 5 && pujari.completionRate !== undefined) {
+    if (pujari.completionRate >= 90) reliabilityBadge = "🟢";
+    else if (pujari.completionRate >= 70) reliabilityBadge = "🟡";
+    else reliabilityBadge = "🔴";
+  }
+
   const handlePress = () => {
     // Navigate to priest profile
     // Note: Adjust route based on actual project structure if different
@@ -38,7 +46,7 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
       <View style={styles.content}>
         <View style={styles.header}>
           <Text style={styles.name} numberOfLines={1}>
-            {pujari.name}
+            {pujari.name} {reliabilityBadge}
           </Text>
           <View style={styles.ratingContainer}>
             <Ionicons name="star" size={14} color="#FFD700" />
@@ -70,6 +78,15 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
               ? `${(pujari.distance * 1000).toFixed(0)}m away`
               : `${pujari.distance.toFixed(1)} km away`}
           </Text>
+        )}
+
+        {(pujari.ceremonyCount !== undefined && pujari.ceremonyCount > 0) && (
+          <View style={styles.completedRow}>
+            <Ionicons name="checkmark-done" size={14} color={APP_COLORS.success} />
+            <Text style={styles.completedText}>
+              {pujari.ceremonyCount} Pujas Completed
+            </Text>
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -157,5 +174,16 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
     marginTop: 4,
     fontStyle: "italic",
+  },
+  completedRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 4,
+  },
+  completedText: {
+    fontSize: 12,
+    color: APP_COLORS.success,
+    fontWeight: "600",
   },
 });

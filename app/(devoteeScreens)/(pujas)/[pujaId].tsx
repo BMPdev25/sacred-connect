@@ -8,6 +8,8 @@ import {
   ActivityIndicator,
   FlatList,
   Alert,
+  TouchableOpacity,
+  Platform,
 } from "react-native";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
@@ -94,6 +96,42 @@ export default function PujaDetailScreen() {
     );
   }
 
+  const handleInstantBooking = async () => {
+    if (!locationPermissionGranted) {
+      Alert.alert(
+        "Location Required",
+        "We need your location to find nearby priests for instant booking.",
+        [{ text: "OK" }]
+      );
+      return;
+    }
+
+    if (!location?.lat || !location?.lng) {
+      Alert.alert("Error", "Unable to get your current location. Please try again.");
+      return;
+    }
+
+    // Navigate to Instant Search Screen
+    router.push({
+      pathname: '/(devoteeScreens)/(bookings)/InstantSearch' as any,
+      params: {
+        pujaId: id,
+        ceremonyType: puja.name,
+        latitude: location.lat,
+        longitude: location.lng,
+        address: "Current Location",
+        city: "Nearby",
+      }
+    });
+  };
+
+  const handleScheduleBooking = () => {
+    router.push({
+      pathname: "/(devoteeScreens)/(bookings)/[BookCeremony]" as any,
+      params: { pujaId: id, name: puja.name }
+    } as any);
+  };
+
   return (
     <View style={styles.container}>
       <StatusBar style="dark" />
@@ -103,12 +141,10 @@ export default function PujaDetailScreen() {
           title: puja.name,
           headerTintColor: APP_COLORS.black,
           headerStyle: { backgroundColor: APP_COLORS.white },
-          headerShadowVisible: true, // Visible shadow for separation
-          headerTranslucent: false, // Ensure it pushes content down
+          headerShadowVisible: true,
         }}
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header Image */}
         <Image
           source={{ uri: puja.image || "https://via.placeholder.com/400x200" }}
           style={styles.headerImage}
@@ -128,8 +164,50 @@ export default function PujaDetailScreen() {
             </Text>
           </View>
 
+          <View style={styles.instantCard}>
+            <View style={styles.instantContent}>
+              <View style={styles.instantBadge}>
+                <Ionicons name="flash" size={12} color={APP_COLORS.white} />
+                <Text style={styles.instantBadgeText}>INSTANT</Text>
+              </View>
+              <Text style={styles.instantTitle}>Need this Puja urgently?</Text>
+              <Text style={styles.instantDesc}>Book a verified priest within 5 mins for immediate requirements.</Text>
+            </View>
+            <TouchableOpacity style={styles.instantBtn} onPress={handleInstantBooking}>
+              <Text style={styles.instantBtnText}>Book Now</Text>
+            </TouchableOpacity>
+          </View>
+
           <Text style={styles.sectionHeader}>About this Puja</Text>
           <Text style={styles.description}>{puja.description}</Text>
+
+          {puja.ritualSteps && puja.ritualSteps.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>What This Puja Includes</Text>
+              <View style={styles.stepsContainer}>
+                {puja.ritualSteps
+                  .sort((a, b) => a.stepNumber - b.stepNumber)
+                  .map((step, index) => (
+                    <View key={index} style={styles.stepItem}>
+                      <View style={styles.stepNumberCircle}>
+                        <Text style={styles.stepNumberText}>{step.stepNumber}</Text>
+                      </View>
+                      <View style={styles.stepContent}>
+                        <View style={styles.stepHeaderRow}>
+                          <Text style={styles.stepTitle}>{step.title}</Text>
+                          {step.durationEstimate && (
+                            <Text style={styles.stepDuration}>
+                              ~{step.durationEstimate} min
+                            </Text>
+                          )}
+                        </View>
+                        <Text style={styles.stepDescription}>{step.description}</Text>
+                      </View>
+                    </View>
+                  ))}
+              </View>
+            </>
+          )}
 
           <Text style={styles.sectionHeader}>Requirements</Text>
           {puja.requirements?.materials &&
@@ -144,7 +222,7 @@ export default function PujaDetailScreen() {
                 <Text style={styles.reqText}>
                   {typeof req === "string"
                     ? req
-                    : `${req.quantity || ""} ${req.name}`}
+                    : `${req.name}`}
                 </Text>
               </View>
             ))
@@ -176,6 +254,16 @@ export default function PujaDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <View style={styles.footer}>
+        <View style={styles.priceContainer}>
+          <Text style={styles.priceLabel}>Starting from</Text>
+          <Text style={styles.price}>₹{puja.basePrice || "2100"}</Text>
+        </View>
+        <TouchableOpacity style={styles.scheduleBtn} onPress={handleScheduleBooking}>
+          <Text style={styles.scheduleBtnText}>Schedule for Later</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -184,6 +272,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   centerContainer: {
     flex: 1,
@@ -197,6 +288,7 @@ const styles = StyleSheet.create({
   headerImage: {
     width: "100%",
     height: 300,
+    alignSelf: 'center',
   },
   detailsContainer: {
     padding: 16,
@@ -269,5 +361,146 @@ const styles = StyleSheet.create({
   },
   pujariList: {
     marginTop: 8,
+  },
+  stepsContainer: {
+    marginTop: 8,
+  },
+  instantCard: {
+    backgroundColor: APP_COLORS.primary + "10",
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: APP_COLORS.primary + "30",
+  },
+  instantContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  instantBadge: {
+    backgroundColor: APP_COLORS.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    alignSelf: "flex-start",
+    marginBottom: 6,
+  },
+  instantBadgeText: {
+    color: APP_COLORS.white,
+    fontSize: 10,
+    fontWeight: "bold",
+    marginLeft: 4,
+  },
+  instantTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: APP_COLORS.black,
+    marginBottom: 4,
+  },
+  instantDesc: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    lineHeight: 18,
+  },
+  instantBtn: {
+    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  instantBtnText: {
+    color: APP_COLORS.white,
+    fontSize: 14,
+    fontWeight: "bold",
+  },
+  footer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: APP_COLORS.white,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderTopWidth: 1,
+    borderTopColor: "#EEE",
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+  },
+  priceContainer: {
+    flex: 1,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+  },
+  price: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: APP_COLORS.primary,
+  },
+  scheduleBtn: {
+    backgroundColor: APP_COLORS.saffron,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  scheduleBtnText: {
+    color: APP_COLORS.white,
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  stepItem: {
+    flexDirection: "row",
+    marginBottom: 16,
+  },
+  stepNumberCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: APP_COLORS.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepNumberText: {
+    color: APP_COLORS.primary,
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  stepContent: {
+    flex: 1,
+  },
+  stepHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  stepTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: APP_COLORS.black,
+    flex: 1,
+  },
+  stepDuration: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    marginLeft: 8,
+  },
+  stepDescription: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    lineHeight: 20,
   },
 });

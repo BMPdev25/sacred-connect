@@ -8,6 +8,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
@@ -201,6 +202,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   header: {
     backgroundColor: APP_COLORS.primary,

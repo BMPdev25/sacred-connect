@@ -102,6 +102,9 @@ const ProfileScreen: React.FC = () => {
         {
           text: "Logout",
           onPress: async () => {
+            const SecureStore = require('../../../utils/storage');
+            await SecureStore.deleteItemAsync("userToken");
+            await SecureStore.deleteItemAsync("userInfo");
             await dispatch(logout() as any);
             try { router.replace("/login" as any); } catch (e) { router.push("/login" as any); }
           },
@@ -155,7 +158,7 @@ const ProfileScreen: React.FC = () => {
         setDownloadingDoc(true);
 
         // Get token from SecureStore
-        const SecureStore = require('expo-secure-store');
+        const SecureStore = require('../../../utils/storage');
         const token = await SecureStore.getItemAsync('userToken');
 
         if (!token) {
@@ -746,10 +749,15 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   uploadButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
     backgroundColor: APP_COLORS.primary,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 1.41,
   },
   uploadButtonText: {
     fontSize: 12,

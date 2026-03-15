@@ -127,6 +127,7 @@ const Payment: React.FC = () => {
         basePrice: bookingDetails.basePrice,
         platformFee: bookingDetails.platformFee,
         totalAmount: bookingDetails.totalAmount,
+        status: "requested", // Important: Set initial status to requested, not confirmed
         ...paymentDetails,
       };
       console.log("Booking Data to be sent:", bookingData);

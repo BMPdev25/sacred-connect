@@ -37,9 +37,13 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             let dbNotifications: any[] = [];
 
             if ((userInfo as any).userType === 'priest') {
-                // Priest: use priestService
-                const bookings = await priestService.getBookings(userInfo._id);
+                // Priest: fetch bookings AND db notifications in parallel
+                const [bookings, dbNotifs] = await Promise.all([
+                    priestService.getBookings(userInfo._id),
+                    priestService.getNotifications(userInfo._id)
+                ]);
                 allBookings = Array.isArray(bookings) ? bookings : bookings?.data || [];
+                dbNotifications = Array.isArray(dbNotifs) ? dbNotifs : dbNotifs?.data || [];
             } else {
                 // Devotee: fetch bookings AND db notifications in parallel
                 const [bookingsRes, dbNotifRes] = await Promise.allSettled([
@@ -103,7 +107,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                 });
             });
 
-            // 3. DB-backed notifications (accept/reject events) — devotee only
+            // 3. DB-backed notifications (accept/reject events, reminders, etc.)
             dbNotifications.forEach((n: any) => {
                 const alreadyExists = generatedNotifications.some(g => g.id === `db-${n._id}`);
                 if (!alreadyExists) {

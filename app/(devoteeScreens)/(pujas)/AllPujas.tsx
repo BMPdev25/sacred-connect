@@ -14,6 +14,7 @@ import { StatusBar } from "expo-status-bar";
 import { useQuery } from "@tanstack/react-query";
 import { APP_COLORS } from "../../../constants/Colors";
 import ceremonyService from "../../../services/ceremonyService";
+import { getImageUri } from "../../../utils/imageUtils";
 import { Ionicons } from "@expo/vector-icons";
 
 export default function AllPujasScreen() {
@@ -45,7 +46,7 @@ export default function AllPujasScreen() {
             onPress={() => handlePujaPress(item._id)}
         >
             <Image
-                source={{ uri: item.image || "https://via.placeholder.com/150" }}
+                source={{ uri: getImageUri(item.image) }}
                 style={styles.image}
                 resizeMode="cover"
             />
@@ -92,7 +93,6 @@ export default function AllPujasScreen() {
                     title: "All Ceremonies",
                     headerTintColor: APP_COLORS.white,
                     headerStyle: { backgroundColor: APP_COLORS.primary },
-                    headerTranslucent: false,
                     headerShadowVisible: false,
                 }}
             />

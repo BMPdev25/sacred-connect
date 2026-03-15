@@ -4,13 +4,15 @@ import { APP_COLORS } from "../constants/Colors";
 import { router } from "expo-router";
 import { Pujari } from "../types";
 import { Ionicons } from "@expo/vector-icons";
+import { getImageUri } from "../utils/imageUtils";
 
 interface Props {
   pujari: Pujari;
   ceremonyId?: string; // useful if we want to show specific price/duration for this ceremony
+  onBookPress?: () => void;
 }
 
-export default function PujariCard({ pujari, ceremonyId }: Props) {
+export default function PujariCard({ pujari, ceremonyId, onBookPress }: Props) {
   // Find specific service details if ceremonyId is provided
   const serviceDetails = ceremonyId
     ? pujari.services?.find((s) => s.ceremonyId === ceremonyId)
@@ -27,7 +29,7 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
   const handlePress = () => {
     // Navigate to priest profile
     // Note: Adjust route based on actual project structure if different
-    router.push(`/(devoteeScreens)/(priest)/PriestDetails?priestId=${pujari._id}`);
+    router.push(`/(devoteeScreens)/(priest)/PriestDetails?priestId=${pujari._id}${ceremonyId ? '&ceremony=' + ceremonyId : ''}`);
   };
 
   return (
@@ -38,7 +40,7 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
     >
       <Image
         source={{
-          uri: pujari.profilePicture || "https://via.placeholder.com/100",
+          uri: getImageUri(pujari.profilePicture, "https://via.placeholder.com/100"),
         }}
         style={styles.image}
       />
@@ -73,11 +75,14 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
         )}
 
         {pujari.distance !== undefined && (
-          <Text style={styles.distance}>
-            {pujari.distance < 1
-              ? `${(pujari.distance * 1000).toFixed(0)}m away`
-              : `${pujari.distance.toFixed(1)} km away`}
-          </Text>
+          <View style={styles.distanceRow}>
+            <Ionicons name="location" size={12} color={APP_COLORS.gray} />
+            <Text style={styles.distanceText}>
+              {pujari.distance < 1
+                ? `${(pujari.distance * 1000).toFixed(0)}m away`
+                : `${pujari.distance.toFixed(1)} km away`}
+            </Text>
+          </View>
         )}
 
         {(pujari.ceremonyCount !== undefined && pujari.ceremonyCount > 0) && (
@@ -89,6 +94,18 @@ export default function PujariCard({ pujari, ceremonyId }: Props) {
           </View>
         )}
       </View>
+
+      {onBookPress && (
+        <TouchableOpacity
+          style={styles.bookButton}
+          onPress={(e) => {
+            e.stopPropagation();
+            onBookPress();
+          }}
+        >
+          <Text style={styles.bookButtonText}>Book</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
@@ -136,7 +153,7 @@ const styles = StyleSheet.create({
   ratingContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#PPP", // light yellow hint if needed, or transparent
+    backgroundColor: "transparent",
   },
   ratingText: {
     fontSize: 14,
@@ -169,11 +186,16 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
     marginLeft: 4,
   },
-  distance: {
+  distanceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 4,
+    gap: 2,
+  },
+  distanceText: {
     fontSize: 12,
     color: APP_COLORS.gray,
-    marginTop: 4,
-    fontStyle: "italic",
+    fontWeight: "500",
   },
   completedRow: {
     flexDirection: "row",
@@ -185,5 +207,17 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: APP_COLORS.success,
     fontWeight: "600",
+  },
+  bookButton: {
+    backgroundColor: APP_COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginLeft: 12,
+  },
+  bookButtonText: {
+    color: APP_COLORS.white,
+    fontWeight: "bold",
+    fontSize: 14,
   },
 });

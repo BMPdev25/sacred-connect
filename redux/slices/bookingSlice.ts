@@ -25,7 +25,7 @@ export const getBookings = createAsyncThunk<Booking[], void, { state: RootState;
   async (_, { rejectWithValue, getState }) => {
     try {
       const response = await api.get('/api/devotee/bookings');
-      return response.data;
+      return response.data.data?.all || response.data.data || response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
     }

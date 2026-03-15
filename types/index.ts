@@ -16,12 +16,20 @@ export interface Puja {
     maximum: number;
   };
   basePrice?: number;
+  pricing?: {
+    basePrice: number;
+    priceRange: {
+      min: number;
+      max: number;
+    };
+  };
   category?: string;
   ritualSteps?: {
     stepNumber: number;
     title: string;
     description: string;
     durationEstimate?: number;
+    extraCharge?: number;
   }[];
 }
 
@@ -42,12 +50,14 @@ export interface Priest {
       title: string;
       description: string;
       durationEstimate?: number;
+      extraCharge?: number;
     }[];
     ritualSteps?: {
       stepNumber: number;
       title: string;
       description: string;
       durationEstimate?: number;
+      extraCharge?: number;
     }[];
   }[];
   location?: {
@@ -57,6 +67,11 @@ export interface Priest {
   distance?: number; // Optional, calculated on frontend or returned by backend if geo query
   ceremonyCount?: number; // Number of pujas completed
   completionRate?: number; // Reliability score (0-100)
+  cancelledCount?: number; // Number of cancelled bookings
+  noShowCount?: number; // Number of no-show bookings
+  religiousTradition?: string;
+  experience?: number;
+  ceremonies?: { id?: string; name: string; price: number; ritualSteps?: any[] }[];
 }
 
 export type Pujari = Priest;

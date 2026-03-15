@@ -81,10 +81,11 @@ const priestService = {
    */
   getBookings: async (priestId?: string, status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/priest/bookings?status=${status}&priestId=${priestId}` : `/api/priest/bookings?priestId=${priestId}`;
-      // console.log("Fetching bookings from URL:", url);
+      const url = status 
+        ? `/api/priest/bookings?status=${status}&priestId=${priestId}` 
+        : `/api/priest/bookings?priestId=${priestId}`;
       const response = await api.get(url);
-      return response.data;
+      return response.data.data?.all || response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }

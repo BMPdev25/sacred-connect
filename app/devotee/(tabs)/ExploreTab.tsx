@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useState } from "react";
+import { router, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useState } from "react";
 import {
     Dimensions,
     FlatList,
@@ -18,128 +18,58 @@ import { StatusBar } from "expo-status-bar";
 import { APP_COLORS } from "../../../constants/Colors";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
+import ceremonyService from "../../../services/ceremonyService";
+import { useQuery } from "@tanstack/react-query";
+import { ActivityIndicator } from "react-native";
+import { getImageUri } from "../../../utils/imageUtils";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
 const SIDEBAR_WIDTH = 72; // Fixed width for sidebar instead of percentage
 
-// ─── Mock Data ────────────────────────────────────────────────────────────
-const MOCK_CATEGORIES = [
-    { id: "all", name: "All", icon: "apps" as const },
-    { id: "weddings", name: "Weddings", icon: "heart" as const },
-    { id: "birth", name: "Birth", icon: "happy" as const },
-    { id: "death", name: "Ancestors", icon: "people" as const },
-    { id: "festival", name: "Festivals", icon: "sparkles" as const },
-    { id: "havan", name: "Havans", icon: "flame" as const },
-    { id: "grihapravesh", name: "Griha Pravesh", icon: "home" as const },
-    { id: "daily", name: "Daily Puja", icon: "sunny" as const },
-];
-
-const MOCK_SERVICES = [
-    {
-        id: "1",
-        name: "Satyanarayan Puja",
-        price: "₹2,100",
-        duration: "45 mins",
-        category: "festival",
-        image: "https://images.unsplash.com/photo-1609234656388-0b5a1e3e8908?w=300",
-        rating: 4.8,
-        bookings: 234,
-    },
-    {
-        id: "2",
-        name: "Griha Pravesh Puja",
-        price: "₹5,500",
-        duration: "2 hrs",
-        category: "grihapravesh",
-        image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=300",
-        rating: 4.9,
-        bookings: 189,
-    },
-    {
-        id: "3",
-        name: "Ganesh Puja",
-        price: "₹1,500",
-        duration: "30 mins",
-        category: "festival",
-        image: "https://images.unsplash.com/photo-1567591370504-83a1d0a6a5fa?w=300",
-        rating: 4.7,
-        bookings: 312,
-    },
-    {
-        id: "4",
-        name: "Vivah Havan",
-        price: "₹11,000",
-        duration: "3 hrs",
-        category: "weddings",
-        image: "https://images.unsplash.com/photo-1519741497674-611481863552?w=300",
-        rating: 4.9,
-        bookings: 98,
-    },
-    {
-        id: "5",
-        name: "Namkaran Sanskar",
-        price: "₹3,100",
-        duration: "1 hr",
-        category: "birth",
-        image: "https://images.unsplash.com/photo-1544126592-807ade215a0b?w=300",
-        rating: 4.6,
-        bookings: 145,
-    },
-    {
-        id: "6",
-        name: "Shradh Puja",
-        price: "₹2,500",
-        duration: "1.5 hrs",
-        category: "death",
-        image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300",
-        rating: 4.5,
-        bookings: 67,
-    },
-    {
-        id: "7",
-        name: "Maha Mrityunjaya Havan",
-        price: "₹4,200",
-        duration: "2 hrs",
-        category: "havan",
-        image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300",
-        rating: 4.8,
-        bookings: 201,
-    },
-    {
-        id: "8",
-        name: "Daily Puja Setup",
-        price: "₹800",
-        duration: "20 mins",
-        category: "daily",
-        image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=300",
-        rating: 4.4,
-        bookings: 456,
-    },
-];
-
 // ─── Component ────────────────────────────────────────────────────────────
 const ExploreScreen: React.FC = () => {
+    const { category: initialCategory } = useLocalSearchParams<{ category?: string }>();
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeCategory, setActiveCategory] = useState("all");
+    const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
 
-    const filteredServices =
-        activeCategory === "all"
-            ? MOCK_SERVICES
-            : MOCK_SERVICES.filter((s) => s.category === activeCategory);
+    // Sync activeCategory with param updates
+    useEffect(() => {
+        if (initialCategory) {
+            setActiveCategory(initialCategory);
+        }
+    }, [initialCategory]);
+
+    // Fetch Categories
+    const { data: categories = [] } = useQuery({
+        queryKey: ["ceremony-categories"],
+        queryFn: ceremonyService.getCategories,
+    });
+
+    // Fetch Ceremonies (all initially, or by category)
+    const { data: ceremoniesData, isLoading } = useQuery({
+        queryKey: ["ceremonies", activeCategory],
+        queryFn: () => activeCategory === "all" 
+            ? ceremonyService.getAllPujas() 
+            : ceremonyService.getPujasByCategory(activeCategory),
+    });
+
+    const ceremonies = ceremoniesData?.ceremonies || [];
 
     const searchedServices = searchQuery.trim()
-        ? filteredServices.filter((s) =>
+        ? ceremonies.filter((s: any) =>
             s.name.toLowerCase().includes(searchQuery.toLowerCase())
         )
-        : filteredServices;
+        : ceremonies;
 
-    const renderServiceCard = ({ item }: { item: (typeof MOCK_SERVICES)[0] }) => (
+    const renderServiceCard = ({ item }: { item: any }) => (
         <Card style={styles.serviceCard}>
             <View style={styles.serviceRow}>
                 <Image
-                    source={{ uri: item.image }}
+                    source={{ 
+                        uri: getImageUri(item.image || (item.images && item.images[0])) 
+                    }}
                     style={styles.serviceImage}
                     resizeMode="cover"
                 />
@@ -147,18 +77,20 @@ const ExploreScreen: React.FC = () => {
                     <Text style={styles.serviceName} numberOfLines={2}>{item.name}</Text>
                     <View style={styles.serviceMetaRow}>
                         <Ionicons name="star" size={13} color="#FFD700" />
-                        <Text style={styles.serviceRating}>{item.rating}</Text>
-                        <Text style={styles.serviceBookings}>({item.bookings} booked)</Text>
+                        <Text style={styles.serviceRating}>{item.rating?.average?.toFixed(1) || "4.5"}</Text>
+                        <Text style={styles.serviceBookings}>({item.bookingsCount || 0} booked)</Text>
                     </View>
                     <View style={styles.serviceMetaRow}>
                         <Ionicons name="time-outline" size={13} color={APP_COLORS.gray} />
-                        <Text style={styles.serviceDuration}>{item.duration}</Text>
+                        <Text style={styles.serviceDuration}>
+                            {typeof item.duration === 'object' ? (item.duration.typical || item.duration.minimum) : item.duration} mins
+                        </Text>
                     </View>
                     <View style={styles.servicePriceRow}>
-                        <Text style={styles.servicePrice}>{item.price}</Text>
+                        <Text style={styles.servicePrice}>₹{item.pricing?.basePrice || item.basePrice || "0"}</Text>
                         <PrimaryButton
                             title="Select"
-                            onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+                            onPress={() => router.push(`/(devoteeScreens)/(pujas)/${item._id}`)}
                             size="sm"
                             style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 12 }}
                         />
@@ -199,17 +131,41 @@ const ExploreScreen: React.FC = () => {
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingVertical: 8 }}
                 >
-                    {MOCK_CATEGORIES.map((cat) => {
-                        const isActive = activeCategory === cat.id;
+                    <TouchableOpacity
+                        key="all-category"
+                        style={[styles.sidebarItem, activeCategory === "all" && styles.sidebarItemActive]}
+                        onPress={() => setActiveCategory("all")}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons
+                            name="apps"
+                            size={20}
+                            color={activeCategory === "all" ? APP_COLORS.saffron : APP_COLORS.gray}
+                        />
+                        <Text
+                            style={[
+                                styles.sidebarText,
+                                activeCategory === "all" && styles.sidebarTextActive,
+                            ]}
+                            numberOfLines={1}
+                        >
+                            All
+                        </Text>
+                        {activeCategory === "all" && <View style={styles.sidebarIndicator} />}
+                    </TouchableOpacity>
+
+                    {categories.map((cat: any, index: number) => {
+                        const categoryId = cat.slug || cat._id || cat.id || `cat-${index}`;
+                        const isActive = activeCategory === categoryId;
                         return (
                             <TouchableOpacity
-                                key={cat.id}
+                                key={`category-${categoryId}-${index}`}
                                 style={[styles.sidebarItem, isActive && styles.sidebarItemActive]}
-                                onPress={() => setActiveCategory(cat.id)}
+                                onPress={() => setActiveCategory(categoryId)}
                                 activeOpacity={0.7}
                             >
                                 <Ionicons
-                                    name={cat.icon as any}
+                                    name={(cat.icon || "flower") as any}
                                     size={20}
                                     color={isActive ? APP_COLORS.saffron : APP_COLORS.gray}
                                 />
@@ -229,21 +185,27 @@ const ExploreScreen: React.FC = () => {
                 </ScrollView>
 
                 {/* Main Content */}
-                <FlatList
-                    data={searchedServices}
-                    renderItem={renderServiceCard}
-                    keyExtractor={(item) => item.id}
-                    style={styles.mainContent}
-                    contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
-                    showsVerticalScrollIndicator={false}
-                    ListEmptyComponent={
-                        <View style={styles.emptyState}>
-                            <Ionicons name="search-outline" size={48} color={APP_COLORS.lightGray} />
-                            <Text style={styles.emptyTitle}>No services found</Text>
-                            <Text style={styles.emptySubtitle}>Try a different category or search term</Text>
-                        </View>
-                    }
-                />
+                {isLoading ? (
+                    <View style={styles.emptyState}>
+                        <ActivityIndicator size="large" color={APP_COLORS.saffron} />
+                    </View>
+                ) : (
+                    <FlatList
+                        data={searchedServices}
+                        renderItem={renderServiceCard}
+                        keyExtractor={(item, index) => item._id || item.id || index.toString()}
+                        style={styles.mainContent}
+                        contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
+                        showsVerticalScrollIndicator={false}
+                        ListEmptyComponent={
+                            <View style={styles.emptyState}>
+                                <Ionicons name="search-outline" size={48} color={APP_COLORS.lightGray} />
+                                <Text style={styles.emptyTitle}>No services found</Text>
+                                <Text style={styles.emptySubtitle}>Try a different category or search term</Text>
+                            </View>
+                        }
+                    />
+                )}
             </View>
         </View>
     );

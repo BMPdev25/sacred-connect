@@ -411,7 +411,7 @@ const ProfileSetup = () => {
       ...prev,
       customSteps: [
         ...prev.customSteps,
-        { title: "", description: "", durationEstimate: 15 }
+        { title: "", description: "", durationEstimate: 15, extraCharge: 0 }
       ]
     }));
   };
@@ -1228,22 +1228,53 @@ const ProfileSetup = () => {
           <ScrollView style={styles.modalScroll}>
             {/* Standard Steps - Read Only */}
             <Text style={styles.modalSectionTitle}>Standard Inclusions</Text>
-            {currentCustomizingCeremony?.ritualSteps?.length > 0 ? (
-              currentCustomizingCeremony.ritualSteps
-                .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
-                .map((step: any, index: number) => (
-                  <View key={`std-${index}`} style={styles.readOnlyStep}>
-                    <Text style={styles.readOnlyStepTitle}>{step.title}</Text>
-                    <Text style={styles.readOnlyStepDesc}>{step.description}</Text>
-                  </View>
-                ))
-            ) : (
-              <Text style={styles.noDataText}>No standard steps defined.</Text>
-            )}
+            {(() => {
+              const RITUAL_DEFAULTS: Record<string, any[]> = {
+                "satyanarayan": [
+                  { stepNumber: 1, title: "Swasti Vachanam", description: "Seeking blessings and purification." },
+                  { stepNumber: 2, title: "Maha Sankalp", description: "Solemn vow for the ritual purpose." },
+                  { stepNumber: 3, title: "Gauri Ganeshi Puja", description: "Invocation of Goddess Gauri and Lord Ganesha." },
+                  { stepNumber: 4, title: "Kalash Navgraha Puja", description: "Invocation of deities in Kalash and 9 planets." },
+                  { stepNumber: 5, title: "Satyanarayan Katha & Puja", description: "Main ritual, story narration, and puja." },
+                  { stepNumber: 6, title: "Aarti & Prasad", description: "Final prayers and food distribution." }
+                ],
+                "ganesh": [
+                  { stepNumber: 1, title: "Ganesh Prarthna", description: "Initial prayer to Lord Ganesha." },
+                  { stepNumber: 2, title: "Kalash Pooja", description: "Invocation of deities in the sacred water pot." },
+                  { stepNumber: 3, title: "Sodasaupachar Puja", description: "Traditional 16-step worship." },
+                  { stepNumber: 4, title: "Ganesh Puja", description: "Detailed worship with mantras and offerings." },
+                  { stepNumber: 5, title: "Ganesh Aarti", description: "Singing of hymns and offering light." }
+                ]
+              };
+
+              let stepsToShow = currentCustomizingCeremony?.ritualSteps || [];
+              if (stepsToShow.length === 0 && currentCustomizingCeremony?.name) {
+                const nameLower = currentCustomizingCeremony.name.toLowerCase();
+                for (const [key, defaults] of Object.entries(RITUAL_DEFAULTS)) {
+                  if (nameLower.includes(key)) {
+                    stepsToShow = defaults;
+                    break;
+                  }
+                }
+              }
+
+              if (stepsToShow.length > 0) {
+                return [...stepsToShow]
+                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
+                  .map((step: any, index: number) => (
+                    <View key={`std-${index}`} style={styles.readOnlyStep}>
+                      <Text style={styles.readOnlyStepTitle}>{step.title}</Text>
+                      <Text style={styles.readOnlyStepDesc}>{step.description}</Text>
+                    </View>
+                  ));
+              }
+
+              return <Text style={styles.noDataText}>No standard steps defined.</Text>
+            })()}
 
             {/* Custom Steps - Editable */}
             <View style={[styles.modalHeader, { borderBottomWidth: 0, paddingHorizontal: 0, marginTop: 16 }]}>
-              <Text style={styles.modalSectionTitle}>Your Custom Additions</Text>
+              <Text style={styles.modalSectionTitle}>Additional Steps by You</Text>
               <TouchableOpacity onPress={addCustomStep}>
                 <Ionicons name="add-circle" size={24} color={APP_COLORS.primary} />
               </TouchableOpacity>
@@ -1271,14 +1302,25 @@ const ProfileSetup = () => {
                   value={step.description}
                   onChangeText={(val) => updateCustomStep(index, 'description', val)}
                 />
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: APP_COLORS.gray, marginRight: 8 }}>Duration (mins):</Text>
-                  <TextInput
-                    style={[styles.input, { width: 60, padding: 4, textAlign: 'center' }]}
-                    keyboardType="numeric"
-                    value={String(step.durationEstimate || 0)}
-                    onChangeText={(val) => updateCustomStep(index, 'durationEstimate', parseInt(val, 10) || 0)}
-                  />
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: APP_COLORS.gray, marginRight: 8 }}>Duration (mins):</Text>
+                    <TextInput
+                      style={[styles.input, { width: 60, padding: 4, textAlign: 'center' }]}
+                      keyboardType="numeric"
+                      value={String(step.durationEstimate || 0)}
+                      onChangeText={(val) => updateCustomStep(index, 'durationEstimate', parseInt(val, 10) || 0)}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: APP_COLORS.gray, marginRight: 8 }}>Extra Charge (₹):</Text>
+                    <TextInput
+                      style={[styles.input, { width: 80, padding: 4, textAlign: 'center' }]}
+                      keyboardType="numeric"
+                      value={String(step.extraCharge || 0)}
+                      onChangeText={(val) => updateCustomStep(index, 'extraCharge', parseInt(val, 10) || 0)}
+                    />
+                  </View>
                 </View>
               </View>
             ))}

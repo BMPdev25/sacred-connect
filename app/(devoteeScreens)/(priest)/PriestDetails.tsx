@@ -1,4 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
+import { getImageUri } from "../../../utils/imageUtils";
+
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
@@ -30,8 +32,20 @@ type Ceremony = {
   id?: string | number;
   name?: string;
   price?: number;
-  ritualSteps?: { title: string, description: string }[];
-  customSteps?: { title: string, description: string }[];
+  ritualSteps?: { 
+    title: string; 
+    description: string;
+    stepNumber?: number;
+    durationEstimate?: number;
+    extraCharge?: number;
+  }[];
+  customSteps?: { 
+    title: string; 
+    description: string;
+    durationEstimate?: number;
+    additionalCharge?: number;
+    extraCharge?: number;
+  }[];
 };
 
 type WeeklyAvailabilityEntry = {
@@ -58,10 +72,12 @@ type Priest = {
   weeklyAvailability?: Record<string, WeeklyAvailabilityEntry>;
   ceremonyCount?: number;
   completionRate?: number;
+  cancelledCount?: number;
+  noShowCount?: number;
 };
 
 const PriestDetails: React.FC = () => {
-  const { priestId } = useLocalSearchParams();
+  const { priestId, ceremony } = useLocalSearchParams();
   const priestIdStr = Array.isArray(priestId) ? priestId[0] : priestId;
   const [priest, setPriest] = useState<Priest | null>(null);
   const [selectedTab, setSelectedTab] = useState("about");
@@ -74,7 +90,68 @@ const PriestDetails: React.FC = () => {
     const fetchPriestDetails = async () => {
       try {
         console.log("PriestDetails: Fetching for priestIdStr:", priestIdStr);
+        
+        // 1. Fetch master ceremony list for name resolution
+        let masterCeremonies: any[] = [];
+        try {
+          const res = await devoteeService.getCeremonies();
+          masterCeremonies = Array.isArray(res) ? res : (res.ceremonies || []);
+        } catch (e) {
+          console.warn("Failed to fetch master ceremony list", e);
+        }
+
+        // 2. Fetch priest details
         const data = await devoteeService.getPriestDetails(priestIdStr);
+        
+        // 3. Map priest services/ceremonies with name resolution
+        if (data && data.services) {
+          data.ceremonies = data.services.map((s: any) => {
+            let ceremonyName = s.ceremonyName || s.name;
+            
+            // If name is unknown or missing, try to resolve from master list
+            if (!ceremonyName || ceremonyName === "Unknown Ceremony") {
+              const masterMatch = masterCeremonies.find(m => 
+                m._id === s.ceremonyId || 
+                (m.basePrice === s.price && m.name.toLowerCase().includes('satyanarayan') && (ceremony as string)?.toLowerCase().includes('satyanarayan'))
+              );
+              ceremonyName = masterMatch?.name || s.ceremonyId || "Ceremony";
+            }
+            
+            return {
+              id: s.ceremonyId || s._id,
+              name: ceremonyName,
+              price: s.price,
+              ritualSteps: s.ritualSteps || [],
+              customSteps: s.customSteps || []
+            };
+          });
+        } else if (data && data.ceremonies && data.ceremonies.length > 0) {
+          // Fix names if they are already objects but have 'Unknown Ceremony'
+          data.ceremonies = data.ceremonies.map((c: any) => {
+            let ceremonyName = typeof c === 'string' ? c : (c.name || "Ceremony");
+            let price = typeof c === 'string' ? 2100 : (c.price || 2100);
+            let id = typeof c === 'string' ? undefined : (c.id || c._id);
+
+            if (ceremonyName === "Unknown Ceremony" || !ceremonyName) {
+              const masterMatch = masterCeremonies.find(m => 
+                m._id === id || 
+                (m.basePrice === price && (ceremony as string)?.toLowerCase().includes(m.name.toLowerCase().split(' ')[0]))
+              );
+              ceremonyName = masterMatch?.name || (ceremony as string) || "Ceremony";
+            }
+
+            return {
+              id: id,
+              name: ceremonyName,
+              price: price,
+              ritualSteps: c.ritualSteps || [],
+              customSteps: c.customSteps || []
+            };
+          });
+        }
+
+        // 4. Default ritual steps are now handled by the backend if present in Ceremony model
+        // No client-side fallback needed if we trust the DB seeding.
         setPriest(data);
       } catch (error) {
         console.error("Failed to fetch priest details:", error);
@@ -91,7 +168,7 @@ const PriestDetails: React.FC = () => {
     if (!priestIdStr) return;
     router.push({
       pathname: "/[BookCeremony]",
-      params: { BookCeremony: priestIdStr, priestId: priestIdStr },
+      params: { BookCeremony: priestIdStr, priestId: priestIdStr, ceremony },
     });
   };
 
@@ -195,7 +272,7 @@ const PriestDetails: React.FC = () => {
         <View style={styles.profileSection}>
           {priest.profilePicture ? (
             <Image
-              source={{ uri: priest.profilePicture }}
+              source={{ uri: getImageUri(priest.profilePicture) }}
               style={styles.profileImage}
             />
           ) : (
@@ -405,7 +482,9 @@ const PriestDetails: React.FC = () => {
                     >
                       <View style={{ flex: 1 }}>
                         <Text style={styles.ceremonyName}>{ceremony.name}</Text>
-                        <Text style={styles.ceremonyDuration}>Typical duration: 2-3 hours</Text>
+                        <Text style={styles.ceremonyDuration}>
+                          Includes Standard Rituals + {ceremony.customSteps?.length || 0} Custom Additions
+                        </Text>
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         <Text style={styles.ceremonyPrice}>₹{ceremony.price}</Text>
@@ -423,7 +502,7 @@ const PriestDetails: React.FC = () => {
                         {/* Standard Steps */}
                         {ceremony.ritualSteps && ceremony.ritualSteps.length > 0 && (
                           <View style={styles.stepsSection}>
-                            <Text style={styles.stepsSectionTitle}>Standard Inclusions</Text>
+                            <Text style={styles.stepsSectionTitle}>Section 1: What This Puja Includes</Text>
                             {ceremony.ritualSteps.map((step, sIdx) => (
                               <View key={`std-${sIdx}`} style={styles.stepItem}>
                                 <View style={styles.stepDot} />
@@ -441,17 +520,26 @@ const PriestDetails: React.FC = () => {
                           <View style={[styles.stepsSection, { borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 12 }]}>
                             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                               <Ionicons name="sparkles" size={16} color={APP_COLORS.primary} style={{ marginRight: 6 }} />
-                              <Text style={[styles.stepsSectionTitle, { marginBottom: 0 }]}>Priest's Custom Additions</Text>
+                              <Text style={[styles.stepsSectionTitle, { marginBottom: 0 }]}>Section 2: Additional Inclusions by This Priest</Text>
                             </View>
-                            {ceremony.customSteps.map((step, sIdx) => (
-                              <View key={`cust-${sIdx}`} style={styles.stepItem}>
-                                <View style={[styles.stepDot, { backgroundColor: APP_COLORS.primary }]} />
-                                <View style={{ flex: 1 }}>
-                                  <Text style={styles.stepTitle}>{step.title}</Text>
-                                  <Text style={styles.stepDesc}>{step.description}</Text>
+                            {ceremony.customSteps.map((step, sIdx) => {
+                              // Handle both extraCharge (old) and additionalCharge (new) names
+                              const charge = step.additionalCharge || step.extraCharge;
+                              return (
+                                <View key={`cust-${sIdx}`} style={styles.stepItem}>
+                                  <View style={[styles.stepDot, { backgroundColor: APP_COLORS.primary }]} />
+                                  <View style={{ flex: 1 }}>
+                                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <Text style={styles.stepTitle}>{step.title}</Text>
+                                      {charge !== undefined && charge > 0 && (
+                                        <Text style={{ fontSize: 13, fontWeight: 'bold', color: APP_COLORS.primary }}>+ ₹{charge}</Text>
+                                      )}
+                                    </View>
+                                    <Text style={styles.stepDesc}>{step.description}</Text>
+                                  </View>
                                 </View>
-                              </View>
-                            ))}
+                              );
+                            })}
                           </View>
                         )}
 
@@ -588,7 +676,22 @@ const PriestDetails: React.FC = () => {
 
             <View style={styles.modalStatRow}>
               <Text style={styles.modalStatLabel}>Bookings Completed:</Text>
-              <Text style={styles.modalStatValue}>{priest?.ceremonyCount}</Text>
+              <Text style={styles.modalStatValue}>{priest?.ceremonyCount || 0}</Text>
+            </View>
+
+            <View style={styles.modalStatRow}>
+              <Text style={styles.modalStatLabel}>Cancelled (by Priest):</Text>
+              <Text style={styles.modalStatValue}>{priest?.cancelledCount || 0}</Text>
+            </View>
+
+            <View style={styles.modalStatRow}>
+              <Text style={styles.modalStatLabel}>No-shows:</Text>
+              <Text style={styles.modalStatValue}>{priest?.noShowCount || 0}</Text>
+            </View>
+
+            <View style={styles.modalStatRow}>
+              <Text style={styles.modalStatLabel}>Current Rating:</Text>
+              <Text style={styles.modalStatValue}>{priest?.ratings?.average || 0} / 5</Text>
             </View>
             
             <Text style={styles.modalDescription}>

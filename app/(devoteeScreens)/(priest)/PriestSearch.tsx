@@ -1,6 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
+import * as Location from 'expo-location';
 import {
   FlatList,
   Image,
@@ -14,9 +15,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
+import PujariCard from "../../../components/PujariCard";
 
 
 import { Priest } from "../../../types";
+import { calculateDistance } from "../../../utils/locationUtils";
 
 const PriestSearch: React.FC = () => {
   const params = useLocalSearchParams();
@@ -35,9 +38,9 @@ const PriestSearch: React.FC = () => {
   // Mock data for ceremonies
   const ceremonies = [
     "Wedding",
-    "Grih Pravesh",
+    "Griha Pravesh",
     "Baby Naming",
-    "Satyanarayan Katha",
+    "Satyanarayan Puja",
     "Festival Pujas",
     "Funeral Ceremony",
     "All Ceremonies",
@@ -52,6 +55,7 @@ const PriestSearch: React.FC = () => {
   // Dynamic priest data from API
   const [priests, setPriests] = useState<Priest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Fetch priests function
   const fetchPriests = async (query = "", ceremony = "", religion = "", rating = "") => {
@@ -68,7 +72,25 @@ const PriestSearch: React.FC = () => {
       }
 
       const response = await devoteeService.searchPriests(params);
-      setPriests(response.priests || []);
+      let foundPriests = response.priests || [];
+
+      // Calculate distances if user location is available
+      if (userCoords) {
+        foundPriests = foundPriests.map((p: any) => {
+          if (p.location?.coordinates) {
+            const distance = calculateDistance(
+              userCoords.latitude,
+              userCoords.longitude,
+              p.location.coordinates[1],
+              p.location.coordinates[0]
+            );
+            return { ...p, distance };
+          }
+          return p;
+        });
+      }
+
+      setPriests(foundPriests);
     } catch (err) {
       console.error("PriestSearchScreen: Error fetching priests:", err);
       setPriests([]);
@@ -78,7 +100,24 @@ const PriestSearch: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchPriests(initialSearchQuery, initialCeremony);
+    const initLocationAndFetch = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          setUserCoords({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          });
+        }
+      } catch (err) {
+        console.warn("Failed to get location:", err);
+      } finally {
+        fetchPriests(initialSearchQuery, initialCeremony);
+      }
+    };
+
+    initLocationAndFetch();
   }, []);
 
   // Handle search submission
@@ -97,64 +136,29 @@ const PriestSearch: React.FC = () => {
     if (!priest._id) return;
     router.push({
       pathname: "/PriestDetails",
-      params: { priestId: priest._id },
+      params: { priestId: priest._id, ceremony: selectedCeremony },
     });
     // navigation.navigate('PriestDetails', { priestId: priest._id });
   };
 
+  const handleBookPress = (priest: Priest) => {
+    if (!priest._id) return;
+    router.push({
+      pathname: "/[BookCeremony]",
+      params: { 
+        BookCeremony: priest._id, 
+        priestId: priest._id, 
+        ceremony: selectedCeremony 
+      },
+    });
+  };
+
   const renderPriestItem = ({ item }: { item: Priest }) => (
-    <TouchableOpacity
-      style={styles.priestCard}
-      onPress={() => handlePriestPress(item)}
-    >
-      <Image
-        source={
-          item.profilePicture
-            ? { uri: item.profilePicture }
-            : require("../../../assets/images/pandit1.jpg")
-        }
-        style={styles.priestImage}
-      />
-      <View style={styles.priestInfo}>
-        <Text style={styles.priestName}>{item.name}</Text>
-        <View style={styles.priestMeta}>
-          <Text style={styles.priestDetail}>{item.religiousTradition}</Text>
-          <Text style={styles.priestDetail}>{item.experience} yrs exp</Text>
-        </View>
-        <View style={styles.ratingContainer}>
-          <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.ratingText}>
-            {item.rating?.average || 0} ({item.rating?.count || 0})
-          </Text>
-        </View>
-        <View style={styles.specialtiesContainer}>
-          {item.ceremonies
-            ?.slice(0, 2)
-            .map((ceremony: string, index: number) => (
-              <View key={index} style={styles.specialtyBadge}>
-                <Text style={styles.specialtyText}>{ceremony}</Text>
-              </View>
-            ))}
-          {(item.ceremonies?.length || 0) > 2 && (
-            <View style={styles.specialtyBadge}>
-              <Text style={styles.specialtyText}>
-                +{(item.ceremonies?.length || 0) - 2} more
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-      <View style={styles.priestStatus}>
-        <View style={[styles.statusIndicator, styles.availableIndicator]} />
-        <Text style={[styles.statusText, styles.availableText]}>Available</Text>
-        <TouchableOpacity
-          style={styles.bookButton}
-          onPress={() => router.push({ pathname: "/[BookCeremony]", params: { BookCeremony: item._id ?? "", priestId: item._id ?? "" } })}
-        >
-          <Text style={styles.bookButtonText}>Book</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
+    <PujariCard
+      pujari={item}
+      ceremonyId={selectedCeremony}
+      onBookPress={selectedCeremony ? () => handleBookPress(item) : undefined}
+    />
   );
 
   // Debounced search function
@@ -360,7 +364,7 @@ const PriestSearch: React.FC = () => {
             {[1, 2, 3, 4].map(i => (
               <View key={i} style={[styles.priestCard, { opacity: 1 - i * 0.15 }]}>
                 <View style={{ width: 60, height: 60, borderRadius: 30, backgroundColor: APP_COLORS.lightGray }} />
-                <View style={[styles.priestInfo, { justifyContent: "center" }]}>
+                <View style={{ flex: 1, marginLeft: 12, justifyContent: "center" }}>
                   <View style={{ width: 140, height: 16, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 8 }} />
                   <View style={{ width: 100, height: 12, borderRadius: 4, backgroundColor: APP_COLORS.lightGray, marginBottom: 6 }} />
                   <View style={{ width: 80, height: 12, borderRadius: 4, backgroundColor: APP_COLORS.lightGray }} />
@@ -535,92 +539,6 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     elevation: 2,
-  },
-  priestImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  priestInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  priestName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 4,
-  },
-  priestMeta: {
-    flexDirection: "row",
-    marginBottom: 4,
-  },
-  priestDetail: {
-    fontSize: 12,
-    color: APP_COLORS.gray,
-    marginRight: 8,
-  },
-  ratingContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
-  ratingText: {
-    fontSize: 12,
-    color: APP_COLORS.black,
-    marginLeft: 4,
-  },
-  specialtiesContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-  },
-  specialtyBadge: {
-    backgroundColor: APP_COLORS.primary + "20",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 6,
-    marginBottom: 4,
-  },
-  specialtyText: {
-    fontSize: 10,
-    color: APP_COLORS.primary,
-  },
-  priestStatus: {
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  statusIndicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginBottom: 4,
-  },
-  availableIndicator: {
-    backgroundColor: APP_COLORS.success,
-  },
-  unavailableIndicator: {
-    backgroundColor: APP_COLORS.error,
-  },
-  statusText: {
-    fontSize: 12,
-    marginBottom: 8,
-  },
-  availableText: {
-    color: APP_COLORS.success,
-  },
-  unavailableText: {
-    color: APP_COLORS.error,
-  },
-  bookButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: APP_COLORS.primary,
-  },
-  bookButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 12,
   },
   emptyContainer: {
     flex: 1,

@@ -107,7 +107,7 @@ const devoteeService = {
     try {
       const url = status ? `/api/devotee/bookings?status=${status}` : '/api/devotee/bookings';
       const response = await api.get(url);
-      return response.data;
+      return response.data.data?.all || response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }
@@ -161,7 +161,7 @@ const devoteeService = {
   getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/bookings/${bookingId}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }
@@ -202,6 +202,7 @@ const devoteeService = {
    */
   cancelBooking: async (bookingId: string, cancellationData: Record<string, any>): Promise<any> => {
     try {
+      // Use the standard cancellation endpoint
       const response = await api.put(`/api/bookings/${bookingId}/cancel-devotee`, cancellationData);
       return response.data;
     } catch (error: any) {
@@ -272,7 +273,7 @@ const devoteeService = {
    */
   getCeremonies: async (): Promise<any> => {
     try {
-      const response = await api.get('/api/devotee/ceremonies');
+      const response = await api.get('/api/ceremonies');
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch ceremonies. Please try again.';
@@ -342,8 +343,15 @@ const devoteeService = {
     try {
       const response = await api.get('/api/devotee/bookings');
       const all = Array.isArray(response.data) ? response.data : response.data?.data || [];
-      // Only return non-completed bookings so the devotee can track request status
-      return all.filter((b: any) => b.status !== 'completed');
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+
+      // Only return non-completed bookings that are scheduled for today or in the future
+      return all.filter((b: any) => {
+        const bookingDate = new Date(b.date);
+        return b.status !== 'completed' && bookingDate >= today;
+      });
     } catch (error: any) {
       console.error('getMyRequests error:', error);
       return [];

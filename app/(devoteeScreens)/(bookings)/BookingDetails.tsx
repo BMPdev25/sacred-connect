@@ -21,8 +21,10 @@ import {
 import { APP_COLORS } from "../../../constants/Colors";
 import { useQuery } from "@tanstack/react-query";
 import devoteeService from "../../../services/devoteeService";
+import { schedulePujaReminder } from "../../../utils/notificationUtils";
+import { getImageUri } from "../../../utils/imageUtils";
 
-const BookingDetailsScreen: React.FC = () => {
+export default function BookingDetailsScreen() {
   // Helper functions
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
@@ -37,8 +39,10 @@ const BookingDetailsScreen: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
+      case "requested":
+        return "Pending Acceptance";
       case "pending":
-        return "Pending";
+        return "Payment Pending";
       case "confirmed":
         return "Confirmed";
       case "completed":
@@ -56,6 +60,8 @@ const BookingDetailsScreen: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "requested":
+        return APP_COLORS.warning;
       case "confirmed":
         return APP_COLORS.success;
       case "pending":
@@ -81,12 +87,15 @@ const BookingDetailsScreen: React.FC = () => {
   const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
-    if (stringifiedBooking) {
+    if (stringifiedBooking && typeof stringifiedBooking === 'string') {
       try {
-        setBooking(typeof stringifiedBooking === 'string' ? JSON.parse(stringifiedBooking) : stringifiedBooking);
+        const parsed = JSON.parse(stringifiedBooking);
+        setBooking(parsed);
       } catch (err) {
         console.error("Failed to parse booking param", err);
       }
+    } else if (stringifiedBooking) {
+      setBooking(stringifiedBooking);
     }
   }, [stringifiedBooking]);
 
@@ -104,8 +113,8 @@ const BookingDetailsScreen: React.FC = () => {
     },
     enabled: !!queryBookingId,
     // Refetch every 10 seconds if booking is active (not terminal)
-    refetchInterval: (data) => {
-      const status = data?.status || booking?.status;
+    refetchInterval: (query: any) => {
+      const status = query?.state?.data?.status || booking?.status;
       return (status && !['completed', 'cancelled'].includes(status)) ? 10000 : false;
     }
   });
@@ -129,24 +138,54 @@ const BookingDetailsScreen: React.FC = () => {
   const [countdown, setCountdown] = useState<string | null>(null);
   useEffect(() => {
     if (!booking?.date) return;
+    
     const update = () => {
       const now = new Date().getTime();
-      const target = new Date(booking.date).getTime();
-      const diff = target - now;
-      if (diff <= 0) { setCountdown(null); return; }
+      
+      // Combine date and startTime for accurate target
+      const target = new Date(booking.date);
+      if (booking.startTime) {
+        const [hours, minutes] = booking.startTime.split(':').map(Number);
+        target.setHours(hours, minutes, 0, 0);
+      } else {
+        target.setHours(0, 0, 0, 0);
+      }
+      
+      const diff = target.getTime() - now;
+      if (diff <= 0) { 
+        setCountdown(null); 
+        return; 
+      }
+      
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
       const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
       let text = '';
       if (days > 0) text += `${days} day${days > 1 ? 's' : ''} `;
       if (hours > 0) text += `${hours} hr${hours > 1 ? 's' : ''} `;
       text += `${mins} min${mins > 1 ? 's' : ''}`;
+      
       setCountdown(text.trim());
     };
+    
     update();
-    const id = setInterval(update, 60000);
+    const id = setInterval(update, 60000); // Update every minute
     return () => clearInterval(id);
-  }, [booking?.date]);
+  }, [booking?.date, booking?.startTime]);
+
+  // Schedule local reminder for confirmed bookings
+  useEffect(() => {
+    if (booking?.status === "confirmed" && booking?.date && booking?.startTime) {
+      schedulePujaReminder(
+        booking._id || booking.id,
+        booking.ceremony?.name || booking.ceremonyType || "Puja",
+        booking.date,
+        booking.startTime,
+        120 // 2 hours before
+      );
+    }
+  }, [booking?.status, booking?._id, booking?.date, booking?.startTime]);
 
   const handleCancelBooking = async () => {
     if (!booking) return;
@@ -168,6 +207,9 @@ const BookingDetailsScreen: React.FC = () => {
     } else {
       subMessage = "Cancellation policy: Cancellations within 24 hours are non-refundable. The amount will be processed as compensation for the priest.";
     }
+    if (booking.status === "requested") {
+      subMessage = "Cancellation policy: Since the priest hasn't accepted yet, you will receive a full refund.";
+    }
 
     if (booking.status === "arrived" || booking.status === "in_progress") {
       subMessage = "Important: The priest has already arrived or started the ritual. Cancellation at this stage is non-refundable and may affect your reliability score significantly.";
@@ -184,7 +226,7 @@ const BookingDetailsScreen: React.FC = () => {
           onPress: async () => {
             try {
               setIsUpdating(true);
-              await devoteeService.cancelBooking(booking._id, { reason: "Cancelled by devotee" });
+              await devoteeService.cancelBooking(booking._id || booking.id, { reason: "Cancelled by devotee" });
               Alert.alert("Success", "Booking cancelled successfully.");
               router.push("/devotee/BookingsTab");
             } catch (err: any) {
@@ -199,16 +241,20 @@ const BookingDetailsScreen: React.FC = () => {
   };
 
   const handleCallPriest = () => {
-    const phone = booking?.priestId?.phone;
+    const phone = booking?.priestId?.phone || (typeof booking?.priestId === 'object' ? booking?.priestId?.userId?.phone : null);
     if (phone) {
       Linking.openURL(`tel:${phone}`);
+    } else {
+      Alert.alert("Error", "Priest's phone number not available.");
     }
   };
 
   const handleMessagePriest = () => {
-    const phone = booking?.priestId?.phone;
+    const phone = booking?.priestId?.phone || (typeof booking?.priestId === 'object' ? booking?.priestId?.userId?.phone : null);
     if (phone) {
       Linking.openURL(`sms:${phone}`);
+    } else {
+      Alert.alert("Error", "Priest's phone number not available.");
     }
   };
 
@@ -284,9 +330,11 @@ const BookingDetailsScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
           <View style={styles.ceremonyCard}>
-            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url) && (
+            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url || booking?.ceremonyType) && (
               <Image
-                source={{ uri: booking.ceremony.image || booking.ceremony.images?.[0]?.url }}
+                source={{ 
+                  uri: getImageUri(booking.ceremony?.image || booking.ceremony?.images?.[0] || booking.ceremony) 
+                }}
                 style={styles.ceremonyImage}
               />
             )}
@@ -341,22 +389,28 @@ const BookingDetailsScreen: React.FC = () => {
         )}
 
         {/* Priest Information */}
-        {booking?.priestId && (
+        {booking?.priestId && typeof booking.priestId === 'object' && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Priest Information</Text>
             <View style={styles.devoteeCard}>
-              {booking.priestId.profilePicture && (
+              {booking.priestId.profilePicture || booking.priestId.userId?.profilePicture ? (
                 <Image
-                  source={{ uri: booking.priestId.profilePicture }}
+                  source={{ 
+                    uri: getImageUri(booking.priestId.profilePicture || booking.priestId.userId?.profilePicture) 
+                  }}
                   style={styles.devoteeImage}
                 />
+              ) : (
+                <View style={[styles.devoteeImage, { backgroundColor: APP_COLORS.lightGray, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="person" size={24} color={APP_COLORS.gray} />
+                </View>
               )}
               <View style={styles.devoteeInfo}>
                 <Text style={styles.devoteeName}>
-                  {booking.priestId.name || "-"}
+                  {booking.priestId.name || booking.priestId.userId?.name || "-"}
                 </Text>
                 <Text style={styles.devoteeEmail}>
-                  {booking.priestId.email || "-"}
+                  {booking.priestId.email || booking.priestId.userId?.email || "-"}
                 </Text>
               </View>
               <View style={styles.contactButtons}>
@@ -460,7 +514,8 @@ const BookingDetailsScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          {(booking?.status === "pending" || 
+          {(booking?.status === "requested" ||
+            booking?.status === "pending" || 
             booking?.status === "confirmed" || 
             booking?.status === "arrived" || 
             booking?.status === "in_progress") && (
@@ -829,4 +884,3 @@ const styles = StyleSheet.create({
   },
 });
 
-export default BookingDetailsScreen;

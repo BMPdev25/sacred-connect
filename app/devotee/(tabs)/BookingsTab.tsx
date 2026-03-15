@@ -94,7 +94,7 @@ const BookingsScreen: React.FC = () => {
 
   const upcomingBookings = effectiveBookings.filter((b: any) => {
     const d = new Date(b.date);
-    return (b.status === "confirmed" || b.status === "pending") && d >= new Date();
+    return (b.status === "confirmed" || b.status === "pending" || b.status === "requested") && d >= new Date();
   });
 
   const historyBookings = effectiveBookings.filter((b: any) => {
@@ -113,7 +113,9 @@ const BookingsScreen: React.FC = () => {
       case "cancelled":
         return { bg: "#FFEBEE", color: APP_COLORS.error, label: "Cancelled", icon: "close-circle" as const };
       case "pending":
-        return { bg: "#FFF8E1", color: APP_COLORS.warning, label: "Pending", icon: "time" as const };
+        return { bg: "#FFF8E1", color: APP_COLORS.warning, label: "Payment Pending", icon: "time" as const };
+      case "requested":
+        return { bg: "#FFF3E0", color: "#F57C00", label: "Pending Acceptance", icon: "hourglass-outline" as const };
       default:
         return { bg: APP_COLORS.lightGray, color: APP_COLORS.gray, label: status, icon: "ellipse" as const };
     }
@@ -121,7 +123,13 @@ const BookingsScreen: React.FC = () => {
 
   const handleBookingPress = (booking: any) => {
     if (booking._id?.startsWith("mock")) return;
-    router.push({ pathname: "/BookingDetails", params: { booking: JSON.stringify(booking) } });
+    router.push({ 
+      pathname: "/BookingDetails", 
+      params: { 
+        booking: JSON.stringify(booking),
+        bookingId: booking._id 
+      } 
+    });
   };
 
   const handleRateNow = (booking: any) => {
@@ -143,7 +151,7 @@ const BookingsScreen: React.FC = () => {
     const isUpcoming = activeTab === "upcoming";
 
     return (
-      <Card style={[styles.bookingCard, isUpcoming && styles.bookingCardUpcoming]} onPress={() => handleBookingPress(item)}>
+      <Card style={StyleSheet.flatten([styles.bookingCard, isUpcoming && styles.bookingCardUpcoming]) as any} onPress={() => handleBookingPress(item)}>
         {/* Status Ribbon */}
         <View style={styles.cardHeader}>
           <Text style={styles.ceremonyType}>{item.ceremonyType}</Text>

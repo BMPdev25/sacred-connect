@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";import * as Location from 'expo-location';
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -22,10 +22,13 @@ import { APP_COLORS } from "../../../constants/Colors";
 import { RootState } from "../../../redux/store";
 import devoteeService from "../../../services/devoteeService";
 import ceremonyService from "../../../services/ceremonyService";
+import { getImageUri } from "../../../utils/imageUtils";
 import RatingModal from "../../../components/RatingModal";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
 import { useNotifications } from "../../../context/NotificationContext";
+import PujariCard from "../../../components/PujariCard";
+import { calculateDistance } from "../../../utils/locationUtils";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
@@ -43,7 +46,7 @@ const FALLBACK_BANNERS = [
 ];
 
 const FALLBACK_CATEGORIES = [
-  { _id: "1", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933" },
+  { _id: "1", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933", slug: "puja" },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -69,13 +72,14 @@ const HomeScreen: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [currentCity, setCurrentCity] = useState("Hyderabad");
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Dynamic Metadata State
   const [panchang, setPanchang] = useState(FALLBACK_PANCHANG);
   const [banners, setBanners] = useState(FALLBACK_BANNERS);
   const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
 
-  const fetchData = async () => {
+  const fetchData = async (coords?: { latitude: number, longitude: number }) => {
     try {
       const [priestsRes, actionsRes, addressRes, recentRes, bannersRes, panchangRes, categoriesRes] = await Promise.allSettled([
         devoteeService.searchPriests({ limit: 10 }),
@@ -88,8 +92,26 @@ const HomeScreen: React.FC = () => {
       ]);
 
       if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
-        setRecommendedPriests(priestsRes.value.priests);
+        let priests = priestsRes.value.priests;
+        const effectiveCoords = coords || userCoords;
+        
+        if (effectiveCoords) {
+          priests = priests.map((p: any) => {
+            if (p.location?.coordinates) {
+              const distance = calculateDistance(
+                effectiveCoords.latitude,
+                effectiveCoords.longitude,
+                p.location.coordinates[1],
+                p.location.coordinates[0]
+              );
+              return { ...p, distance };
+            }
+            return p;
+          });
+        }
+        setRecommendedPriests(priests);
       }
+// ... rest of fetchData
 
       if (actionsRes.status === "fulfilled") {
         setPendingActions(actionsRes.value);
@@ -104,7 +126,19 @@ const HomeScreen: React.FC = () => {
 
       if (recentRes.status === "fulfilled") {
         const bookings = Array.isArray(recentRes.value) ? recentRes.value : recentRes.value?.data || [];
-        setRecentBookings(bookings.slice(0, 5));
+        
+        // Deduplicate by ceremonyType
+        const uniqueBookings: any[] = [];
+        const seenCeremonies = new Set();
+        
+        for (const booking of bookings) {
+          if (!seenCeremonies.has(booking.ceremonyType)) {
+            seenCeremonies.add(booking.ceremonyType);
+            uniqueBookings.push(booking);
+          }
+        }
+        
+        setRecentBookings(uniqueBookings.slice(0, 5));
       }
 
       if (bannersRes.status === "fulfilled" && bannersRes.value?.length > 0) {
@@ -136,15 +170,34 @@ const HomeScreen: React.FC = () => {
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await Promise.all([
-      fetchData(),
+      fetchData(userCoords || undefined),
       loadRequests(),
       refetchCeremonies(),
     ]);
     setRefreshing(false);
-  }, [refetchCeremonies]);
+  }, [refetchCeremonies, userCoords]);
 
   useEffect(() => {
-    fetchData();
+    const initLocationAndFetch = async () => {
+      let coords: { latitude: number; longitude: number } | undefined;
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({});
+          coords = {
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          };
+          setUserCoords(coords);
+        }
+      } catch (err) {
+        console.warn("Failed to get location:", err);
+      } finally {
+        fetchData(coords);
+      }
+    };
+
+    initLocationAndFetch();
   }, []);
 
   // Refresh booking requests whenever tab comes into focus
@@ -292,12 +345,35 @@ const HomeScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* ── Recommended Priests ───────────────────────────── */}
+          {recommendedPriests.length > 0 && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>🙏 Recommended Priests</Text>
+                <TouchableOpacity onPress={() => router.push('/(devoteeScreens)/(priest)/PriestSearch')}>
+                  <Text style={styles.viewAllLink}>View All</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ paddingHorizontal: 16 }}
+              >
+                {recommendedPriests.map((priest) => (
+                  <View key={priest._id} style={{ width: 280, marginRight: 12 }}>
+                    <PujariCard pujari={priest} />
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
           {/* ── My Requests ────────────────────────────────────── */}
           {myRequests.length > 0 && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>📋 My Requests</Text>
-                <TouchableOpacity onPress={() => router.push('/(devoteeScreens)/MyBookings' as any)}>
+                <TouchableOpacity onPress={() => router.push('/devotee/(tabs)/BookingsTab')}>
                   <Text style={styles.viewAllLink}>View All</Text>
                 </TouchableOpacity>
               </View>
@@ -305,20 +381,26 @@ const HomeScreen: React.FC = () => {
                 {myRequests.map((req: any, idx: number) => {
                   const statusColor =
                     req.status === 'confirmed' ? '#2E7D32' :
-                      req.status === 'cancelled' ? '#C62828' :
-                        '#E65100';
+                      req.status === 'cancelled' || req.status === 'cancelled_by_devotee' ? '#C62828' :
+                        req.status === 'arrived' || req.status === 'in_progress' ? APP_COLORS.primary :
+                          '#E65100';
                   const statusBg =
                     req.status === 'confirmed' ? '#E8F5E9' :
-                      req.status === 'cancelled' ? '#FFEBEE' :
-                        '#FFF3E0';
+                      req.status === 'cancelled' || req.status === 'cancelled_by_devotee' ? '#FFEBEE' :
+                        req.status === 'arrived' || req.status === 'in_progress' ? APP_COLORS.primary + '10' :
+                          '#FFF3E0';
                   const statusIcon =
                     req.status === 'confirmed' ? 'checkmark-circle' :
-                      req.status === 'cancelled' ? 'close-circle' :
-                        'hourglass-outline';
+                      req.status === 'cancelled' || req.status === 'cancelled_by_devotee' ? 'close-circle' :
+                        req.status === 'arrived' ? 'location' :
+                          req.status === 'in_progress' ? 'play-circle' :
+                            'hourglass-outline';
                   const statusLabel =
                     req.status === 'confirmed' ? 'Confirmed' :
-                      req.status === 'cancelled' ? 'Declined' :
-                        'Pending';
+                      req.status === 'cancelled' || req.status === 'cancelled_by_devotee' ? 'Declined' :
+                        req.status === 'arrived' ? 'Arrived' :
+                          req.status === 'in_progress' ? 'Ongoing' :
+                            'Pending';
                   const priestName = req.priestId?.name || 'Priest';
                   return (
                     <View key={req._id || idx} style={[styles.reqCard, { borderLeftColor: statusColor }]}>
@@ -388,10 +470,13 @@ const HomeScreen: React.FC = () => {
             <View style={styles.categoryGrid}>
               {categories.map((cat) => (
                 <TouchableOpacity
-                  key={cat._id || (cat as any)?.id}
+                  key={cat._id || (cat as any)?.slug || (cat as any)?.id}
                   style={styles.categoryCard}
                   activeOpacity={0.85}
-                  onPress={() => router.push("/(devoteeScreens)/(pujas)/AllPujas")}
+                  onPress={() => router.push({
+                    pathname: "/devotee/(tabs)/ExploreTab",
+                    params: { category: cat.slug }
+                  })}
                 >
                   <View style={[styles.categoryIconWrap, { backgroundColor: (cat.color || APP_COLORS.saffron) + "18" }]}>
                     <Ionicons name={cat.icon as any} size={32} color={cat.color || APP_COLORS.saffron} />
@@ -426,7 +511,9 @@ const HomeScreen: React.FC = () => {
                     activeOpacity={0.85}
                   >
                     <Image
-                      source={{ uri: ceremony.image || ceremony.images?.[0]?.url || "https://via.placeholder.com/150" }}
+                      source={{ 
+                        uri: getImageUri(ceremony.image || ceremony.images?.[0]) 
+                      }}
                       style={styles.ceremonyImage}
                       resizeMode="cover"
                     />

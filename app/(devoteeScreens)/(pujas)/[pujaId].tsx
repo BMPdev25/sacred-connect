@@ -17,10 +17,9 @@ import { useQuery } from "@tanstack/react-query";
 import * as Location from "expo-location";
 import { Ionicons } from "@expo/vector-icons";
 
-import { fetchPujaById, fetchPujarisForPuja } from "../../../services/pujaApi";
-import PujariCard from "../../../components/PujariCard";
+import { fetchPujaById } from "../../../services/pujaApi";
 import { APP_COLORS } from "../../../constants/Colors";
-import { Puja, Pujari } from "../../../types";
+import { Puja } from "../../../types";
 
 export default function PujaDetailScreen() {
   const { pujaId } = useLocalSearchParams<{ pujaId: string }>();
@@ -65,18 +64,7 @@ export default function PujaDetailScreen() {
     enabled: !!id,
   });
 
-  // 3. Query for Available Pujaris
-  // Re-fetch when location changes or id changes
-  const {
-    data: pujaris,
-    isLoading: isPujarisLoading,
-    error: pujarisError,
-  } = useQuery<Pujari[]>({
-    queryKey: ["pujaris", id, location?.lat, location?.lng],
-    queryFn: () =>
-      fetchPujarisForPuja(id!, location?.lat, location?.lng, 10), // default radius 10km
-    enabled: !!id,
-  });
+
 
   if (isPujaLoading || !id) {
     return (
@@ -127,9 +115,9 @@ export default function PujaDetailScreen() {
 
   const handleScheduleBooking = () => {
     router.push({
-      pathname: "/(devoteeScreens)/(bookings)/[BookCeremony]" as any,
-      params: { pujaId: id, name: puja.name }
-    } as any);
+      pathname: "/(devoteeScreens)/(priest)/PriestSearch" as any,
+      params: { ceremony: puja.name }
+    });
   };
 
   return (
@@ -232,33 +220,14 @@ export default function PujaDetailScreen() {
             </Text>
           )}
 
-          <Text style={styles.sectionHeader}>Available Pujaris Nearby</Text>
-          {!locationPermissionGranted && (
-            <Text style={styles.locationHint}>
-              Enable location to see pujaris near you. Showing top rated.
-            </Text>
-          )}
 
-          {isPujarisLoading ? (
-            <ActivityIndicator size="small" color={APP_COLORS.primary} style={{ marginTop: 20 }} />
-          ) : pujarisError ? (
-            <Text style={styles.errorText}>Unable to load pujaris.</Text>
-          ) : pujaris && pujaris.length === 0 ? (
-            <Text style={styles.noDataText}>No pujaris available for this ceremony currently.</Text>
-          ) : (
-            <View style={styles.pujariList}>
-              {pujaris?.map((pujari) => (
-                <PujariCard key={pujari._id} pujari={pujari} ceremonyId={id} />
-              ))}
-            </View>
-          )}
         </View>
       </ScrollView>
 
       <View style={styles.footer}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Starting from</Text>
-          <Text style={styles.price}>₹{puja.basePrice || "2100"}</Text>
+          <Text style={styles.price}>₹{puja.pricing?.basePrice || puja.basePrice || "2100"}</Text>
         </View>
         <TouchableOpacity style={styles.scheduleBtn} onPress={handleScheduleBooking}>
           <Text style={styles.scheduleBtnText}>Schedule for Later</Text>

@@ -532,6 +532,13 @@ const ProfileSetup = () => {
         Alert.alert("Validation Error", "Please fill all required fields (Email, Phone)");
         return;
       }
+    } else if (editSection === 'temples') {
+      // Basic check for at least one temple if they are on the temple section
+      const validTemples = templesAffiliated.filter((t) => t.name && t.address);
+      if (validTemples.length === 0 && templesAffiliated.length > 0 && (templesAffiliated[0].name || templesAffiliated[0].address)) {
+          Alert.alert("Validation Error", "Please provide both name and address for the temple, or remove it.");
+          return;
+      }
     } else {
       // Full form validation (when not editing a specific section)
       if (!name || !email || !phone || !experience || !religiousTradition) {
@@ -559,7 +566,7 @@ const ProfileSetup = () => {
       .map((ceremony) => ceremony.name);
 
     // Only validate ceremonies if we are in initial setup OR editing services
-    // If editSection is 'personalDetails' or 'availability', skip this check
+    // If editSection is 'personalDetails', 'availability', 'contactInfo', or 'temples', skip this check
     if ((!editSection || editSection === 'services') && selectedCeremonies.length === 0) {
       Alert.alert("Validation Error", "Please select at least one ceremony");
       return;

@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import * as SecureStore from "../../utils/storage";
+import { getToken, removeToken } from "../../utils/storage";
 import React, { useEffect } from "react";
 import { ActivityIndicator, StyleSheet, Text } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -14,8 +14,8 @@ export default function Authentication() {
     let mounted = true;
     (async () => {
       try {
-        const userInfoStr = await SecureStore.getItemAsync("userInfo");
-        const userToken = await SecureStore.getItemAsync("userToken");
+        const userInfoStr = await getToken("userInfo");
+        const userToken = await getToken("userToken");
 
         if (!mounted) return;
 
@@ -41,8 +41,8 @@ export default function Authentication() {
             const errorMessage = e?.message || e?.response?.data?.message || '';
             console.log("Token validation failed - clearing credentials:", errorMessage);
 
-            await SecureStore.deleteItemAsync("userToken");
-            await SecureStore.deleteItemAsync("userInfo");
+            await removeToken("userToken");
+            await removeToken("userInfo");
 
             // If it's a role mismatch error, it means they logged in but with the wrong app type previously.
             // Just drop them to login, the user will see the error when they try to re-authenticate.
@@ -57,8 +57,8 @@ export default function Authentication() {
         console.error("Error checking auth on boot:", e);
         // Clear potentially corrupted credentials
         try {
-          await SecureStore.deleteItemAsync("userToken");
-          await SecureStore.deleteItemAsync("userInfo");
+            await removeToken("userToken");
+            await removeToken("userInfo");
         } catch (clearError) {
           console.error("Error clearing credentials:", clearError);
         }

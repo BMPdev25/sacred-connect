@@ -7,10 +7,17 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "jest"
+    "test:mobile:success": "node scripts/run-maestro.js flow-booking-success.yaml",
+    "test:mobile:accept": "node scripts/run-maestro.js flow-priest-acceptance.yaml",
+    "test:mobile:payment": "node scripts/run-maestro.js flow-devotee-payment.yaml",
+    "test:mobile:cancel-priest": "node scripts/run-maestro.js flow-priest-cancellation.yaml",
+    "test:mobile:cancel-devotee": "node scripts/run-maestro.js flow-devotee-cancellation.yaml",
+    "test:mobile:complete": "node scripts/run-maestro.js flow-priest-completion.yaml",
+    "test:mobile:rating": "node scripts/run-maestro.js flow-devotee-rating.yaml"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "@react-native-community/datetimepicker": "^8.4.4",
     "@react-navigation/native": "^7.1.8",
     "@reduxjs/toolkit": "^2.9.0",
@@ -65,7 +72,7 @@
       "^.+\\.(js|ts|tsx)$": "babel-jest"
     },
     "transformIgnorePatterns": [
-      "node_modules/(?!(react-native|@react-native|expo|@expo|@unimodules|unimodules|react-navigation|@react-navigation)/)"
+      "node_modules/(?!(jest-)?react-native|@react-native|expo|@expo|@unimodules|unimodules|react-navigation|@react-navigation|@react-native-community|@expo-google-fonts|expo-asset|expo-font|expo-constants|expo-router|expo-secure-store|expo-document-picker|expo-file-system|expo-modules-core|expo-location|expo-image-picker|expo-notifications|expo-sharing|expo-device|expo-linking|expo-intent-launcher|expo-web-browser|firebase|@react-navigation/native|@react-navigation/native-stack)/"
     ],
     "testMatch": [
       "**/__tests__/**/*.test.[jt]s?(x)"

@@ -321,6 +321,22 @@ const priestService = {
   },
 
   /**
+   * Submit priest verification application
+   * @param {Object} verificationData - The verification application data
+   * @returns {Promise} Response from the API
+   */
+  submitVerification: async (verificationData: Record<string, any>): Promise<any> => {
+    try {
+      const response = await api.post('/api/priest/submit-verification', verificationData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit verification. Please try again.';
+    }
+  },
+
+
+
+  /**
    * Accept an instant booking request
    * @param {string} bookingId - The booking ID
    */

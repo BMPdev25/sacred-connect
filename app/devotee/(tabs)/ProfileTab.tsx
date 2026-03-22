@@ -26,6 +26,8 @@ import { updateNotificationPreferences } from "../../../redux/slices/userSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
 import Card from "../../../components/Card";
 import api from "../../../api";
+import ErrorMessage from "../../../components/ErrorMessage";
+import LoadingSpinner from "../../../components/LoadingSpinner";
 
 // ─── Component ────────────────────────────────────────────────────────────
 const ProfileScreen: React.FC = () => {
@@ -34,7 +36,8 @@ const ProfileScreen: React.FC = () => {
   const { userInfo } = useSelector((state: RootState) => state.auth);
 
   // Local state for profile data
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [profileData, setProfileData] = useState<any>(null);
 
   // Personal Details State
@@ -81,13 +84,11 @@ const ProfileScreen: React.FC = () => {
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
+      setIsError(false);
       const response = await api.get('/api/users/profile');
       if (response.data && response.data.success) {
         const data = response.data.data;
         setProfileData(data);
-
-        // Update Redux if needed (optional, but good for consistency)
-        // dispatch(updateUserProfile(data));
 
         if (data.familyDetails) {
           setFamilyDetails({
@@ -107,6 +108,7 @@ const ProfileScreen: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to fetch profile:", error);
+      setIsError(true);
     } finally {
       setIsLoading(false);
     }
@@ -243,6 +245,7 @@ const ProfileScreen: React.FC = () => {
           phone: response.data.data.phone
         }));
 
+        Alert.alert("Success", "Personal details updated successfully");
         setIsPersonalModalVisible(false);
       }
     } catch (error: any) {
@@ -266,8 +269,8 @@ const ProfileScreen: React.FC = () => {
           ...prev,
           familyDetails: response.data.data.familyDetails
         }));
+        Alert.alert("Success", "Family details updated successfully");
         setIsFamilyModalVisible(false);
-        // Alert.alert("Success", "Family details updated successfully");
       }
     } catch (error: any) {
       console.error("Save family details error:", error);
@@ -303,10 +306,32 @@ const ProfileScreen: React.FC = () => {
     </TouchableOpacity>
   );
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center' }]}>
+        <LoadingSpinner />
+        <Text style={{ marginTop: 10, color: APP_COLORS.gray }}>Loading your profile...</Text>
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <ErrorMessage 
+          message="We couldn't load your profile details." 
+          onRetry={fetchProfile}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar style="dark" />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
+
+
 
         {/* ── Profile Header ──────────────────────────── */}
         <View style={styles.profileHeader}>
@@ -524,10 +549,10 @@ const ProfileScreen: React.FC = () => {
         </TouchableOpacity>
 
         <Text style={styles.versionText}>BookMyPujari v1.0.0</Text>
-      </ScrollView >
+      </ScrollView>
 
       {/* ── Edit Personal Details Modal ──────────────── */}
-      < Modal
+      <Modal
         visible={isPersonalModalVisible}
         transparent={true}
         animationType="slide"
@@ -614,10 +639,10 @@ const ProfileScreen: React.FC = () => {
             </ScrollView>
           </View>
         </View>
-      </Modal >
+      </Modal>
 
       {/* ── Edit Family Modal ───────────────────────── */}
-      < Modal
+      <Modal
         visible={isFamilyModalVisible}
         transparent={true}
         animationType="slide"
@@ -675,9 +700,9 @@ const ProfileScreen: React.FC = () => {
             </TouchableOpacity>
           </View>
         </View>
-      </Modal >
+      </Modal>
 
-    </View >
+    </View>
   );
 };
 

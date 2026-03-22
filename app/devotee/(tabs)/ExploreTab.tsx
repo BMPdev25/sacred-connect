@@ -22,6 +22,22 @@ import ceremonyService from "../../../services/ceremonyService";
 import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator } from "react-native";
 import { getImageUri } from "../../../utils/imageUtils";
+import ErrorMessage from "../../../components/ErrorMessage";
+import LoadingSpinner from "../../../components/LoadingSpinner";
+
+// ─── useDebounce Hook (Internal) ───────────────
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+}
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
@@ -32,6 +48,7 @@ const ExploreScreen: React.FC = () => {
     const { category: initialCategory } = useLocalSearchParams<{ category?: string }>();
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState("");
+    const debouncedSearch = useDebounce(searchQuery, 500);
     const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
 
     // Sync activeCategory with param updates
@@ -42,26 +59,44 @@ const ExploreScreen: React.FC = () => {
     }, [initialCategory]);
 
     // Fetch Categories
-    const { data: categories = [] } = useQuery({
+    const { 
+        data: categories = [], 
+        isLoading: isLoadingCats, 
+        isError: isErrorCats,
+        refetch: refetchCats 
+    } = useQuery({
         queryKey: ["ceremony-categories"],
         queryFn: ceremonyService.getCategories,
     });
 
-    // Fetch Ceremonies (all initially, or by category)
-    const { data: ceremoniesData, isLoading } = useQuery({
-        queryKey: ["ceremonies", activeCategory],
-        queryFn: () => activeCategory === "all" 
-            ? ceremonyService.getAllPujas() 
-            : ceremonyService.getPujasByCategory(activeCategory),
+    // Fetch Ceremonies (all initially, by category, OR by search)
+    const { 
+        data: ceremoniesData, 
+        isLoading: isLoadingCeremonies, 
+        isError: isErrorCeremonies,
+        refetch: refetchCeremonies 
+    } = useQuery({
+        queryKey: ["ceremonies", activeCategory, debouncedSearch],
+        queryFn: () => {
+            if (debouncedSearch.trim()) {
+                return ceremonyService.searchPujas(debouncedSearch);
+            }
+            return activeCategory === "all" 
+                ? ceremonyService.getAllPujas() 
+                : ceremonyService.getPujasByCategory(activeCategory);
+        },
     });
 
-    const ceremonies = ceremoniesData?.ceremonies || [];
+    const ceremonies = ceremoniesData?.ceremonies || ceremoniesData || [];
+    const isLoading = isLoadingCats || isLoadingCeremonies;
+    const isError = isErrorCats || isErrorCeremonies;
 
-    const searchedServices = searchQuery.trim()
-        ? ceremonies.filter((s: any) =>
-            s.name.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-        : ceremonies;
+    const handleRetry = () => {
+        if (isErrorCats) refetchCats();
+        if (isErrorCeremonies) refetchCeremonies();
+    };
+
+    const searchedServices = ceremonies;
 
     const renderServiceCard = ({ item }: { item: any }) => (
         <Card style={styles.serviceCard}>
@@ -185,9 +220,17 @@ const ExploreScreen: React.FC = () => {
                 </ScrollView>
 
                 {/* Main Content */}
-                {isLoading ? (
+                {isError ? (
                     <View style={styles.emptyState}>
-                        <ActivityIndicator size="large" color={APP_COLORS.saffron} />
+                        <ErrorMessage 
+                            message="Failed to load ceremonies. Please check your connection." 
+                            showRetry 
+                            onRetry={handleRetry} 
+                        />
+                    </View>
+                ) : isLoading ? (
+                    <View style={styles.emptyState}>
+                        <LoadingSpinner text="Finding sacred services..." />
                     </View>
                 ) : (
                     <FlatList
@@ -206,6 +249,7 @@ const ExploreScreen: React.FC = () => {
                         }
                     />
                 )}
+
             </View>
         </View>
     );

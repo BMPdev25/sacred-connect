@@ -1,5 +1,5 @@
 import axios, { AxiosInstance } from 'axios';
-import * as SecureStore from '../utils/storage';
+import { getToken, removeToken } from '../utils/storage';
 import { Platform } from 'react-native';
 import { router } from 'expo-router';
 
@@ -32,7 +32,7 @@ export const setLogoutCallback = (callback: () => void) => {
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await SecureStore.getItemAsync('userToken');
+      const token = await getToken('userToken');
       if (token) {
         // cast to any to avoid Axios header typing issues
         (config.headers as any) = config.headers || {};
@@ -66,8 +66,8 @@ api.interceptors.response.use(
         
         try {
           // Clear stored credentials
-          await SecureStore.deleteItemAsync('userToken');
-          await SecureStore.deleteItemAsync('userInfo');
+          await removeToken('userToken');
+          await removeToken('userInfo');
           
           // Call logout callback if set (to clear Redux state)
           if (logoutCallback) {

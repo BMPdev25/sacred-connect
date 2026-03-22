@@ -19,11 +19,18 @@ export default function PujariCard({ pujari, ceremonyId, onBookPress }: Props) {
     : null;
 
   // Determine reliability badge
-  let reliabilityBadge = null;
-  if (pujari.ceremonyCount !== undefined && pujari.ceremonyCount >= 5 && pujari.completionRate !== undefined) {
-    if (pujari.completionRate >= 90) reliabilityBadge = "🟢";
-    else if (pujari.completionRate >= 70) reliabilityBadge = "🟡";
-    else reliabilityBadge = "🔴";
+  let reliabilityBadge = "⚪";
+  if (pujari.ceremonyCount !== undefined && pujari.ceremonyCount > 0) {
+    if (pujari.ceremonyCount >= 5 && pujari.completionRate !== undefined) {
+      if (pujari.completionRate >= 90) reliabilityBadge = "🟢";
+      else if (pujari.completionRate >= 70) reliabilityBadge = "🟡";
+      else reliabilityBadge = "🔴";
+    } else {
+      // For new priests with 1-4 ceremonies
+      reliabilityBadge = "🔵";
+    }
+  } else {
+    reliabilityBadge = ""; // No badge for 0 completions
   }
 
   const handlePress = () => {

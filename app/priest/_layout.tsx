@@ -236,6 +236,22 @@ const PriestTabs = () => {
           tabBarStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="(priestScreens)/AvailabilitySetup"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/OnboardingWizard"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }

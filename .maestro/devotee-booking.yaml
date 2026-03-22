@@ -1,0 +1,34 @@
+appId: host.exp.exponent # Expo Go bundle ID
+---
+- launchApp
+- tapOn:
+    id: "identifier-input"
+- inputText: "1234567890"
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+
+# Wait for Login API and Home Redirection
+- assertVisible: "Explore" # Tab bar
+- tapOn: "Explore"
+
+# Select Ganesh Puja
+- extendedWaitUntil:
+    visible: "Ganesh Puja"
+    timeout: 10000
+- tapOn: "Ganesh Puja"
+
+# Booking Wizard
+- assertVisible: "Select Date & Time"
+- tapOn: "Next" # Skip Date Picker
+- assertVisible: "Select Address"
+- tapOn: "Next" # Skip Address
+- assertVisible: "Confirm & Book"
+- tapOn: "Confirm Booking"
+
+# Verify Success
+- extendedWaitUntil:
+    visible: "Booking Pending"
+    timeout: 10000

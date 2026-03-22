@@ -1,5 +1,5 @@
 // src/services/authService.js
-import * as SecureStore from '../utils/storage';
+import { saveToken, getToken, removeToken } from '../utils/storage';
 import api from "../api";
 
 /**
@@ -15,8 +15,8 @@ const authService = {
   login: async (identifier: string, password: string): Promise<any> => {
     try {
       const response = await api.post("/api/auth/login", { identifier, password });
-      await SecureStore.setItemAsync("userToken", response.data.token);
-      await SecureStore.setItemAsync("userInfo", JSON.stringify(response.data));
+      await saveToken("userToken", response.data.token);
+      await saveToken("userInfo", JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || "Login failed. Please try again.";
@@ -31,8 +31,8 @@ const authService = {
   register: async (userData: Record<string, any>): Promise<any> => {
     try {
       const response = await api.post("/api/auth/register", userData);
-      await SecureStore.setItemAsync("userToken", response.data.token);
-      await SecureStore.setItemAsync("userInfo", JSON.stringify(response.data));
+      await saveToken("userToken", response.data.token);
+      await saveToken("userInfo", JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
       throw (
@@ -48,8 +48,8 @@ const authService = {
    */
   logout: async (): Promise<boolean> => {
     try {
-      await SecureStore.deleteItemAsync("userToken");
-      await SecureStore.deleteItemAsync("userInfo");
+      await removeToken("userToken");
+      await removeToken("userInfo");
       return true;
     } catch (error: any) {
       throw "Logout failed. Please try again.";
@@ -62,7 +62,7 @@ const authService = {
    */
   isAuthenticated: async (): Promise<boolean> => {
     try {
-      const token = await SecureStore.getItemAsync("userToken");
+      const token = await getToken("userToken");
       return !!token;
     } catch (error: any) {
       return false;
@@ -75,7 +75,7 @@ const authService = {
    */
   getUserInfo: async (): Promise<any | null> => {
     try {
-      const userInfo = await SecureStore.getItemAsync("userInfo");
+      const userInfo = await getToken("userInfo");
       return userInfo ? JSON.parse(userInfo) : null;
     } catch (error: any) {
       return null;
@@ -92,11 +92,11 @@ const authService = {
       const response = await api.put("/api/auth/profile", profileData);
 
       // Update local storage with updated user info
-      const userInfo = await SecureStore.getItemAsync("userInfo");
+      const userInfo = await getToken("userInfo");
       if (userInfo) {
         const parsedUserInfo = JSON.parse(userInfo);
         const updatedUserInfo = { ...parsedUserInfo, ...response.data };
-        await SecureStore.setItemAsync(
+        await saveToken(
           "userInfo",
           JSON.stringify(updatedUserInfo)
         );

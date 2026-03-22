@@ -133,22 +133,23 @@ const Payment: React.FC = () => {
       console.log("Booking Data to be sent:", bookingData);
 
       // Create booking via API
-      const createdBooking = await devoteeService.createBooking(bookingData);
+      const response = await devoteeService.createBooking(bookingData);
+      const createdBooking = response.data || response;
 
       // Refresh bookings in Redux store
       dispatch(getBookings());
 
       setIsProcessing(false);
 
-      // Navigate to confirmation screen with actual booking data
+      // Navigate to confirmation screen with Booking ID
       router.push({
         pathname: "/BookingConfirmation",
-        params: {
-          booking: JSON.stringify({
-            ...createdBooking,
-            priestName: bookingDetails.priestName,
-            priestImage: bookingDetails.priestImage,
-          }),
+        params: { 
+          bookingId: createdBooking._id || createdBooking.id,
+          // We still pass names for immediate display if needed, but the refactored 
+          // confirmation screen will fetch the source of truth using bookingId.
+          priestName: bookingDetails.priestName,
+          priestImage: bookingDetails.priestImage,
         },
       });
     } catch (error: unknown) {

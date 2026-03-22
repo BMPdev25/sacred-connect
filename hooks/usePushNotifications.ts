@@ -11,8 +11,9 @@ export interface PushNotificationState {
 
 export const usePushNotifications = (): PushNotificationState => {
   const isExpoGoAndroid = Platform.OS === 'android' && Constants.appOwnership === 'expo';
+  const isWeb = Platform.OS === 'web';
 
-  if (!isExpoGoAndroid) {
+  if (!isExpoGoAndroid && !isWeb) {
     const Notifications = require('expo-notifications');
     Notifications.setNotificationHandler({
       handleNotification: async () => ({
@@ -41,6 +42,11 @@ export const usePushNotifications = (): PushNotificationState => {
       console.warn(
         'Push notifications are not supported in Expo Go on Android for SDK 54. Please use a development build.'
       );
+      return;
+    }
+
+    if (isWeb) {
+      console.log('Push notifications are not natively supported on web in this setup.');
       return;
     }
 
@@ -89,7 +95,7 @@ export const usePushNotifications = (): PushNotificationState => {
   }
 
   useEffect(() => {
-    if (isExpoGoAndroid) return;
+    if (isExpoGoAndroid || isWeb) return;
 
     const Notifications = require('expo-notifications');
 

@@ -343,16 +343,98 @@ export default function BookingDetailsScreen() {
                 {booking?.ceremony?.name || booking?.ceremonyType || "-"}
               </Text>
               <Text style={styles.ceremonyType}>
-                {booking?.ceremony?.type || "Ceremony"}
+                {booking?.ceremonyDetails?.category || booking?.ceremony?.type || "Ceremony"}
               </Text>
-              {booking?.ceremony?.duration && (
+              {(booking?.ceremonyDetails?.duration || booking?.ceremony?.duration) && (
                 <Text style={styles.ceremonyDuration}>
-                  Duration: {booking.ceremony.duration}
+                  Duration: {booking.ceremonyDetails?.duration?.typical || booking.ceremony?.duration} min
                 </Text>
               )}
             </View>
           </View>
         </View>
+
+        {/* Samagri (Materials) List */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="leaf-outline" size={18} color={APP_COLORS.primary} /> Samagri (Materials Required)
+            </Text>
+            <View style={styles.samagriCard}>
+              {booking.ceremonyDetails.materials && booking.ceremonyDetails.materials.length > 0 ? (
+                booking.ceremonyDetails.materials.map((item: any, index: number) => (
+                  <View key={index} style={styles.samagriItem}>
+                    <View style={styles.samagriDot} />
+                    <View style={styles.samagriContent}>
+                      <Text style={styles.samagriName}>
+                        {item.name}
+                        {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
+                      </Text>
+                      <Text style={styles.samagriMeta}>
+                        Qty: {item.quantity}
+                        {item.providedBy ? ` · By ${item.providedBy}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noInfoText}>No specific materials list available for this ceremony.</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Ritual Steps */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="list-outline" size={18} color={APP_COLORS.primary} /> Ritual Steps
+            </Text>
+            <View style={styles.stepsCard}>
+              {booking.ceremonyDetails.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 ? (
+                booking.ceremonyDetails.ritualSteps
+                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
+                  .map((step: any, index: number) => (
+                    <View key={index} style={styles.stepItem}>
+                      <View style={styles.stepCircle}>
+                        <Text style={styles.stepNum}>{step.stepNumber}</Text>
+                      </View>
+                      <View style={styles.stepInfo}>
+                        <Text style={styles.stepTitle}>{step.title}</Text>
+                        <Text style={styles.stepDesc}>{step.description}</Text>
+                        {step.durationEstimate && (
+                          <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
+                        )}
+                      </View>
+                    </View>
+                  ))
+              ) : (
+                <Text style={styles.noInfoText}>Standard ritual steps haven't been added yet.</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Special Instructions */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="alert-circle-outline" size={18} color={APP_COLORS.warning} /> Special Instructions
+            </Text>
+            <View style={styles.instructionsCard}>
+              {booking.ceremonyDetails.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 ? (
+                booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
+                  <View key={index} style={styles.instrItem}>
+                    <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
+                    <Text style={styles.instrText}>{instr}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noInfoText}>No special instructions for this ceremony.</Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Date & Time */}
         <View style={styles.section}>
@@ -882,5 +964,117 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: "bold",
   },
+  // Samagri Styles
+  samagriCard: {
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  samagriItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  samagriDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: APP_COLORS.primary,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  samagriContent: {
+    flex: 1,
+  },
+  samagriName: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    fontWeight: "600",
+  },
+  optionalBadge: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    fontWeight: "normal",
+  },
+  samagriMeta: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+  // Ritual Steps Styles
+  stepsCard: {
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  stepItem: {
+    flexDirection: "row",
+    marginBottom: 14,
+  },
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: APP_COLORS.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepNum: {
+    color: APP_COLORS.primary,
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  stepInfo: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: APP_COLORS.black,
+    marginBottom: 2,
+  },
+  stepDesc: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+    lineHeight: 18,
+  },
+  stepDur: {
+    fontSize: 12,
+    color: APP_COLORS.info,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  // Special Instructions Styles
+  instructionsCard: {
+    backgroundColor: APP_COLORS.warning + "10",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.warning,
+  },
+  instrItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  instrText: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
+  },
+  noInfoText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    paddingVertical: 10,
+    textAlign: "center",
+  },
 });
-

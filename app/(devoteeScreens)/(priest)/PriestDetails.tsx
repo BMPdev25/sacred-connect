@@ -238,14 +238,21 @@ const PriestDetails: React.FC = () => {
     );
   }
 
-  let reliabilityBadge = null;
-  let reliabilityColor = APP_COLORS.success;
-  let reliabilityText = "Excellent";
+  let reliabilityBadge = "⚪";
+  let reliabilityColor = APP_COLORS.gray;
+  let reliabilityText = "New Priest";
   
-  if (priest.ceremonyCount !== undefined && priest.ceremonyCount >= 5 && priest.completionRate !== undefined) {
-    if (priest.completionRate >= 90) { reliabilityBadge = "🟢"; reliabilityColor = APP_COLORS.success; reliabilityText = "Excellent"; }
-    else if (priest.completionRate >= 70) { reliabilityBadge = "🟡"; reliabilityColor = "#FFC107"; reliabilityText = "Needs Improvement"; }
-    else { reliabilityBadge = "🔴"; reliabilityColor = APP_COLORS.error; reliabilityText = "Poor"; }
+  if (priest.ceremonyCount !== undefined && priest.ceremonyCount > 0) {
+    if (priest.ceremonyCount >= 5 && priest.completionRate !== undefined) {
+      if (priest.completionRate >= 90) { reliabilityBadge = "🟢"; reliabilityColor = APP_COLORS.success; reliabilityText = "Excellent"; }
+      else if (priest.completionRate >= 70) { reliabilityBadge = "🟡"; reliabilityColor = "#FFC107"; reliabilityText = "Good"; }
+      else { reliabilityBadge = "🔴"; reliabilityColor = APP_COLORS.error; reliabilityText = "Below Average"; }
+    } else {
+      // For priests with 1-4 ceremonies, show as "Rising Star" or similar if they have 100% completion
+      reliabilityBadge = "🔵";
+      reliabilityColor = APP_COLORS.primary;
+      reliabilityText = priest.completionRate && priest.completionRate === 100 ? "Reliable (New)" : "Initial Phase";
+    }
   }
 
   return (
@@ -301,6 +308,25 @@ const PriestDetails: React.FC = () => {
               {reliabilityBadge && (
                 <Text style={{ fontSize: 18, marginLeft: 6 }}>{reliabilityBadge}</Text>
               )}
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.statsRow}
+              onPress={() => setShowReliabilityModal(true)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.statBox}>
+                <Ionicons name="checkmark-done-circle" size={16} color={APP_COLORS.success} />
+                <Text style={styles.statText}>
+                  {priest.ceremonyCount || 0} Pujas Completed
+                </Text>
+              </View>
+              <View style={styles.statBox}>
+                <View style={[styles.statusIndicator, { backgroundColor: reliabilityColor, margin: 0, marginRight: 4 }]} />
+                <Text style={[styles.statText, { marginLeft: 0 }]}>
+                  {reliabilityText}
+                </Text>
+              </View>
             </TouchableOpacity>
             <View style={styles.priestMeta}>
               <Text style={styles.priestDetail}>
@@ -775,6 +801,28 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: APP_COLORS.gray,
     marginRight: 8,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    marginTop: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  statBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
+    marginBottom: 4,
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  statText: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginLeft: 4,
+    fontWeight: '600',
   },
   ratingContainer: {
     flexDirection: "row",

@@ -249,17 +249,22 @@ export default function DocumentUpload() {
                 </View>
 
                 {/* Submit / Continue */}
-                {allUploaded && (
-                    <TouchableOpacity
-                        style={styles.continueBtn}
-                        onPress={() => {
-                            router.push("/priest/VerificationStatus" as any);
-                        }}
-                    >
-                        <Text style={styles.continueBtnText}>Continue to Verification Status</Text>
-                        <Ionicons name="arrow-forward" size={20} color={APP_COLORS.white} />
-                    </TouchableOpacity>
-                )}
+                <TouchableOpacity
+                    style={styles.continueBtn}
+                    onPress={() => {
+                        router.push("/priest/VerificationStatus" as any);
+                    }}
+                >
+                    <Text style={styles.continueBtnText}>{allUploaded ? "Save & View Status" : "Save & Continue"}</Text>
+                    <Ionicons name="arrow-forward" size={20} color={APP_COLORS.white} />
+                </TouchableOpacity>
+
+                <TouchableOpacity 
+                    style={styles.skipBtn} 
+                    onPress={() => router.push("/priest/HomeTab" as any)}
+                >
+                    <Text style={styles.skipBtnText}>Skip for now</Text>
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -364,10 +369,15 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         gap: 8,
-        backgroundColor: APP_COLORS.success,
+        backgroundColor: APP_COLORS.primary,
         paddingVertical: 14,
         borderRadius: 12,
-        marginTop: 8,
+        marginTop: 20,
     },
     continueBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: "bold" },
+    skipBtn: {
+        alignItems: "center",
+        padding: 16,
+    },
+    skipBtnText: { color: APP_COLORS.gray, fontSize: 14 },
 });

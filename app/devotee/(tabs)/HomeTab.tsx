@@ -29,25 +29,14 @@ import PrimaryButton from "../../../components/PrimaryButton";
 import { useNotifications } from "../../../context/NotificationContext";
 import PujariCard from "../../../components/PujariCard";
 import { calculateDistance } from "../../../utils/locationUtils";
+import ErrorMessage from "../../../components/ErrorMessage";
+import LoadingSpinner from "../../../components/LoadingSpinner";
 
 const { width: WINDOW_WIDTH } = Dimensions.get("window");
 const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
 
-// ─── Mock Data (fallback) ───────────────
-const FALLBACK_PANCHANG = {
-  title: "Devotion Daily",
-  subtitle: "Connect with the divine",
-  nakshatra: "Search",
-  tithi: "Today",
-};
+// No mock data needed - using 3-state UI
 
-const FALLBACK_BANNERS = [
-  { _id: "1", title: "Sacred Connect", subtitle: "Your spiritual partner", color: "#FF9933" },
-];
-
-const FALLBACK_CATEGORIES = [
-  { _id: "1", name: "Pujas", icon: "flower-outline" as const, color: "#FF9933", slug: "puja" },
-];
 
 // ─── Component ────────────────────────────────────────────────────────────
 const HomeScreen: React.FC = () => {
@@ -56,13 +45,9 @@ const HomeScreen: React.FC = () => {
   const queryClient = useQueryClient();
 
   // Fetch ceremonies from backend
-  const { data: ceremoniesData, isLoading: isLoadingCeremonies, refetch: refetchCeremonies } = useQuery({
-    queryKey: ["ceremonies", "popular"],
-    queryFn: () => ceremonyService.getAllPujas({ limit: 5 }),
-    select: (data) => data.ceremonies || [],
-  });
-
-  // Fetch recommended priests, pending actions & my requests
+  // State management
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
   const [myRequests, setMyRequests] = useState<any[]>([]);
@@ -75,21 +60,32 @@ const HomeScreen: React.FC = () => {
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Dynamic Metadata State
-  const [panchang, setPanchang] = useState(FALLBACK_PANCHANG);
-  const [banners, setBanners] = useState(FALLBACK_BANNERS);
-  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
+  const [panchang, setPanchang] = useState<any>(null);
+  const [ceremoniesData, setCeremoniesData] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const fetchData = async (coords?: { latitude: number, longitude: number }) => {
     try {
-      const [priestsRes, actionsRes, addressRes, recentRes, bannersRes, panchangRes, categoriesRes] = await Promise.allSettled([
+      setIsLoading(true);
+      setIsError(false);
+      
+      const [priestsRes, actionsRes, addressRes, recentRes, bannersRes, panchangRes, categoriesRes, ceremoniesRes] = await Promise.allSettled([
         devoteeService.searchPriests({ limit: 10 }),
         devoteeService.getPendingActions(),
         devoteeService.getAddresses(),
         devoteeService.getBookings('completed'),
         devoteeService.getBanners(),
         devoteeService.getPanchang(),
-        devoteeService.getCategories()
+        devoteeService.getCategories(),
+        ceremonyService.getAllPujas({ limit: 5 })
       ]);
+
+      // Check if primary data fetching failed (categories and ceremonies are essential)
+      if (categoriesRes.status === "rejected" || ceremoniesRes.status === "rejected") {
+        setIsError(true);
+        return;
+      }
 
       if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
         let priests = priestsRes.value.priests;
@@ -111,7 +107,6 @@ const HomeScreen: React.FC = () => {
         }
         setRecommendedPriests(priests);
       }
-// ... rest of fetchData
 
       if (actionsRes.status === "fulfilled") {
         setPendingActions(actionsRes.value);
@@ -152,9 +147,15 @@ const HomeScreen: React.FC = () => {
       if (categoriesRes.status === "fulfilled" && categoriesRes.value?.length > 0) {
         setCategories(categoriesRes.value);
       }
+
+      if (ceremoniesRes.status === "fulfilled") {
+        setCeremoniesData(ceremoniesRes.value.ceremonies || []);
+      }
     } catch (err) {
       console.error("Home feed error:", err);
-      Alert.alert("Error", "Failed to load home feed. Please swipe down to refresh.");
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -162,8 +163,8 @@ const HomeScreen: React.FC = () => {
     try {
       const requests = await devoteeService.getMyRequests();
       setMyRequests(Array.isArray(requests) ? requests.slice(0, 5) : []);
-    } catch {
-      // silently ignore
+    } catch (err) {
+      console.error("Load requests error:", err);
     }
   };
 
@@ -172,10 +173,9 @@ const HomeScreen: React.FC = () => {
     await Promise.all([
       fetchData(userCoords || undefined),
       loadRequests(),
-      refetchCeremonies(),
     ]);
     setRefreshing(false);
-  }, [refetchCeremonies, userCoords]);
+  }, [userCoords]);
 
   useEffect(() => {
     const initLocationAndFetch = async () => {
@@ -262,6 +262,26 @@ const HomeScreen: React.FC = () => {
     );
   };
 
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: APP_COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
+        <LoadingSpinner text="Fetching your spiritual home..." />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: APP_COLORS.background, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <ErrorMessage 
+          message="We couldn't load the home feed. Please check your connection."
+          showRetry
+          onRetry={() => fetchData(userCoords || undefined)}
+        />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
       <StatusBar style="dark" />
@@ -270,10 +290,11 @@ const HomeScreen: React.FC = () => {
         contentContainerStyle={{ paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.saffron} />
         }
       >
         <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
+
           {/* ── Header ─────────────────────────────────────────── */}
           <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
             <View style={{ flex: 1 }}>
@@ -290,27 +311,29 @@ const HomeScreen: React.FC = () => {
           </View>
 
           {/* ── Panchang Widget ────────────────────────────────── */}
-          <View style={styles.sectionPadding}>
-            <Card style={styles.panchangCard}>
-              <View style={styles.panchangGradient}>
-                <View style={styles.panchangIconWrap}>
-                  <Ionicons name="sunny" size={28} color="#FFA726" />
-                </View>
-                <View style={{ flex: 1, marginLeft: 14 }}>
-                  <Text style={styles.panchangTitle}>{panchang.title}</Text>
-                  <Text style={styles.panchangSub}>{panchang.subtitle}</Text>
-                  <View style={styles.panchangTags}>
-                    <View style={styles.panchangTag}>
-                      <Text style={styles.panchangTagText}>Nakshatra: {panchang.nakshatra}</Text>
-                    </View>
-                    <View style={styles.panchangTag}>
-                      <Text style={styles.panchangTagText}>Tithi: {panchang.tithi}</Text>
+          {panchang && (
+            <View style={styles.sectionPadding}>
+              <Card style={styles.panchangCard}>
+                <View style={styles.panchangGradient}>
+                  <View style={styles.panchangIconWrap}>
+                    <Ionicons name="sunny" size={28} color="#FFA726" />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={styles.panchangTitle}>{panchang.title}</Text>
+                    <Text style={styles.panchangSub}>{panchang.subtitle}</Text>
+                    <View style={styles.panchangTags}>
+                      <View style={styles.panchangTag}>
+                        <Text style={styles.panchangTagText}>Nakshatra: {panchang.nakshatra}</Text>
+                      </View>
+                      <View style={styles.panchangTag}>
+                        <Text style={styles.panchangTagText}>Tithi: {panchang.tithi}</Text>
+                      </View>
                     </View>
                   </View>
                 </View>
-              </View>
-            </Card>
-          </View>
+              </Card>
+            </View>
+          )}
 
           {/* ── Hero Carousel ──────────────────────────────────── */}
           <View style={styles.sectionPadding}>
@@ -495,7 +518,7 @@ const HomeScreen: React.FC = () => {
                 <Text style={styles.viewAllLink}>View All</Text>
               </TouchableOpacity>
             </View>
-            {isLoadingCeremonies ? (
+            {isLoading ? (
               <ActivityIndicator size="small" color={APP_COLORS.saffron} style={{ marginTop: 16 }} />
             ) : (
               <ScrollView

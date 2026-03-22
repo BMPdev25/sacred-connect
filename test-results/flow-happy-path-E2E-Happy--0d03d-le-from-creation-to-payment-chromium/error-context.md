@@ -1,0 +1,86 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e8]:
+  - generic [ref=e9]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - generic [ref=e20]: Namaste, Test 🙏
+          - generic [ref=e21]: What would you like to do today?
+        - generic [ref=e22]:
+          - generic [ref=e23] [cursor=pointer]:
+            - generic [ref=e24]: 
+            - generic [ref=e25]: Hyderabad
+          - generic [ref=e27] [cursor=pointer]: 
+      - generic [ref=e30]:
+        - generic [ref=e32]: 
+        - generic [ref=e34]:
+          - generic [ref=e36]: "Nakshatra:"
+          - generic [ref=e38]: "Tithi:"
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: 🙏 Recommended Priests
+          - generic [ref=e44] [cursor=pointer]: View All
+        - generic [ref=e51] [cursor=pointer]:
+          - generic [ref=e52]:
+            - generic [ref=e53]: Pandit Suresh
+            - generic [ref=e54]:
+              - generic [ref=e55]: 
+              - generic [ref=e56]: "4.9"
+              - generic [ref=e57]: (25)
+          - generic [ref=e58]: "Speaks: English"
+      - generic [ref=e60]: 🕉️ Book by Category
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - generic [ref=e63]: 🌟 Popular Ceremonies
+          - generic [ref=e65] [cursor=pointer]: View All
+        - generic [ref=e69] [cursor=pointer]:
+          - generic [ref=e70]: 
+          - generic [ref=e71]: View All
+    - generic [ref=e75]:
+      - generic [ref=e77]:
+        - generic [ref=e78]: 
+        - textbox "Search for 'Griha Pravesh'..." [ref=e79]
+      - generic [ref=e80]:
+        - generic [ref=e82]:
+          - generic [ref=e83] [cursor=pointer]:
+            - generic [ref=e84]: 
+            - generic [ref=e85]: All
+          - generic [active] [ref=e86] [cursor=pointer]:
+            - generic [ref=e87]: 
+            - generic [ref=e88]: Ganesh Puja
+        - generic [ref=e97]:
+          - generic [ref=e98]: Ganesh Puja
+          - generic [ref=e99]:
+            - generic [ref=e100]: 
+            - generic [ref=e101]: "4.5"
+            - generic [ref=e102]: (0 booked)
+          - generic [ref=e103]:
+            - generic [ref=e104]: 
+            - generic [ref=e105]: mins
+          - generic [ref=e106]:
+            - generic [ref=e107]: ₹1000
+            - generic [ref=e109] [cursor=pointer]: Select
+  - tablist [ref=e111]:
+    - tab "  Home" [ref=e113] [cursor=pointer]:
+      - generic [ref=e114]:
+        - generic [ref=e116]: 
+        - generic [ref=e118]: 
+      - generic [ref=e119]: Home
+    - tab "  Explore" [selected] [ref=e121] [cursor=pointer]:
+      - generic [ref=e122]:
+        - generic [ref=e124]: 
+        - generic [ref=e126]: 
+      - generic [ref=e127]: Explore
+    - tab "  Bookings" [ref=e129] [cursor=pointer]:
+      - generic [ref=e130]:
+        - generic [ref=e132]: 
+        - generic [ref=e134]: 
+      - generic [ref=e135]: Bookings
+    - tab "  Profile" [ref=e137] [cursor=pointer]:
+      - generic [ref=e138]:
+        - generic [ref=e140]: 
+        - generic [ref=e142]: 
+      - generic [ref=e143]: Profile
+```

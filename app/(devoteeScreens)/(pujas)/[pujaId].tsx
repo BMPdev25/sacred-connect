@@ -169,11 +169,39 @@ export default function PujaDetailScreen() {
           <Text style={styles.sectionHeader}>About this Puja</Text>
           <Text style={styles.description}>{puja.description}</Text>
 
+          {puja.history && (
+            <>
+              <Text style={styles.sectionHeader}>History & Significance</Text>
+              <Text style={styles.description}>{puja.history}</Text>
+            </>
+          )}
+
+          {/* Duration Breakdown */}
+          {puja.duration && typeof puja.duration === "object" && (
+            <>
+              <Text style={styles.sectionHeader}>Duration</Text>
+              <View style={styles.durationCard}>
+                <View style={styles.durationItem}>
+                  <Text style={styles.durationLabel}>Typical</Text>
+                  <Text style={styles.durationValue}>{puja.duration.typical} min</Text>
+                </View>
+                <View style={styles.durationItem}>
+                  <Text style={styles.durationLabel}>Minimum</Text>
+                  <Text style={styles.durationValue}>{puja.duration.minimum} min</Text>
+                </View>
+                <View style={styles.durationItem}>
+                  <Text style={styles.durationLabel}>Maximum</Text>
+                  <Text style={styles.durationValue}>{puja.duration.maximum} min</Text>
+                </View>
+              </View>
+            </>
+          )}
+
           {puja.ritualSteps && puja.ritualSteps.length > 0 && (
             <>
               <Text style={styles.sectionHeader}>What This Puja Includes</Text>
               <View style={styles.stepsContainer}>
-                {puja.ritualSteps
+                {[...puja.ritualSteps]
                   .sort((a, b) => a.stepNumber - b.stepNumber)
                   .map((step, index) => (
                     <View key={index} style={styles.stepItem}>
@@ -197,29 +225,52 @@ export default function PujaDetailScreen() {
             </>
           )}
 
-          <Text style={styles.sectionHeader}>Requirements</Text>
+          <Text style={styles.sectionHeader}>Samagri (Materials Required)</Text>
           {puja.requirements?.materials &&
             puja.requirements.materials.length > 0 ? (
-            puja.requirements.materials.map((req: any, index: number) => (
-              <View key={index} style={styles.reqItem}>
-                <Ionicons
-                  name="checkmark-circle-outline"
-                  size={16}
-                  color={APP_COLORS.primary}
-                />
-                <Text style={styles.reqText}>
-                  {typeof req === "string"
-                    ? req
-                    : `${req.name}`}
-                </Text>
-              </View>
-            ))
+            <View style={styles.samagriContainer}>
+              {puja.requirements.materials.map((req: any, index: number) => (
+                <View key={index} style={styles.samagriItem}>
+                  <Ionicons
+                    name="checkmark-circle-outline"
+                    size={16}
+                    color={req.isOptional ? APP_COLORS.gray : APP_COLORS.primary}
+                  />
+                  <View style={styles.samagriInfo}>
+                    <Text style={styles.samagriName}>
+                      {typeof req === "string" ? req : req.name}
+                      {req.isOptional && <Text style={styles.samagriOptional}> (Optional)</Text>}
+                    </Text>
+                    {req.quantity && (
+                      <Text style={styles.samagriDetail}>
+                        Qty: {req.quantity}
+                        {req.providedBy ? ` · Provided by: ${req.providedBy}` : ''}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
           ) : (
             <Text style={styles.description}>
               No special requirements specified.
             </Text>
           )}
 
+          {/* Special Instructions */}
+          {puja.requirements?.specialInstructions && puja.requirements.specialInstructions.length > 0 && (
+            <>
+              <Text style={styles.sectionHeader}>Special Instructions</Text>
+              <View style={styles.instructionsContainer}>
+                {puja.requirements.specialInstructions.map((instr: string, idx: number) => (
+                  <View key={idx} style={styles.instrRow}>
+                    <Ionicons name="alert-circle" size={16} color={APP_COLORS.warning} />
+                    <Text style={styles.instrText}>{instr}</Text>
+                  </View>
+                ))}
+              </View>
+            </>
+          )}
 
         </View>
       </ScrollView>
@@ -252,7 +303,7 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.background,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 150,
   },
   headerImage: {
     width: "100%",
@@ -470,6 +521,78 @@ const styles = StyleSheet.create({
   stepDescription: {
     fontSize: 14,
     color: APP_COLORS.gray,
+    lineHeight: 20,
+  },
+  // Duration Styles
+  durationCard: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    backgroundColor: APP_COLORS.primary + "08",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 8,
+  },
+  durationItem: {
+    alignItems: "center",
+  },
+  durationLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginBottom: 4,
+  },
+  durationValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: APP_COLORS.primary,
+  },
+  // Samagri Styles
+  samagriContainer: {
+    marginTop: 8,
+  },
+  samagriItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  samagriInfo: {
+    marginLeft: 8,
+    flex: 1,
+  },
+  samagriName: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    fontWeight: "500",
+  },
+  samagriOptional: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    fontWeight: "normal",
+  },
+  samagriDetail: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+  // Instructions Styles
+  instructionsContainer: {
+    backgroundColor: APP_COLORS.warning + "10",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.warning,
+  },
+  instrRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  instrText: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    marginLeft: 8,
+    flex: 1,
     lineHeight: 20,
   },
 });

@@ -43,9 +43,10 @@ const HomeScreen: React.FC = () => {
   const [pendingActions, setPendingActions] = useState<any[]>([]);
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
-  const [isVerified, setIsVerified] = useState<boolean>(true); // assume true until loaded
   const [completionRate, setCompletionRate] = useState<number>(100);
   const [ceremonyCount, setCeremonyCount] = useState<number>(0);
+  const [verificationStatus, setVerificationStatus] = useState<string>('incomplete');
+  const [rejectionReason, setRejectionReason] = useState<string>('');
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,10 +81,13 @@ const HomeScreen: React.FC = () => {
       }
 
       if (profileRes.status === 'fulfilled') {
-        setCurrentAvailability(profileRes.value.currentAvailability);
-        setIsVerified(profileRes.value.profile?.isVerified ?? profileRes.value.isVerified ?? true);
-        setCompletionRate(profileRes.value.analytics?.completionRate ?? 100);
-        setCeremonyCount(profileRes.value.ceremonyCount ?? 0);
+        const p = profileRes.value;
+        setCurrentAvailability(p.currentAvailability);
+        // setIsVerified(p.profile?.isVerified ?? p.isVerified ?? false); // Removed from state, now using verificationStatus === 'approved'
+        setVerificationStatus(p.profile?.verificationStatus ?? p.verificationStatus ?? 'incomplete');
+        setRejectionReason(p.profile?.rejectionReason ?? p.rejectionReason ?? '');
+        setCompletionRate(p.analytics?.completionRate ?? 100);
+        setCeremonyCount(p.ceremonyCount ?? 0);
       }
 
       if (reviewsRes.status === 'fulfilled') {
@@ -255,27 +259,43 @@ const HomeScreen: React.FC = () => {
           )}
 
           {/* Verification Banner */}
-          {!loading && !isVerified && (
-            <TouchableOpacity
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                backgroundColor: APP_COLORS.error + "12",
-                marginHorizontal: 20,
-                marginBottom: 12,
-                padding: 14,
-                borderRadius: 12,
-                borderLeftWidth: 3,
-                borderLeftColor: APP_COLORS.error,
-              }}
-              onPress={() => router.push("/priest/VerificationStatus" as any)}
-            >
-              <Ionicons name="shield-outline" size={22} color={APP_COLORS.error} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={{ fontWeight: "bold", color: APP_COLORS.error, fontSize: 14 }}>Profile Not Verified</Text>
-                <Text style={{ fontSize: 12, color: APP_COLORS.gray, marginTop: 2 }}>Upload documents to accept bookings</Text>
+          {!loading && verificationStatus === 'pending' && (
+            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.info + "12", borderLeftColor: APP_COLORS.info }]}>
+              <Ionicons name="time-outline" size={24} color={APP_COLORS.info} />
+              <View style={styles.bannerContent}>
+                <Text style={[styles.bannerTitle, { color: APP_COLORS.info }]}>Profile Under Review</Text>
+                <Text style={styles.bannerText}>Your documents are being verified by our team. You will be able to accept bookings soon.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color={APP_COLORS.error} />
+            </View>
+          )}
+
+          {!loading && verificationStatus === 'rejected' && (
+            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
+              <Ionicons name="close-circle-outline" size={24} color={APP_COLORS.error} />
+              <View style={styles.bannerContent}>
+                <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
+                <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
+                <TouchableOpacity 
+                  style={styles.bannerBtn}
+                  onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
+                >
+                  <Text style={styles.bannerBtnText}>Update Documents</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {!loading && verificationStatus === 'incomplete' && (
+            <TouchableOpacity
+              style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
+              onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
+            >
+              <Ionicons name="shield-outline" size={24} color={APP_COLORS.warning} />
+              <View style={styles.bannerContent}>
+                <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Incomplete Profile</Text>
+                <Text style={styles.bannerText}>Finish onboarding to start receiving bookings.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
             </TouchableOpacity>
           )}
 
@@ -316,8 +336,12 @@ const HomeScreen: React.FC = () => {
               <HomeStatusToggle
                 currentStatus={currentAvailability?.status || 'offline'}
                 autoToggle={currentAvailability?.autoToggle ?? true}
+                isVerified={verificationStatus === 'approved'}
+                completionPercentage={profileCompletion?.completionPercentage || 0}
                 onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
                 style={{ marginBottom: 20 }}
+                disabled={verificationStatus === 'pending'}
+                disabledMessage={verificationStatus === 'pending' ? "Profile Under Review" : undefined}
               />
 
               {/* Pending Actions Carousel */}
@@ -806,7 +830,48 @@ const styles = StyleSheet.create({
     color: APP_COLORS.white,
     fontWeight: 'bold',
     fontSize: 14
-  }
+  },
+  statusBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginHorizontal: 20,
+    marginBottom: 12,
+    padding: 16,
+    borderRadius: 16,
+    borderLeftWidth: 4,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  bannerContent: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  bannerTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 2,
+  },
+  bannerText: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+    lineHeight: 18,
+  },
+  bannerBtn: {
+    marginTop: 10,
+    backgroundColor: APP_COLORS.error,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  bannerBtnText: {
+    color: APP_COLORS.white,
+    fontSize: 12,
+    fontWeight: "bold",
+  },
 });
 
 export default HomeScreen;

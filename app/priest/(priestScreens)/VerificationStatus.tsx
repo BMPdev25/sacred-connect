@@ -159,9 +159,9 @@ export default function VerificationStatus() {
                     </TouchableOpacity>
                 )}
 
-                {state === "verified" && (
+                {(state === "verified" || state === "pending") && (
                     <TouchableOpacity
-                        style={[styles.uploadBtn, { backgroundColor: APP_COLORS.success }]}
+                        style={[styles.uploadBtn, state === "verified" && { backgroundColor: APP_COLORS.success }]}
                         onPress={() => router.push("/priest/HomeTab" as any)}
                     >
                         <Text style={styles.uploadBtnText}>Go to Dashboard</Text>

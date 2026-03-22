@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -147,6 +148,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>I am a:</Text>
               <View style={styles.userTypeToggle}>
                 <TouchableOpacity
+                  testID="user-type-devotee"
                   style={[
                     styles.userTypeButton,
                     state.userType === 'devotee' && styles.activeUserTypeButton
@@ -159,6 +161,7 @@ export default function LoginScreen() {
                   ]}>Devotee</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="user-type-priest"
                   style={[
                     styles.userTypeButton,
                     state.userType === 'priest' && styles.activeUserTypeButton
@@ -182,6 +185,7 @@ export default function LoginScreen() {
 
             {/* Identifier Input - Auto-detects Phone or Email */}
             <InputField
+              testID="identifier-input"
               label="Email or Mobile Number"
               value={state.identifier}
               onChangeText={(text: string) => {
@@ -216,6 +220,7 @@ export default function LoginScreen() {
             {state.authMethod === 'password' ? (
               <>
                 <InputField
+                  testID="password-input"
                   label="Password"
                   value={state.password}
                   onChangeText={(text: string) => {
@@ -231,23 +236,31 @@ export default function LoginScreen() {
                   }
                 />
                 <TouchableOpacity
-                  style={styles.loginButton}
+                  testID="login-button"
+                  style={[styles.loginButton, isLoading && styles.disabledButton]}
                   onPress={handleLogin}
                   disabled={isLoading}
                 >
-                  <Text style={styles.loginButtonText}>
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={APP_COLORS.white} />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Login</Text>
+                  )}
                 </TouchableOpacity>
               </>
             ) : (
               <View style={styles.otpContainer}>
                 {!state.confirmResult ? (
                   <TouchableOpacity
-                    style={styles.sendOtpButton}
+                    style={[styles.sendOtpButton, isLoading && styles.disabledButton]}
                     onPress={sendOTP}
+                    disabled={isLoading}
                   >
-                    <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                    {isLoading ? (
+                      <ActivityIndicator color={APP_COLORS.white} />
+                    ) : (
+                      <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <>
@@ -262,18 +275,21 @@ export default function LoginScreen() {
                       keyboardType="number-pad"
                     />
                     <TouchableOpacity
-                      style={styles.loginButton}
+                      style={[styles.loginButton, isLoading && styles.disabledButton]}
                       onPress={handleOTPLogin}
                       disabled={isLoading}
                     >
-                      <Text style={styles.loginButtonText}>
-                        {isLoading ? "Verifying..." : "Verify & Login"}
-                      </Text>
+                      {isLoading ? (
+                        <ActivityIndicator color={APP_COLORS.white} />
+                      ) : (
+                        <Text style={styles.loginButtonText}>Verify & Login</Text>
+                      )}
                     </TouchableOpacity>
                   </>
                 )}
               </View>
             )}
+
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -533,5 +549,8 @@ const styles = StyleSheet.create({
   sendOtpButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });

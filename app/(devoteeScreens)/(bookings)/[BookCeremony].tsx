@@ -21,6 +21,8 @@ import { Calendar } from "react-native-calendars";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
+import ErrorMessage from "../../../components/ErrorMessage";
+import LoadingSpinner from "../../../components/LoadingSpinner";
 
 const PLATFORM_FEE_PERCENT = 0.05; // 5% fee
 
@@ -30,6 +32,7 @@ const BookCeremony: React.FC = () => {
   const priestId = params.priestId as string;
   const [priest, setPriest] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isError, setIsError] = useState<boolean>(false);
 
   // Booking form state
   const [selectedCeremony, setSelectedCeremony] = useState<any | null>(null);
@@ -120,45 +123,17 @@ const BookCeremony: React.FC = () => {
         
         // 3. Map priest services/ceremonies with name resolution
         if (data && data.services) {
-          data.ceremonies = data.services.map((s: any) => {
-            let ceremonyName = s.ceremonyName || s.name;
-            
-            // If name is unknown or missing, try to resolve from master list
-            if (!ceremonyName || ceremonyName === "Unknown Ceremony") {
-              const masterMatch = masterCeremonies.find(m => 
-                m._id === s.ceremonyId || 
-                (m.basePrice === s.price && m.name.toLowerCase().includes('satyanarayan') && (params.ceremony as string)?.toLowerCase().includes('satyanarayan'))
-              );
-              ceremonyName = masterMatch?.name || s.ceremonyId || "Ceremony";
-            }
-            
-            return {
-              id: s.ceremonyId || s._id,
-              name: ceremonyName,
-              price: s.price
-            };
-          });
+          data.ceremonies = data.services.map((s: any) => ({
+            id: s.ceremonyId || s._id,
+            name: s.ceremonyName || s.name || "Ceremony",
+            price: s.price || 0
+          }));
         } else if (data && data.ceremonies && data.ceremonies.length > 0) {
-          // Fix names if they are already objects but have 'Unknown Ceremony'
-          data.ceremonies = data.ceremonies.map((c: any) => {
-            let ceremonyName = typeof c === 'string' ? c : (c.name || "Ceremony");
-            let price = typeof c === 'string' ? 2100 : (c.price || 2100);
-            let id = typeof c === 'string' ? undefined : (c.id || c._id);
-
-            if (ceremonyName === "Unknown Ceremony" || !ceremonyName) {
-              const masterMatch = masterCeremonies.find(m => 
-                m._id === id || 
-                (m.basePrice === price && (params.ceremony as string)?.toLowerCase().includes(m.name.toLowerCase().split(' ')[0]))
-              );
-              ceremonyName = masterMatch?.name || (params.ceremony as string) || "Ceremony";
-            }
-
-            return {
-              id: id,
-              name: ceremonyName,
-              price: price
-            };
-          });
+          data.ceremonies = data.ceremonies.map((c: any) => ({
+            id: typeof c === 'string' ? undefined : (c.id || c._id),
+            name: typeof c === 'string' ? c : (c.name || "Ceremony"),
+            price: typeof c === 'string' ? 0 : (c.price || 0)
+          }));
         }
         
         setPriest(data);
@@ -183,11 +158,7 @@ const BookCeremony: React.FC = () => {
         }
       } catch (error) {
         console.error("Error fetching priest details:", error);
-        Alert.alert(
-          "Error",
-          "Could not load priest details. Please try again later."
-        );
-        router.back();
+        setIsError(true);
       } finally {
         setIsLoading(false);
       }
@@ -315,8 +286,25 @@ const BookCeremony: React.FC = () => {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={APP_COLORS.primary} />
-        <Text style={{ marginTop: 10 }}>Loading details...</Text>
+        <LoadingSpinner text="Fetching ceremony details..." />
+      </View>
+    );
+  }
+
+  if (isError) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ErrorMessage 
+          message="We couldn't load the ceremony details. Please check your connection." 
+          showRetry 
+          onRetry={() => router.replace({ pathname: '/(devoteeScreens)/(bookings)/[BookCeremony]', params: { BookCeremony: priestId, priestId } })} 
+        />
+        <TouchableOpacity
+          style={[styles.continueButton, { paddingHorizontal: 32, marginTop: 16 }]}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.continueButtonText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }

@@ -16,7 +16,7 @@ import {
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { APP_COLORS } from '../../constants/Colors';
-import { submitRating } from '../../redux/slices/bookingSlice';
+import { submitRating, getBookings } from '../../redux/slices/bookingSlice';
 import { AppDispatch, RootState } from '../../redux/store';
 import { formatDate } from '../../utils/dateUtils';
 
@@ -26,9 +26,10 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 type Booking = {
   id?: string;
   _id?: string; // Add Mongo ID
-  priestId?: string; // Add flat priestId
+  priestId?: any; // Priest object or ID
   priest?: { id?: string; _id?: string; name?: string; image?: any; specialization?: string };
   ceremony?: { type?: string; name?: string };
+  ceremonyType?: string;
   date?: string;
   time?: string;
   status?: string;
@@ -71,36 +72,24 @@ const Ratings: React.FC = () => {
       console.error("Error parsing booking data", e);
     }
 
-    if (!bookingData) {
-      bookingData = {
-        id: 'BK001',
-        priest: {
-          id: 'P001',
-          name: 'Pandit Ram Sharma',
-          image: require('../../assets/images/pandit1.jpg'),
-          specialization: 'Wedding Ceremonies',
-        },
-        ceremony: {
-          type: 'Wedding Ceremony',
-          name: 'Hindu Wedding',
-        },
-        date: '2024-02-15',
-        time: '10:00 AM',
-        status: 'completed',
-        amount: 15000,
-      };
+    if (bookingData) {
+      // Ensure id is set from _id if missing
+      if (bookingData._id && !bookingData.id) {
+        bookingData.id = bookingData._id;
+      }
+      if (bookingData.priest?._id && !bookingData.priest?.id) {
+        bookingData.priest.id = bookingData.priest._id;
+      }
+      setBooking(bookingData);
+    } else if (params.bookingId) {
+      // If we only have IDs, we'll need to handle that or show a loader
+      // For now, we assume the previous screen passes the full booking object as per earlier refactor
+      setBooking({
+        id: params.bookingId as string,
+        priestId: params.priestId as string,
+      });
     }
-
-    // Ensure id is set from _id if missing
-    if (bookingData._id && !bookingData.id) {
-      bookingData.id = bookingData._id;
-    }
-    if (bookingData.priest?._id && !bookingData.priest?.id) {
-      bookingData.priest.id = bookingData.priest._id;
-    }
-
-    setBooking(bookingData);
-  }, [params.booking]);
+  }, [params.booking, params.bookingId, params.priestId]);
 
   const ratingCategories: { key: keyof Categories; label: string; description: string; icon: string }[] = [
     {
@@ -175,36 +164,35 @@ const Ratings: React.FC = () => {
 
     try {
       const ratingData = {
-        bookingId: booking?.id || booking?._id,
-        priestId: (typeof booking?.priestId === 'object' ? (booking?.priestId as any)._id : booking?.priestId) || booking?.priest?.id || booking?.priest?._id,
+        bookingId: booking?.id || booking?._id || params.bookingId,
+        priestId: params.priestId || (typeof booking?.priestId === 'object' ? (booking?.priestId as any)._id : booking?.priestId) || booking?.priest?.id || booking?.priest?._id,
         rating: rating,
         categories: categories,
         review: review.trim(),
-        ceremonyType: booking?.ceremony?.type,
+        ceremonyType: booking?.ceremony?.type || booking?.ceremonyType,
         ceremonyDate: booking?.date,
+        isVisible: false, // Double-Blind Logic: Hidden until both rate
         timestamp: new Date().toISOString(),
       };
 
       // Dispatch rating submission action
-      const result = await dispatch(submitRating(ratingData) as any).unwrap();
+      await dispatch(submitRating(ratingData) as any).unwrap();
 
-      if ((result as any).success) {
-        Alert.alert(
-          'Thank You!',
-          'Your rating and review have been submitted successfully.',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navigate back to bookings
-                router.push('/devotee/(tabs)/BookingsTab');
-              },
+      Alert.alert(
+        'Review Submitted',
+        'Thank you for your feedback! Your review will be visible once the priest also provides their rating.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              // Refresh bookings to update 'rated' status
+              dispatch(getBookings());
+              // Navigate back to history
+              router.replace('/devotee/(tabs)/BookingsTab');
             },
-          ]
-        );
-      } else {
-        Alert.alert('Submission Failed', (result as any).message || 'Please try again');
-      }
+          },
+        ]
+      );
     } catch (error) {
       console.error('Rating submission error:', error);
       Alert.alert('Error', 'Failed to submit rating. Please try again.');

@@ -1,0 +1,227 @@
+﻿{
+  "config": {
+    "configFile": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\playwright.config.ts",
+    "rootDir": "C:/Users/pgopa/OneDrive/Documents/GitHub/sacred-connect/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 2
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/pgopa/OneDrive/Documents/GitHub/sacred-connect/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 2
+        },
+        "id": "chromium",
+        "name": "chromium",
+        "testDir": "C:/Users/pgopa/OneDrive/Documents/GitHub/sacred-connect/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "json"
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "runAgents": "none",
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.58.2",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "flow-happy-path.spec.ts",
+      "file": "flow-happy-path.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Happy Path Booking Lifecycle",
+          "file": "flow-happy-path.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete full booking lifecycle from creation to payment",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 16089,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/home/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    13 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/home/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    13 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n\n    at C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-happy-path.spec.ts:27:24",
+                        "location": {
+                          "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-happy-path.spec.ts",
+                          "column": 24,
+                          "line": 27
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 25 |\u001b[39m\n \u001b[90m 26 |\u001b[39m     \u001b[90m// Assert Home Dashboard\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 27 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveURL(\u001b[35m/home/\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 28 |\u001b[39m     \n \u001b[90m 29 |\u001b[39m     \u001b[90m// 3. Create Booking\u001b[39m\n \u001b[90m 30 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgetByTestId(\u001b[32m'tab-explore'\u001b[39m)\u001b[33m.\u001b[39mclick()\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-happy-path.spec.ts",
+                            "column": 24,
+                            "line": 27
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/home/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    13 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n\n\n  25 |\n  26 |     // Assert Home Dashboard\n> 27 |     await expect(page).toHaveURL(/home/, { timeout: 10000 });\n     |                        ^\n  28 |     \n  29 |     // 3. Create Booking\n  30 |     await page.getByTestId('tab-explore').click();\n    at C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-happy-path.spec.ts:27:24"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-17T21:01:31.365Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\test-results\\flow-happy-path-E2E-Happy--0d03d-le-from-creation-to-payment-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-happy-path.spec.ts",
+                        "column": 24,
+                        "line": 27
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "0a5c3947c87c4db2562c-d6280f5ae3115b9d3004",
+              "file": "flow-happy-path.spec.ts",
+              "line": 9,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "flow-priest-cancellation.spec.ts",
+      "file": "flow-priest-cancellation.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "E2E: Priest Cancellation Lifecycle",
+          "file": "flow-priest-cancellation.spec.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should show penalty warning and cancel confirmed booking",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "failed",
+                      "duration": 16253,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/priest/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    14 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/priest/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    14 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n\n    at C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-priest-cancellation.spec.ts:40:24",
+                        "location": {
+                          "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-priest-cancellation.spec.ts",
+                          "column": 24,
+                          "line": 40
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 38 |\u001b[39m\n \u001b[90m 39 |\u001b[39m     \u001b[90m// Assert Priest Dashboard\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 40 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page)\u001b[33m.\u001b[39mtoHaveURL(\u001b[35m/priest/\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m10000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 41 |\u001b[39m\n \u001b[90m 42 |\u001b[39m     \u001b[90m// 3. Navigate to Bookings/Calendar\u001b[39m\n \u001b[90m 43 |\u001b[39m     \u001b[90m// Based on Priest tabs, 'Calendar' or 'Requests' might have the booking\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-priest-cancellation.spec.ts",
+                            "column": 24,
+                            "line": 40
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mpage\u001b[39m\u001b[2m).\u001b[22mtoHaveURL\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nExpected pattern: \u001b[32m/priest/\u001b[39m\nReceived string:  \u001b[31m\"http://localhost:8081/login\"\u001b[39m\nTimeout: 10000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveURL\" with timeout 10000ms\u001b[22m\n\u001b[2m    14 ├ù unexpected value \"http://localhost:8081/login\"\u001b[22m\n\n\n  38 |\n  39 |     // Assert Priest Dashboard\n> 40 |     await expect(page).toHaveURL(/priest/, { timeout: 10000 });\n     |                        ^\n  41 |\n  42 |     // 3. Navigate to Bookings/Calendar\n  43 |     // Based on Priest tabs, 'Calendar' or 'Requests' might have the booking\n    at C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-priest-cancellation.spec.ts:40:24"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-03-17T21:01:31.376Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\test-results\\flow-priest-cancellation-E-47a31-nd-cancel-confirmed-booking-chromium\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\pgopa\\OneDrive\\Documents\\GitHub\\sacred-connect\\tests\\flow-priest-cancellation.spec.ts",
+                        "column": 24,
+                        "line": 40
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "6906f3dc71f880876a8a-c2439fd9aba24db2cfbe",
+              "file": "flow-priest-cancellation.spec.ts",
+              "line": 9,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-03-17T21:01:27.420Z",
+    "duration": 20812.339,
+    "expected": 0,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  }
+}

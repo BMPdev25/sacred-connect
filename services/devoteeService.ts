@@ -105,9 +105,9 @@ const devoteeService = {
    */
   getBookings: async (status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/devotee/bookings?status=${status}` : '/api/devotee/bookings';
+      const url = status ? `/api/bookings/my-bookings?status=${status}` : '/api/bookings/my-bookings';
       const response = await api.get(url);
-      return response.data.data?.all || response.data.data || response.data;
+      return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }
@@ -232,7 +232,7 @@ const devoteeService = {
    */
   submitReview: async (reviewData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post('/api/reviews/submit', reviewData);
+      const response = await api.post('/api/reviews', reviewData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to submit review. Please try again.';

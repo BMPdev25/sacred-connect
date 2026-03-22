@@ -149,7 +149,7 @@ const PujaRequestDetails = () => {
                 break;
             case "cancelled":
                 title = "Cancel Booking";
-                message = "Are you sure you want to cancel this booking?";
+                message = "You are about to cancel a confirmed booking. A penalty of ₹100 will be deducted from your wallet.";
                 confirmText = "Yes, Cancel";
                 break;
         }
@@ -471,12 +471,85 @@ const PujaRequestDetails = () => {
                     </View>
                 </View>
 
+                {/* History & Significance */}
+                {booking.ceremonyDetails?.history && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Ionicons name="book-outline" size={20} color={APP_COLORS.primary} />
+                            <Text style={styles.cardTitle}>History & Significance</Text>
+                        </View>
+                        <Text style={styles.notesText}>{booking.ceremonyDetails.history}</Text>
+                    </View>
+                )}
+
+                {/* Samagri (Materials Required) */}
+                {booking.ceremonyDetails && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Ionicons name="list-outline" size={20} color={APP_COLORS.primary} />
+                            <Text style={styles.cardTitle}>Samagri (Materials Required)</Text>
+                        </View>
+                        {booking.ceremonyDetails.materials && booking.ceremonyDetails.materials.length > 0 ? (
+                            booking.ceremonyDetails.materials.map((item: any, index: number) => (
+                                <View key={index} style={styles.detailRow}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.itemText}>{item.name}</Text>
+                                        <Text style={styles.itemSubText}>
+                                            Qty: {item.quantity} • {item.isOptional ? 'Optional' : 'Mandatory'}
+                                        </Text>
+                                    </View>
+                                    <View style={[styles.tag, { backgroundColor: item.providedBy === 'devotee' ? '#FFF3E0' : '#E3F2FD' }]}>
+                                        <Text style={[styles.tagText, { color: item.providedBy === 'devotee' ? '#E65100' : '#1565C0' }]}>
+                                            {item.providedBy === 'devotee' ? 'Devotee' : 'Priest'}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={styles.noInfoText}>No specific materials list available.</Text>
+                        )}
+
+                        {booking.ceremonyDetails.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 && (
+                            <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: APP_COLORS.lightGray }}>
+                                <Text style={[styles.cardTitle, { fontSize: 14, marginBottom: 8 }]}>Special Instructions</Text>
+                                {booking.ceremonyDetails.specialInstructions.map((instr: string, idx: number) => (
+                                    <View key={idx} style={styles.instrRow}>
+                                        <Ionicons name="information-circle-outline" size={16} color={APP_COLORS.info} />
+                                        <Text style={styles.instrText}>{instr}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                )}
+
+                {/* Ritual Steps */}
+                {booking.ceremonyDetails?.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 && (
+                    <View style={styles.card}>
+                        <View style={styles.cardHeader}>
+                            <Ionicons name="footsteps-outline" size={20} color={APP_COLORS.primary} />
+                            <Text style={styles.cardTitle}>Ritual Steps</Text>
+                        </View>
+                        {booking.ceremonyDetails.ritualSteps.map((step: any, index: number) => (
+                            <View key={index} style={styles.stepItem}>
+                                <View style={styles.stepNumber}>
+                                    <Text style={styles.stepNumberText}>{index + 1}</Text>
+                                </View>
+                                <View style={{ flex: 1, marginLeft: 12 }}>
+                                    <Text style={styles.stepTitle}>{step.title}</Text>
+                                    <Text style={styles.stepDesc}>{step.description}</Text>
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 {/* Notes */}
                 {booking.notes && (
                     <View style={styles.card}>
                         <View style={styles.cardHeader}>
                             <Ionicons name="document-text-outline" size={20} color={APP_COLORS.primary} />
-                            <Text style={styles.cardTitle}>Special Notes</Text>
+                            <Text style={styles.cardTitle}>Notes from Devotee</Text>
                         </View>
                         <Text style={styles.notesText}>{booking.notes}</Text>
                     </View>
@@ -802,6 +875,71 @@ const styles = StyleSheet.create({
         color: APP_COLORS.bodyText,
         lineHeight: 22,
         fontStyle: "italic",
+    },
+    // Enriched Details Styles
+    noInfoText: {
+        fontSize: 14,
+        color: APP_COLORS.gray,
+        fontStyle: 'italic',
+        textAlign: 'center',
+        marginVertical: 10,
+    },
+    itemText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: APP_COLORS.black,
+    },
+    itemSubText: {
+        fontSize: 12,
+        color: APP_COLORS.gray,
+        marginTop: 2,
+    },
+    tag: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    tagText: {
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    instrRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 8,
+        marginBottom: 8,
+    },
+    instrText: {
+        fontSize: 13,
+        color: APP_COLORS.bodyText,
+        flex: 1,
+    },
+    stepItem: {
+        flexDirection: 'row',
+        marginBottom: 16,
+    },
+    stepNumber: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: APP_COLORS.primary,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    stepNumberText: {
+        color: 'white',
+        fontSize: 12,
+        fontWeight: 'bold',
+    },
+    stepTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: APP_COLORS.black,
+    },
+    stepDesc: {
+        fontSize: 12,
+        color: APP_COLORS.bodyText,
+        marginTop: 2,
     },
     // Sticky bottom bar
     bottomBar: {

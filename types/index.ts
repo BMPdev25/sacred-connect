@@ -2,13 +2,17 @@ export interface Puja {
   _id: string;
   name: string;
   description: string;
+  history?: string;
   image: string;
   requirements: {
     materials: {
       name: string;
       quantity: string;
       isOptional?: boolean;
+      providedBy?: string;
     }[];
+    specialInstructions?: string[];
+    spaceRequirements?: string;
   };
   duration: {
     typical: number;

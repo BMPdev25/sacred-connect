@@ -22,47 +22,7 @@ import { formatCurrency } from "../../../utils/formatUtlis";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
 
-// ─── Mock Data (fallback) ─────────────────────────────────────────────────
-const MOCK_BOOKINGS = [
-  {
-    _id: "mock1",
-    ceremonyType: "Satyanarayan Puja",
-    priestName: "Pandit Ramesh Sharma",
-    status: "confirmed",
-    date: new Date(Date.now() + 86400000).toISOString(),
-    startTime: "10:00 AM",
-    endTime: "11:30 AM",
-    basePrice: 2100,
-    paymentStatus: "advance_paid",
-    location: { address: "Film Nagar, Hyderabad" },
-  },
-  {
-    _id: "mock2",
-    ceremonyType: "Ganesh Puja",
-    priestName: "Pandit Suresh Verma",
-    status: "completed",
-    date: new Date(Date.now() - 604800000).toISOString(),
-    startTime: "9:00 AM",
-    endTime: "10:00 AM",
-    basePrice: 1500,
-    paymentStatus: "paid",
-    location: { address: "Banjara Hills, Hyderabad" },
-    rated: false,
-  },
-  {
-    _id: "mock3",
-    ceremonyType: "Griha Pravesh",
-    priestName: "Pandit Mahesh Joshi",
-    status: "completed",
-    date: new Date(Date.now() - 2592000000).toISOString(),
-    startTime: "7:00 AM",
-    endTime: "9:00 AM",
-    basePrice: 5500,
-    paymentStatus: "paid",
-    location: { address: "Jubilee Hills, Hyderabad" },
-    rated: true,
-  },
-];
+
 
 // ─── Component ────────────────────────────────────────────────────────────
 const BookingsScreen: React.FC = () => {
@@ -73,9 +33,6 @@ const BookingsScreen: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
-
-  // Use real bookings if available, else mock
-  const effectiveBookings = bookings && bookings.length > 0 ? bookings : MOCK_BOOKINGS;
 
   useEffect(() => {
     if (userInfo) {
@@ -92,14 +49,13 @@ const BookingsScreen: React.FC = () => {
     }
   };
 
-  const upcomingBookings = effectiveBookings.filter((b: any) => {
-    const d = new Date(b.date);
-    return (b.status === "confirmed" || b.status === "pending" || b.status === "requested") && d >= new Date();
+  // Filtering logic
+  const upcomingBookings = (bookings || []).filter((b: any) => {
+    return (b.status === "confirmed" || b.status === "pending" || b.status === "requested" || b.status === "accepted");
   });
 
-  const historyBookings = effectiveBookings.filter((b: any) => {
-    const d = new Date(b.date);
-    return b.status === "completed" || b.status === "cancelled" || d < new Date();
+  const historyBookings = (bookings || []).filter((b: any) => {
+    return b.status === "completed" || b.status === "cancelled";
   });
 
   const displayBookings = activeTab === "upcoming" ? upcomingBookings : historyBookings;
@@ -133,11 +89,14 @@ const BookingsScreen: React.FC = () => {
   };
 
   const handleRateNow = (booking: any) => {
-    if (booking._id?.startsWith("mock")) {
-      Alert.alert("Demo", "Rating is available for real bookings.");
-      return;
-    }
-    router.push({ pathname: "/Ratings", params: { booking: JSON.stringify(booking) } });
+    router.push({ 
+      pathname: "/Ratings", 
+      params: { 
+        booking: JSON.stringify(booking),
+        bookingId: booking._id || booking.id,
+        priestId: booking.priestId?._id || booking.priestId
+      } 
+    });
   };
 
   const renderBookingCard = ({ item }: { item: any }) => {
@@ -191,7 +150,18 @@ const BookingsScreen: React.FC = () => {
 
           {isUpcoming && (
             <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.iconButton} onPress={() => { }}>
+              <TouchableOpacity style={styles.iconButton} onPress={() => {
+                const id = item._id || item.id;
+                // Skip navigation for mock/placeholder bookings
+                if (!id || id.length !== 24) {
+                  Alert.alert("Info", "Samagri details will be available once a real booking is created.");
+                  return;
+                }
+                router.push({
+                  pathname: "/(devoteeScreens)/(bookings)/BookingDetails",
+                  params: { bookingId: id, booking: JSON.stringify(item) }
+                });
+              }}>
                 <Ionicons name="list-outline" size={18} color={APP_COLORS.saffron} />
                 <Text style={styles.iconButtonLabel}>Samagri</Text>
               </TouchableOpacity>

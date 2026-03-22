@@ -3,6 +3,7 @@ import authReducer from './slices/authSlice';
 import bookingReducer from './slices/bookingSlice';
 import devoteeReducer from './slices/devoteeSlice';
 import priestReducer from './slices/priestSlice';
+import onboardingReducer from './slices/onboardingSlice';
 
 // Define the Redux store
 const store = configureStore({
@@ -11,6 +12,7 @@ const store = configureStore({
     priest: priestReducer,
     devotee: devoteeReducer,
     booking: bookingReducer,
+    onboarding: onboardingReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -8,22 +8,45 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
+import devoteeService from '../../../services/devoteeService';
+import LoadingSpinner from '../../../components/LoadingSpinner';
+import ErrorMessage from '../../../components/ErrorMessage';
+import { useEffect, useState } from 'react';
 
 const BookingConfirmation: React.FC = () => {
-  // Read booking passed via router params. The caller stringifies the booking object.
   const params = useLocalSearchParams();
-  let booking: any = null;
-  try {
-    if (params?.booking) {
-      booking = JSON.parse(params.booking as string);
+  const bookingId = params.bookingId as string;
+  
+  const [booking, setBooking] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isError, setIsError] = useState(false);
+
+  const fetchBooking = async () => {
+    if (!bookingId) {
+      setIsLoading(false);
+      return;
     }
-  } catch (e) {
-    console.warn('Failed to parse booking param:', e);
-    booking = null;
-  }
+    
+    setIsLoading(true);
+    setIsError(false);
+    try {
+      const data = await devoteeService.getBookingDetails(bookingId);
+      setBooking(data);
+    } catch (error) {
+      console.error('Error fetching booking details:', error);
+      setIsError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchBooking();
+  }, [bookingId]);
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'TBD';
@@ -56,6 +79,33 @@ const BookingConfirmation: React.FC = () => {
 
   const insets = useSafeAreaInsets();
 
+  if (isLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingWrapper}>
+          <LoadingSpinner text="Retrieving your booking details..." />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (isError || !booking) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingWrapper}>
+          <ErrorMessage 
+            message="We couldn't retrieve your booking details." 
+            showRetry 
+            onRetry={fetchBooking} 
+          />
+          <TouchableOpacity style={[styles.homeButton, { marginTop: 24, width: '80%' }]} onPress={handleHome}>
+            <Text style={styles.homeButtonText}>Return to Home</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={["top","left","right"]}>
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
@@ -69,7 +119,7 @@ const BookingConfirmation: React.FC = () => {
           </View>
           <Text style={styles.successTitle}>Booking Successful!</Text>
           <Text style={styles.successText}>
-            Your booking has been confirmed and a confirmation has been sent to your email.
+            Your booking has been confirmed. You will receive updates as the priest accepts your request.
           </Text>
         </View>
 
@@ -77,17 +127,17 @@ const BookingConfirmation: React.FC = () => {
           <Text style={styles.sectionTitle}>Booking Details</Text>
           <View style={styles.bookingId}>
             <Text style={styles.bookingIdLabel}>Booking ID:</Text>
-            <Text style={styles.bookingIdValue}>{String(booking.paymentId || '').replace('PAY', 'BK') || 'N/A'}</Text>
+            <Text style={styles.bookingIdValue}>{booking.bookingId || booking._id?.substring(0,8).toUpperCase() || 'N/A'}</Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Ceremony Type</Text>
-            <Text style={styles.detailValue}>{booking.ceremonyType}</Text>
+            <Text style={styles.detailValue}>{booking.ceremonyType || 'N/A'}</Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Priest</Text>
-            <Text style={styles.detailValue}>{booking.priestName}</Text>
+            <Text style={styles.detailValue}>{booking.priestId?.name || params.priestName || 'Assigned Priest'}</Text>
           </View>
 
           <View style={styles.detailItem}>
@@ -110,38 +160,40 @@ const BookingConfirmation: React.FC = () => {
           <Text style={styles.sectionTitle}>Payment Information</Text>
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Payment Method</Text>
-            <Text style={styles.detailValue}>{String(booking.paymentMethod || '').toLowerCase() === 'upi' ? 'UPI' : 'Credit/Debit Card'}</Text>
+            <Text style={styles.detailValue}>{booking.paymentMethod?.toUpperCase() || 'N/A'}</Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Payment ID</Text>
-            <Text style={styles.detailValue}>{booking.paymentId}</Text>
+            <Text style={styles.detailValue}>{booking.paymentId || 'N/A'}</Text>
           </View>
 
           <View style={styles.detailItem}>
             <Text style={styles.detailLabel}>Status</Text>
             <View style={styles.statusContainer}>
-              <View style={styles.statusDot} />
-              <Text style={styles.statusText}>Paid</Text>
+              <View style={[styles.statusDot, { backgroundColor: booking.paymentStatus === 'completed' ? APP_COLORS.success : APP_COLORS.warning }]} />
+              <Text style={[styles.statusText, { color: booking.paymentStatus === 'completed' ? APP_COLORS.success : APP_COLORS.warning }]}>
+                {booking.paymentStatus === 'completed' ? 'Paid' : 'Pending'}
+              </Text>
             </View>
           </View>
 
           <View style={styles.amountBreakdown}>
             <View style={styles.amountRow}>
               <Text style={styles.amountLabel}>{booking.ceremonyType} Ceremony</Text>
-              <Text style={styles.amountValue}>₹{booking.basePrice}</Text>
+              <Text style={styles.amountValue}>₹{booking.basePrice || 0}</Text>
             </View>
 
             <View style={styles.amountRow}>
               <Text style={styles.amountLabel}>Platform Fee</Text>
-              <Text style={styles.amountValue}>₹{booking.platformFee}</Text>
+              <Text style={styles.amountValue}>₹{booking.platformFee || 0}</Text>
             </View>
 
             <View style={styles.divider} />
 
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Total Amount</Text>
-              <Text style={styles.totalValue}>₹{booking.totalAmount}</Text>
+              <Text style={styles.totalValue}>₹{booking.totalAmount || 0}</Text>
             </View>
           </View>
         </View>
@@ -201,6 +253,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   header: {
     backgroundColor: APP_COLORS.primary,
@@ -406,6 +461,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  loadingWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  }
 });
 
 export default BookingConfirmation;

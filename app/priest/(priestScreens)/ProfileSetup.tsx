@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import * as SecureStore from "expo-secure-store";
+import * as SecureStore from "../../../utils/storage";
+import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system/legacy";
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Alert,
@@ -16,23 +18,24 @@ import {
   Switch,
   FlatList,
   Image,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import * as Location from 'expo-location';
 import * as ImagePicker from 'expo-image-picker';
-import { APP_COLORS } from "../../constants/Colors";
-import { updateProfile as updateUserProfile } from "../../redux/slices/authSlice";
-import { updateProfile } from "../../redux/slices/priestSlice";
-import { getAllCeremonies } from "../../api/ceremonyService";
-import priestService from "../../services/priestService"; // Import service
-import LanguagePicker from "../../components/LanguagePicker";
-import api from "../../api";
+import { APP_COLORS } from "../../../constants/Colors";
+import { updateProfile as updateUserProfile } from "../../../redux/slices/authSlice";
+import { updateProfile } from "../../../redux/slices/priestSlice";
+import { getAllCeremonies } from "../../../api/ceremonyService";
+import priestService from "../../../services/priestService"; // Import service
+import LanguagePicker from "../../../components/LanguagePicker";
+import api from "../../../api";
 
 const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
 // Memoized Ceremony Item Component to prevent re-renders
-const CeremonyItem = React.memo(({ ceremony, onToggle, onUpdatePrice }: any) => {
+const CeremonyItem = React.memo(({ ceremony, onToggle, onUpdatePrice, onCustomizeSteps }: any) => {
   return (
     <View style={styles.ceremonyItem}>
       <View style={styles.ceremonyHeader}>
@@ -66,6 +69,17 @@ const CeremonyItem = React.memo(({ ceremony, onToggle, onUpdatePrice }: any) => 
           </View>
         )}
       </View>
+      {ceremony.selected && (
+        <TouchableOpacity 
+          style={styles.customizeStepsBtn}
+          onPress={() => onCustomizeSteps(ceremony)}
+        >
+          <Ionicons name="list" size={16} color={APP_COLORS.primary} style={{ marginRight: 4 }} />
+          <Text style={styles.customizeStepsText}>
+            Customize Steps {ceremony.customSteps?.length > 0 ? `(${ceremony.customSteps.length})` : ""}
+          </Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 });
@@ -133,6 +147,9 @@ const ProfileSetup = () => {
   const [availableCeremonies, setAvailableCeremonies] = useState<any[]>([]);
   const [isLoadingCeremonies, setIsLoadingCeremonies] = useState(true);
 
+  /* New Schema Handling */
+  const [existingOverrides, setExistingOverrides] = useState<any[]>([]);
+
   const [availability, setAvailability] = useState({
     monday: { available: false, startTime: "", endTime: "" },
     tuesday: { available: false, startTime: "", endTime: "" },
@@ -151,12 +168,20 @@ const ProfileSetup = () => {
 
   // Custom navigation
   const jumpToStepRaw = params?.jumpToStep;
-  const initialStep = jumpToStepRaw ? parseInt(jumpToStepRaw as string, 10) : 1;
+  const [initialStep, setInitialStep] = useState(jumpToStepRaw ? parseInt(jumpToStepRaw as string, 10) : 1);
   const isSingleSectionMode = !!jumpToStepRaw;
+
+  // Modal state
+  const [isCustomStepsModalVisible, setIsCustomStepsModalVisible] = useState(false);
+  const [currentCustomizingCeremony, setCurrentCustomizingCeremony] = useState<any>(null);
+
+  // Manual fallback inputs
+  const [manualLat, setManualLat] = useState("");
+  const [manualLng, setManualLng] = useState("");
 
   // Initialize step
   useEffect(() => {
-    if (initialStep > 1 && initialStep <= 4) {
+    if (initialStep > 1 && initialStep <= 6) {
       setCurrentStep(initialStep);
     }
   }, [initialStep]);
@@ -241,9 +266,39 @@ const ProfileSetup = () => {
           if (loadedProfile.templesAffiliated && loadedProfile.templesAffiliated.length > 0) {
             setTemplesAffiliated(loadedProfile.templesAffiliated);
           }
-          if (loadedProfile.availability && Object.keys(loadedProfile.availability).length > 0) {
+          if (loadedProfile.availability) {
             console.log('DEBUG: Loaded Availability from profile:', JSON.stringify(loadedProfile.availability));
-            setAvailability(loadedProfile.availability);
+
+            // Handle new schema: weeklySchedule
+            const schedule = loadedProfile.availability.weeklySchedule || {};
+            const overrides = loadedProfile.availability.dateOverrides || [];
+            setExistingOverrides(overrides);
+
+            const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
+            const newAvailabilityState: any = {};
+
+            if (Object.keys(schedule).length > 0) {
+              days.forEach(day => {
+                const slots = schedule[day];
+                if (slots && slots.length > 0) {
+                  // Assume first slot for now: "09:00-17:00"
+                  const [start, end] = slots[0].split('-');
+                  newAvailabilityState[day] = { available: true, startTime: start, endTime: end };
+                } else {
+                  newAvailabilityState[day] = { available: false, startTime: "09:00", endTime: "18:00" };
+                }
+              });
+              setAvailability(newAvailabilityState);
+            } else if (loadedProfile.availability.monday) {
+              // Fallback for old schema if it exists in DB temporarily
+              setAvailability(loadedProfile.availability);
+            } else {
+              // Default
+              days.forEach(day => {
+                newAvailabilityState[day] = { available: false, startTime: "09:00", endTime: "18:00" };
+              });
+              setAvailability(newAvailabilityState);
+            }
           } else {
             console.log('DEBUG: No availability (or empty) in loaded profile. Populating defaults.');
             const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
@@ -330,6 +385,53 @@ const ProfileSetup = () => {
     );
   }, []);
 
+  const openCustomizeSteps = (ceremony: any) => {
+    setCurrentCustomizingCeremony({
+      ...ceremony,
+      customSteps: ceremony.customSteps || []
+    });
+    setIsCustomStepsModalVisible(true);
+  };
+
+  const saveCustomSteps = () => {
+    if (!currentCustomizingCeremony) return;
+
+    setAvailableCeremonies((prev) =>
+      prev.map((c) =>
+        c.id === currentCustomizingCeremony.id
+          ? { ...c, customSteps: currentCustomizingCeremony.customSteps }
+          : c
+      )
+    );
+    setIsCustomStepsModalVisible(false);
+  };
+
+  const addCustomStep = () => {
+    setCurrentCustomizingCeremony((prev: any) => ({
+      ...prev,
+      customSteps: [
+        ...prev.customSteps,
+        { title: "", description: "", durationEstimate: 15, extraCharge: 0 }
+      ]
+    }));
+  };
+
+  const updateCustomStep = (index: number, field: string, value: any) => {
+    setCurrentCustomizingCeremony((prev: any) => {
+      const updatedSteps = [...prev.customSteps];
+      updatedSteps[index] = { ...updatedSteps[index], [field]: value };
+      return { ...prev, customSteps: updatedSteps };
+    });
+  };
+
+  const removeCustomStep = (index: number) => {
+    setCurrentCustomizingCeremony((prev: any) => {
+      const updatedSteps = [...prev.customSteps];
+      updatedSteps.splice(index, 1);
+      return { ...prev, customSteps: updatedSteps };
+    });
+  };
+
   // Availability handlers
   const toggleDayAvailability = (day: string) => {
     setAvailability((prev: any) => {
@@ -376,6 +478,44 @@ const ProfileSetup = () => {
     });
     setAvailability(updated);
   };
+  // --- LOCATION LOGIC ---
+  const getCurrentLocation = async () => {
+    Keyboard.dismiss();
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Permission to access location was denied. Please use the manual entry fallback below.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({});
+      setLocation({
+        type: 'Point',
+        coordinates: [loc.coords.longitude, loc.coords.latitude]
+      });
+      setManualLat(loc.coords.latitude.toString());
+      setManualLng(loc.coords.longitude.toString());
+    } catch (error) {
+      console.error("Location error:", error);
+      Alert.alert("Error", "Could not fetch location. Please use manual entry.");
+    }
+  };
+
+  const handleManualLocationUpdate = () => {
+    Keyboard.dismiss();
+    const lat = parseFloat(manualLat);
+    const lng = parseFloat(manualLng);
+
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      Alert.alert("Invalid Input", "Please enter valid coordinates (Lat -90 to 90, Lng -180 to 180)");
+      return;
+    }
+
+    setLocation({
+      type: 'Point',
+      coordinates: [lng, lat]
+    });
+    Alert.alert("Success", "Manual location updated successfully.");
+  };
 
   // Form submission
   const handleSubmit = async () => {
@@ -391,6 +531,13 @@ const ProfileSetup = () => {
       if (!email || !phone) {
         Alert.alert("Validation Error", "Please fill all required fields (Email, Phone)");
         return;
+      }
+    } else if (editSection === 'temples') {
+      // Basic check for at least one temple if they are on the temple section
+      const validTemples = templesAffiliated.filter((t) => t.name && t.address);
+      if (validTemples.length === 0 && templesAffiliated.length > 0 && (templesAffiliated[0].name || templesAffiliated[0].address)) {
+          Alert.alert("Validation Error", "Please provide both name and address for the temple, or remove it.");
+          return;
       }
     } else {
       // Full form validation (when not editing a specific section)
@@ -419,7 +566,7 @@ const ProfileSetup = () => {
       .map((ceremony) => ceremony.name);
 
     // Only validate ceremonies if we are in initial setup OR editing services
-    // If editSection is 'personalDetails' or 'availability', skip this check
+    // If editSection is 'personalDetails', 'availability', 'contactInfo', or 'temples', skip this check
     if ((!editSection || editSection === 'services') && selectedCeremonies.length === 0) {
       Alert.alert("Validation Error", "Please select at least one ceremony");
       return;
@@ -428,6 +575,16 @@ const ProfileSetup = () => {
     setIsSubmitting(true);
 
     try {
+      // Construct Weekly Schedule Payload
+      const weeklySchedulePayload: any = {};
+      Object.entries(availability).forEach(([day, data]: [string, any]) => {
+        if (data.available && data.startTime && data.endTime) {
+          weeklySchedulePayload[day] = [`${data.startTime}-${data.endTime}`];
+        } else {
+          weeklySchedulePayload[day] = [];
+        }
+      });
+
       const profileData = {
         experience: parseInt(experience, 10),
         religiousTradition,
@@ -436,13 +593,17 @@ const ProfileSetup = () => {
         templesAffiliated: templesAffiliated.filter(
           (temple: any) => temple.name && temple.address
         ),
-        availability,
+        availability: {
+          weeklySchedule: weeklySchedulePayload,
+          dateOverrides: existingOverrides
+        },
         services: availableCeremonies
           .filter((ceremony) => ceremony.selected)
           .map((ceremony) => ({
             ceremonyId: ceremony.id,
             price: parseInt(ceremony.price, 10) || 0, // Fallback to 0 if NaN
             durationMinutes: ceremony.duration || 60,
+            customSteps: ceremony.customSteps || [],
           })),
       };
 
@@ -535,6 +696,11 @@ const ProfileSetup = () => {
         return;
       }
     } else if (currentStep === 2) {
+      if (!location || location.coordinates[0] === 0) {
+        Alert.alert("Validation Error", "Please provide your location to continue (use GPS or manual entry).");
+        return;
+      }
+    } else if (currentStep === 3) {
       const selectedCeremonies = availableCeremonies.filter(
         (ceremony) => ceremony.selected
       );
@@ -586,27 +752,6 @@ const ProfileSetup = () => {
     }
   };
 
-  // Location Logic
-  const getCurrentLocation = async () => {
-    try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission Denied', 'Permission to access location was denied');
-        return;
-      }
-
-      Alert.alert("Locating", "Fetching current location...");
-      const loc = await Location.getCurrentPositionAsync({});
-      setLocation({
-        type: 'Point',
-        coordinates: [loc.coords.longitude, loc.coords.latitude]
-      });
-      // Alert.alert("Success", "Location updated!");
-    } catch (error) {
-      console.error("Location error:", error);
-      Alert.alert("Error", "Could not fetch location.");
-    }
-  };
 
   // Render Steps
   const renderStep1 = () => {
@@ -650,18 +795,6 @@ const ProfileSetup = () => {
               </Text>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Location</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f0f0f0', padding: 12, borderRadius: 8 }}>
-                <View>
-                  <Text style={{ fontWeight: 'bold' }}>Current: {location && location.coordinates[0] !== 0 ? 'Set' : 'Not Set'}</Text>
-                  <Text style={{ fontSize: 12, color: '#666' }}>{location && location.coordinates[0] !== 0 ? `Lat: ${location.coordinates[1].toFixed(4)}, Lng: ${location.coordinates[0].toFixed(4)}` : 'Tap to update'}</Text>
-                </View>
-                <TouchableOpacity onPress={getCurrentLocation} style={{ backgroundColor: APP_COLORS.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 }}>
-                  <Text style={{ color: 'white', fontSize: 12, fontWeight: 'bold' }}>Update Location</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
             <View style={styles.formGroup}>
               <Text style={styles.label}>Full Name *</Text>
               <TextInput
@@ -765,6 +898,54 @@ const ProfileSetup = () => {
   };
 
   const renderStep2 = () => (
+    <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 40 }}>
+      <Text style={styles.stepTitle}>Location & Region</Text>
+      <Text style={styles.stepSubtitle}>Where do you provide your services?</Text>
+
+      <View style={[styles.formGroup, { marginTop: 16 }]}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f0f0f0', padding: 16, borderRadius: 12, marginBottom: 24 }}>
+          <View style={{ flex: 1, paddingRight: 12 }}>
+            <Text style={{ fontWeight: 'bold', fontSize: 16, marginBottom: 4 }}>
+              GPS Location: {location && location.coordinates[0] !== 0 ? 'Set' : 'Not Set'}
+            </Text>
+            <Text style={{ fontSize: 13, color: '#666' }}>
+              {location && location.coordinates[0] !== 0
+                ? `Lat: ${location.coordinates[1].toFixed(4)}, Lng: ${location.coordinates[0].toFixed(4)}`
+                : 'Tap to detect location automatically'}
+            </Text>
+          </View>
+          <TouchableOpacity onPress={getCurrentLocation} style={{ backgroundColor: APP_COLORS.primary, padding: 14, borderRadius: 8 }}>
+            <Ionicons name="location" size={24} color="white" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.manualLocationWrapper}>
+          <Text style={styles.manualFallbackLabel}>Or enter location manually (if GPS fails/is blocked):</Text>
+          <View style={styles.manualInputRow}>
+            <TextInput
+              style={styles.manualInput}
+              placeholder="Latitude"
+              value={manualLat}
+              onChangeText={setManualLat}
+              keyboardType="numeric"
+            />
+            <TextInput
+              style={styles.manualInput}
+              placeholder="Longitude"
+              value={manualLng}
+              onChangeText={setManualLng}
+              keyboardType="numeric"
+            />
+          </View>
+          <TouchableOpacity onPress={handleManualLocationUpdate} style={styles.manualUpdateBtn}>
+            <Text style={styles.manualUpdateBtnText}>Update Manually</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </ScrollView>
+  );
+
+  const renderStep3 = () => (
     <View style={{ flex: 1 }}>
       <FlatList
         data={availableCeremonies}
@@ -773,6 +954,7 @@ const ProfileSetup = () => {
             ceremony={item}
             onToggle={toggleCeremony}
             onUpdatePrice={updateCeremonyPrice}
+            onCustomizeSteps={openCustomizeSteps}
           />
         )}
         keyExtractor={(item) => item.id}
@@ -817,7 +999,7 @@ const ProfileSetup = () => {
     </View>
   );
 
-  const renderStep3 = () => (
+  const renderStep4 = () => (
     <ScrollView style={styles.content}>
       <Text style={styles.stepTitle}>Temple Affiliation</Text>
       <Text style={styles.stepSubtitle}>
@@ -878,7 +1060,7 @@ const ProfileSetup = () => {
     </ScrollView>
   );
 
-  const renderStep4 = () => (
+  const renderStep5 = () => (
     <ScrollView style={styles.content}>
       <Text style={styles.stepTitle}>Availability</Text>
       <Text style={styles.stepSubtitle}>Set your weekly availability</Text>
@@ -934,35 +1116,37 @@ const ProfileSetup = () => {
             </View>
 
             {data.available ? (
-              <View style={styles.timeSlots}>
-                <View style={styles.timeSlot}>
-                  <Text style={styles.timeLabel}>From</Text>
-                  <TextInput
-                    style={[styles.timeInput, styles.smallTimeInput]}
-                    value={data.startTime}
-                    onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
-                    placeholder="09:00"
-                    placeholderTextColor={APP_COLORS.gray}
-                  />
-                  {timeErrors[day] ? (
-                    <Text style={{ color: APP_COLORS.error, marginTop: 6 }}>{timeErrors[day]}</Text>
-                  ) : null}
+              <View style={{ flexDirection: 'column' }}>
+                <View style={styles.timeSlots}>
+                  <View style={[styles.timeSlot, { width: '45%' }]}>
+                    <Text style={styles.timeLabel}>From</Text>
+                    <TextInput
+                      style={[styles.timeInput, styles.smallTimeInput]}
+                      value={data.startTime}
+                      onChangeText={(value) => updateTimeSlot(day, "startTime", value)}
+                      placeholder="09:00"
+                      placeholderTextColor={APP_COLORS.gray}
+                    />
+                  </View>
+                  <View style={[styles.timeSlot, { width: '45%' }]}>
+                    <Text style={styles.timeLabel}>To</Text>
+                    <TextInput
+                      style={[styles.timeInput, styles.smallTimeInput]}
+                      value={data.endTime}
+                      onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
+                      placeholder="18:00"
+                      placeholderTextColor={APP_COLORS.gray}
+                    />
+                  </View>
                 </View>
-                <View style={styles.timeSlot}>
-                  <Text style={styles.timeLabel}>To</Text>
-                  <TextInput
-                    style={[styles.timeInput, styles.smallTimeInput]}
-                    value={data.endTime}
-                    onChangeText={(value) => updateTimeSlot(day, "endTime", value)}
-                    placeholder="18:00"
-                    placeholderTextColor={APP_COLORS.gray}
-                  />
-                </View>
+                {timeErrors[day] ? (
+                  <Text style={{ color: APP_COLORS.error, marginTop: 4 }}>{timeErrors[day]}</Text>
+                ) : null}
                 <TouchableOpacity
-                  style={{ marginLeft: 12, alignSelf: "center" }}
+                  style={{ marginTop: 8, alignSelf: "flex-start" }}
                   onPress={() => applyToAllDays(day)}
                 >
-                  <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all</Text>
+                  <Text style={{ color: APP_COLORS.primary, fontWeight: "600" }}>Apply to all days</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -973,6 +1157,207 @@ const ProfileSetup = () => {
       }
       <View style={{ height: 20 }} />
     </ScrollView >
+  );
+
+  const renderStep6 = () => (
+    <ScrollView style={styles.content}>
+      <Text style={styles.stepTitle}>Verification Documents</Text>
+      <Text style={styles.stepSubtitle}>Upload your Aadhaar & optionally a Vedapatashala certificate</Text>
+
+      <View style={[styles.formGroup, { padding: 16, backgroundColor: '#f0f0f0', borderRadius: 12, marginTop: 16 }]}>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6 }}>Aadhaar Card (Required)</Text>
+        <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>This is required to verify your identity before you can accept bookings.</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: APP_COLORS.primary, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+          onPress={async () => {
+            try {
+              const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+              if (!res.canceled && res.assets && res.assets.length > 0) {
+                const asset = res.assets[0];
+                Alert.alert("Uploading", "Uploading Aadhaar...");
+                await priestService.uploadDocument({ uri: asset.uri, name: asset.name, type: asset.mimeType || 'application/pdf' }, 'aadhaar_card');
+                Alert.alert("Success", "Aadhaar uploaded successfully!");
+              }
+            } catch (err) {
+              Alert.alert("Error", "Failed to upload document: " + err);
+            }
+          }}
+        >
+          <Ionicons name="document-attach" size={20} color="white" />
+          <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 8 }}>Upload PDF</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.formGroup, { padding: 16, backgroundColor: '#f0f0f0', borderRadius: 12, marginTop: 16 }]}>
+        <Text style={{ fontSize: 16, fontWeight: 'bold', marginBottom: 6 }}>Vedapatashala Certificate (Optional)</Text>
+        <Text style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>Upload your qualification to earn the Verified Pundit badge.</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: APP_COLORS.primary, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
+          onPress={async () => {
+            try {
+              const res = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+              if (!res.canceled && res.assets && res.assets.length > 0) {
+                const asset = res.assets[0];
+                Alert.alert("Uploading", "Uploading Certificate...");
+                await priestService.uploadDocument({ uri: asset.uri, name: asset.name, type: asset.mimeType || 'application/pdf' }, 'vedapatashala_cert');
+                Alert.alert("Success", "Certificate uploaded successfully!");
+              }
+            } catch (err) {
+              Alert.alert("Error", "Failed to upload document: " + err);
+            }
+          }}
+        >
+          <Ionicons name="document-attach" size={20} color="white" />
+          <Text style={{ color: 'white', fontWeight: 'bold', marginLeft: 8 }}>Upload PDF</Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ height: 40 }} />
+    </ScrollView>
+  );
+
+  const renderCustomStepsModal = () => (
+    <Modal
+      visible={isCustomStepsModalVisible}
+      animationType="slide"
+      transparent={true}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>
+              Customize: {currentCustomizingCeremony?.name}
+            </Text>
+            <TouchableOpacity onPress={() => setIsCustomStepsModalVisible(false)}>
+              <Ionicons name="close" size={24} color={APP_COLORS.black} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView style={styles.modalScroll}>
+            {/* Standard Steps - Read Only */}
+            <Text style={styles.modalSectionTitle}>Standard Inclusions</Text>
+            {(() => {
+              const RITUAL_DEFAULTS: Record<string, any[]> = {
+                "satyanarayan": [
+                  { stepNumber: 1, title: "Swasti Vachanam", description: "Seeking blessings and purification." },
+                  { stepNumber: 2, title: "Maha Sankalp", description: "Solemn vow for the ritual purpose." },
+                  { stepNumber: 3, title: "Gauri Ganeshi Puja", description: "Invocation of Goddess Gauri and Lord Ganesha." },
+                  { stepNumber: 4, title: "Kalash Navgraha Puja", description: "Invocation of deities in Kalash and 9 planets." },
+                  { stepNumber: 5, title: "Satyanarayan Katha & Puja", description: "Main ritual, story narration, and puja." },
+                  { stepNumber: 6, title: "Aarti & Prasad", description: "Final prayers and food distribution." }
+                ],
+                "ganesh": [
+                  { stepNumber: 1, title: "Ganesh Prarthna", description: "Initial prayer to Lord Ganesha." },
+                  { stepNumber: 2, title: "Kalash Pooja", description: "Invocation of deities in the sacred water pot." },
+                  { stepNumber: 3, title: "Sodasaupachar Puja", description: "Traditional 16-step worship." },
+                  { stepNumber: 4, title: "Ganesh Puja", description: "Detailed worship with mantras and offerings." },
+                  { stepNumber: 5, title: "Ganesh Aarti", description: "Singing of hymns and offering light." }
+                ]
+              };
+
+              let stepsToShow = currentCustomizingCeremony?.ritualSteps || [];
+              if (stepsToShow.length === 0 && currentCustomizingCeremony?.name) {
+                const nameLower = currentCustomizingCeremony.name.toLowerCase();
+                for (const [key, defaults] of Object.entries(RITUAL_DEFAULTS)) {
+                  if (nameLower.includes(key)) {
+                    stepsToShow = defaults;
+                    break;
+                  }
+                }
+              }
+
+              if (stepsToShow.length > 0) {
+                return [...stepsToShow]
+                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
+                  .map((step: any, index: number) => (
+                    <View key={`std-${index}`} style={styles.readOnlyStep}>
+                      <Text style={styles.readOnlyStepTitle}>{step.title}</Text>
+                      <Text style={styles.readOnlyStepDesc}>{step.description}</Text>
+                    </View>
+                  ));
+              }
+
+              return <Text style={styles.noDataText}>No standard steps defined.</Text>
+            })()}
+
+            {/* Custom Steps - Editable */}
+            <View style={[styles.modalHeader, { borderBottomWidth: 0, paddingHorizontal: 0, marginTop: 16 }]}>
+              <Text style={styles.modalSectionTitle}>Additional Steps by You</Text>
+              <TouchableOpacity onPress={addCustomStep}>
+                <Ionicons name="add-circle" size={24} color={APP_COLORS.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {(currentCustomizingCeremony?.customSteps || []).map((step: any, index: number) => (
+              <View key={`custom-${index}`} style={styles.customStepEditCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <Text style={{ fontWeight: 'bold', color: APP_COLORS.primary }}>Step {index + 1}</Text>
+                  <TouchableOpacity onPress={() => removeCustomStep(index)}>
+                    <Ionicons name="trash-outline" size={18} color={APP_COLORS.error} />
+                  </TouchableOpacity>
+                </View>
+                
+                <TextInput
+                  style={[styles.input, { marginBottom: 8 }]}
+                  placeholder="Step Title (e.g. Special Aarti)"
+                  value={step.title}
+                  onChangeText={(val) => updateCustomStep(index, 'title', val)}
+                />
+                <TextInput
+                  style={[styles.input, styles.textArea, { marginBottom: 8 }]}
+                  placeholder="Step Description"
+                  multiline={true}
+                  value={step.description}
+                  onChangeText={(val) => updateCustomStep(index, 'description', val)}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: APP_COLORS.gray, marginRight: 8 }}>Duration (mins):</Text>
+                    <TextInput
+                      style={[styles.input, { width: 60, padding: 4, textAlign: 'center' }]}
+                      keyboardType="numeric"
+                      value={String(step.durationEstimate || 0)}
+                      onChangeText={(val) => updateCustomStep(index, 'durationEstimate', parseInt(val, 10) || 0)}
+                    />
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={{ fontSize: 13, color: APP_COLORS.gray, marginRight: 8 }}>Extra Charge (₹):</Text>
+                    <TextInput
+                      style={[styles.input, { width: 80, padding: 4, textAlign: 'center' }]}
+                      keyboardType="numeric"
+                      value={String(step.extraCharge || 0)}
+                      onChangeText={(val) => updateCustomStep(index, 'extraCharge', parseInt(val, 10) || 0)}
+                    />
+                  </View>
+                </View>
+              </View>
+            ))}
+
+            {currentCustomizingCeremony?.customSteps?.length === 0 && (
+              <Text style={[styles.noDataText, { textAlign: 'center', marginTop: 10 }]}>
+                Add your own unique ritual steps to stand out!
+              </Text>
+            )}
+            
+            <View style={{ height: 40 }} />
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.modalCancelButton]} 
+              onPress={() => setIsCustomStepsModalVisible(false)}
+            >
+              <Text style={styles.modalCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.modalButton, styles.modalSaveButton]} 
+              onPress={saveCustomSteps}
+            >
+              <Text style={styles.modalSaveButtonText}>Apply Changes</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 
   return (
@@ -1001,7 +1386,7 @@ const ProfileSetup = () => {
 
           {!isSingleSectionMode && (
             <View style={styles.progress}>
-              {[1, 2, 3, 4].map((step) => (
+              {[1, 2, 3, 4, 5, 6].map((step) => (
                 <View
                   key={step}
                   style={[
@@ -1031,7 +1416,7 @@ const ProfileSetup = () => {
               <View
                 style={[
                   styles.progressLine,
-                  { width: `${(currentStep - 1) * 33.33}%` },
+                  { width: `${(currentStep - 1) * 20}%` },
                 ]}
               />
             </View>
@@ -1042,7 +1427,11 @@ const ProfileSetup = () => {
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
             {currentStep === 4 && renderStep4()}
+            {currentStep === 5 && renderStep5()}
+            {currentStep === 6 && renderStep6()}
           </View>
+
+          {renderCustomStepsModal()}
 
           <View style={styles.footer}>
             {isSingleSectionMode ? (
@@ -1077,7 +1466,7 @@ const ProfileSetup = () => {
                   </TouchableOpacity>
                 )}
 
-                {currentStep < 4 ? (
+                {currentStep < 6 ? (
                   <TouchableOpacity
                     style={[styles.button, styles.nextButton]}
                     onPress={nextStep}
@@ -1108,6 +1497,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   header: {
     backgroundColor: APP_COLORS.white,
@@ -1343,6 +1735,44 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     fontSize: 13,
   },
+
+  // Manual Location Fallback
+  manualLocationWrapper: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: APP_COLORS.lightGray,
+  },
+  manualFallbackLabel: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+    marginBottom: 8,
+  },
+  manualInputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 12,
+  },
+  manualInput: {
+    flex: 1,
+    backgroundColor: APP_COLORS.background,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+  },
+  manualUpdateBtn: {
+    backgroundColor: APP_COLORS.secondary || '#f39c12',
+    padding: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  manualUpdateBtnText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
   footer: {
     flexDirection: "row",
     padding: 16,
@@ -1418,6 +1848,110 @@ const styles = StyleSheet.create({
     color: APP_COLORS.primary,
     fontWeight: '600',
     fontSize: 16,
+  },
+  customizeStepsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: APP_COLORS.lightGray,
+  },
+  customizeStepsText: {
+    color: APP_COLORS.primary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: APP_COLORS.white,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    height: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.lightGray,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  modalScroll: {
+    padding: 20,
+  },
+  modalSectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    color: APP_COLORS.black,
+  },
+  readOnlyStep: {
+    backgroundColor: APP_COLORS.background,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.primary,
+  },
+  readOnlyStepTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  readOnlyStepDesc: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+  },
+  customStepEditCard: {
+    backgroundColor: APP_COLORS.white,
+    borderWidth: 1,
+    borderColor: APP_COLORS.lightGray,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    padding: 20,
+    borderTopWidth: 1,
+    borderTopColor: APP_COLORS.lightGray,
+  },
+  modalButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCancelButton: {
+    backgroundColor: APP_COLORS.white,
+    borderWidth: 1,
+    borderColor: APP_COLORS.gray,
+    marginRight: 12,
+  },
+  modalSaveButton: {
+    backgroundColor: APP_COLORS.primary,
+  },
+  modalCancelButtonText: {
+    color: APP_COLORS.gray,
+    fontWeight: 'bold',
+  },
+  modalSaveButtonText: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+  },
+  noDataText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    fontStyle: 'italic',
   },
 });
 

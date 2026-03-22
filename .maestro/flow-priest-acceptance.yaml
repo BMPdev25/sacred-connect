@@ -1,0 +1,38 @@
+appId: host.exp.exponent # Expo Go bundle ID
+---
+# Pre-requisite: A Devotee booking is pending
+- launchApp
+- tapOn:
+    id: "identifier-input"
+- inputText: "9876543210" # Priest Phone
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+
+# Wait for Login API and Dashboard Redirection
+- assertVisible: "Dashboard" # Priest Home Header
+
+# Open the specific pending request
+- extendedWaitUntil:
+    visible: "Ganesh Puja" # Mock data
+    timeout: 10000
+- tapOn: "Ganesh Puja"
+
+# Review the Devotee's Request Details
+- assertVisible:
+    text: "Booking Details"
+- assertVisible:
+    text: "Accept"
+- assertVisible:
+    text: "Reject"
+
+# Accept the Booking
+- tapOn: "Accept"
+
+# Verify Success and redirection back to dashboard
+- extendedWaitUntil:
+    visible: "Dashboard"
+    timeout: 10000
+- assertNotVisible: "Ganesh Puja" # Should disappear from Pending if accepted (moved to upcoming)

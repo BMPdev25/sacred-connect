@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, memo } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,12 +8,46 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
 import { Ionicons } from '@expo/vector-icons';
+import { AvailabilityManager } from '../../../components/AvailabilityManager';
+
+// Memoized booking card component for better list performance
+const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: any; isLarge: boolean }) => (
+    <TouchableOpacity
+        style={cardStyle}
+        onPress={() => router.push({
+            pathname: "/priest/PujaRequestDetails",
+            params: { bookingId: item._id }
+        })}
+        activeOpacity={0.9}
+    >
+        <View style={[styles.timeStripe, isLarge && styles.timeStripeLarge]}>
+            <Text style={[styles.timeText, isLarge && styles.timeTextLarge]}>
+                {item.startTime || item.time || '00:00'}
+            </Text>
+        </View>
+        <View style={[styles.cardContent, isLarge && styles.cardContentCenter]}>
+            <Text style={[styles.ceremonyName, isLarge && styles.textLarge]}>
+                {item.ceremonyType || item.ceremony}
+            </Text>
+            <Text style={[styles.clientName, isLarge && styles.textMedium]}>
+                {item.devoteeId?.name || 'Client'}
+            </Text>
+            <View style={[styles.locationRow, isLarge && { marginTop: 8 }]}>
+                <Ionicons name="location-outline" size={isLarge ? 20 : 14} color={APP_COLORS.gray} />
+                <Text style={[styles.locationText, isLarge && styles.textMedium]} numberOfLines={2}>
+                    {item.location?.address || `${item.location?.city || 'Location'}`}
+                </Text>
+            </View>
+        </View>
+    </TouchableOpacity>
+));
 
 export default function CalendarTab() {
     const { userInfo } = useSelector((state: RootState) => state.auth);
     const [sections, setSections] = useState<any[]>([]);
     const [markedDates, setMarkedDates] = useState<any>({});
     const [loading, setLoading] = useState(false);
+    const [viewMode, setViewMode] = useState<'bookings' | 'availability'>('bookings');
 
     // Default to today
     const today = new Date().toISOString().split('T')[0];
@@ -40,7 +74,7 @@ export default function CalendarTab() {
 
             // Convert to sections array for AgendaList
             // [{ title: '2023-10-22', data: [...] }]
-            const sectionData = Object.keys(grouped).sort().reverse().map(date => ({
+            const sectionData = Object.keys(grouped).sort((a, b) => a.localeCompare(b)).map(date => ({
                 title: date,
                 data: grouped[date]
             }));
@@ -62,42 +96,17 @@ export default function CalendarTab() {
 
     const totalItems = useMemo(() => sections.reduce((acc, s) => acc + s.data.length, 0), [sections]);
 
-    const getCardStyles = useCallback(() => {
+    const cardStyle = useMemo(() => {
         if (totalItems === 1) return [styles.card, styles.cardSingle];
         if (totalItems === 2) return [styles.card, styles.cardDouble];
         return styles.card;
     }, [totalItems]);
 
+    const isLarge = totalItems <= 2;
+
     const renderItem = useCallback(({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={getCardStyles()}
-            onPress={() => router.push({
-                pathname: "/PriestBookingDetails",
-                params: { booking: JSON.stringify(item) }
-            })}
-            activeOpacity={0.9}
-        >
-            <View style={[styles.timeStripe, totalItems <= 2 && styles.timeStripeLarge]}>
-                <Text style={[styles.timeText, totalItems <= 2 && styles.timeTextLarge]}>
-                    {item.startTime || item.time || '00:00'}
-                </Text>
-            </View>
-            <View style={[styles.cardContent, totalItems <= 2 && styles.cardContentCenter]}>
-                <Text style={[styles.ceremonyName, totalItems <= 2 && styles.textLarge]}>
-                    {item.ceremonyType || item.ceremony}
-                </Text>
-                <Text style={[styles.clientName, totalItems <= 2 && styles.textMedium]}>
-                    {item.devoteeId?.name || 'Client'}
-                </Text>
-                <View style={[styles.locationRow, totalItems <= 2 && { marginTop: 8 }]}>
-                    <Ionicons name="location-outline" size={totalItems <= 2 ? 20 : 14} color={APP_COLORS.gray} />
-                    <Text style={[styles.locationText, totalItems <= 2 && styles.textMedium]} numberOfLines={2}>
-                        {item.location?.address || `${item.location?.city || 'Location'}`}
-                    </Text>
-                </View>
-            </View>
-        </TouchableOpacity>
-    ), [getCardStyles, totalItems]);
+        <BookingCard item={item} cardStyle={cardStyle} isLarge={isLarge} />
+    ), [cardStyle, isLarge]);
 
     const theme = useMemo(() => ({
         selectedDayBackgroundColor: APP_COLORS.primary,
@@ -116,37 +125,62 @@ export default function CalendarTab() {
 
     return (
         <View style={styles.container}>
-            <CalendarProvider
-                date={today}
-                showTodayButton
-                theme={theme}
-            >
-                <ExpandableCalendar
-                    firstDay={1}
-                    markedDates={markedDates}
-                    theme={theme}
-                    disablePan={false}
-                    hideKnob={false}
-                    style={styles.calendar}
-                />
+            <View style={styles.headerTabs}>
+                <TouchableOpacity
+                    style={[styles.tab, viewMode === 'bookings' && styles.activeTab]}
+                    onPress={() => setViewMode('bookings')}
+                >
+                    <Text style={[styles.tabText, viewMode === 'bookings' && styles.activeTabText]}>Bookings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={[styles.tab, viewMode === 'availability' && styles.activeTab]}
+                    onPress={() => setViewMode('availability')}
+                >
+                    <Text style={[styles.tabText, viewMode === 'availability' && styles.activeTabText]}>Availability</Text>
+                </TouchableOpacity>
+            </View>
 
-                <View style={styles.listContainer}>
-                    {loading ? (
-                        <ActivityIndicator style={{ marginTop: 20 }} color={APP_COLORS.primary} />
-                    ) : sections.length > 0 ? (
-                        <AgendaList
-                            sections={sections}
-                            renderItem={renderItem}
-                            sectionStyle={styles.sectionHeader}
-                            contentContainerStyle={{ paddingBottom: 100 }}
+            {viewMode === 'bookings' ? (
+                loading ? (
+                    <View style={styles.center}>
+                        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+                    </View>
+                ) : (
+                    <CalendarProvider
+                        date={today}
+                        showTodayButton
+                        theme={theme}
+                        // Add key to force re-render when switching back to this view or when data changes significantly if needed
+                        key={sections.length > 0 ? 'loaded' : 'empty'}
+                    >
+                        <ExpandableCalendar
+                            firstDay={1}
+                            markedDates={markedDates}
+                            theme={theme}
+                            disablePan={false}
+                            hideKnob={false}
+                            style={styles.calendar}
                         />
-                    ) : (
-                        <View style={styles.empty}>
-                            <Text style={styles.emptyText}>No upcoming bookings found.</Text>
+
+                        <View style={styles.listContainer}>
+                            {sections.length > 0 ? (
+                                <AgendaList
+                                    sections={sections}
+                                    renderItem={renderItem}
+                                    sectionStyle={styles.sectionHeader}
+                                    contentContainerStyle={{ paddingBottom: 100 }}
+                                />
+                            ) : (
+                                <View style={styles.empty}>
+                                    <Text style={styles.emptyText}>No upcoming bookings found.</Text>
+                                </View>
+                            )}
                         </View>
-                    )}
-                </View>
-            </CalendarProvider>
+                    </CalendarProvider>
+                )
+            ) : (
+                <AvailabilityManager />
+            )}
         </View>
     );
 }
@@ -155,6 +189,29 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: APP_COLORS.background,
+    },
+    headerTabs: {
+        flexDirection: 'row',
+        padding: 16,
+        gap: 12,
+        backgroundColor: APP_COLORS.white,
+    },
+    tab: {
+        flex: 1,
+        paddingVertical: 10,
+        alignItems: 'center',
+        borderRadius: 8,
+        backgroundColor: APP_COLORS.lightGray + '40',
+    },
+    activeTab: {
+        backgroundColor: APP_COLORS.primary,
+    },
+    tabText: {
+        fontWeight: 'bold',
+        color: APP_COLORS.gray,
+    },
+    activeTabText: {
+        color: APP_COLORS.white,
     },
     calendar: {
         paddingTop: 0, // Ensure no top padding
@@ -266,5 +323,10 @@ const styles = StyleSheet.create({
     emptyText: {
         color: APP_COLORS.gray,
         fontSize: 16,
+    },
+    center: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
     }
 });

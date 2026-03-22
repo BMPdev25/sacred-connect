@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Switch, TextInput, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_COLORS } from '../../../constants/Colors';
@@ -6,18 +6,82 @@ import priestService from '../../../services/priestService';
 import { useFocusEffect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+// Memoized service card to prevent unnecessary re-renders in FlatList
+const ServiceCard = memo(({ item, index, onToggleActive }: {
+    item: any;
+    index: number;
+    onToggleActive: (index: number, currentValue: boolean) => void;
+}) => {
+    const imageUri = item.ceremonyId?.images?.[0]?.url
+        ? (item.ceremonyId.images[0].url.startsWith('http')
+            ? item.ceremonyId.images[0].url
+            : `${process.env.EXPO_PUBLIC_API_URL}${item.ceremonyId.images[0].url}`)
+        : 'https://via.placeholder.com/400x200';
+
+    const navigateToDetail = () => {
+        router.push({
+            pathname: "/priest/(priestScreens)/ServiceDetailScreen",
+            params: { service: JSON.stringify(item) }
+        });
+    };
+
+    return (
+        <TouchableOpacity
+            style={[styles.card, !item.isActive && styles.inactiveCard]}
+            onPress={navigateToDetail}
+            activeOpacity={0.9}
+        >
+            <ImageBackground
+                source={{ uri: imageUri }}
+                style={styles.cardBackground}
+                imageStyle={styles.cardImage}
+            >
+                <View style={styles.cardOverlay}>
+                    <View style={styles.cardHeader}>
+                        <View style={styles.titleContainer}>
+                            <Text style={[styles.serviceName, !item.isActive && styles.inactiveText]}>
+                                {item.ceremonyId?.name || item.name || "Unknown Service"}
+                            </Text>
+                            <Switch
+                                trackColor={{ false: "#767577", true: APP_COLORS.primary }}
+                                thumbColor={APP_COLORS.white}
+                                onValueChange={() => onToggleActive(index, item.isActive)}
+                                value={item.isActive}
+                            />
+                        </View>
+                    </View>
+
+                    <View style={styles.cardBody}>
+                        <View style={styles.priceTag}>
+                            <Text style={styles.priceLabel}>Base Price</Text>
+                            <Text style={styles.priceValue}>₹{item.price}</Text>
+                        </View>
+
+                        <View style={styles.detailButton}>
+                            <Text style={styles.detailButtonText}>Details</Text>
+                            <Ionicons name="arrow-forward" size={16} color={APP_COLORS.white} />
+                        </View>
+                    </View>
+                </View>
+            </ImageBackground>
+        </TouchableOpacity>
+    );
+});
+
+const EmptyList = memo(() => (
+    <View style={styles.empty}>
+        <Text style={styles.emptyText}>No services offered yet.</Text>
+    </View>
+));
+
 export default function ServicesTab() {
     const [services, setServices] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [updating, setUpdating] = useState<string | null>(null); // keeping track of which service is updating
-    const [editingPriceId, setEditingPriceId] = useState<string | null>(null);
-    const [tempPrice, setTempPrice] = useState('');
 
-    const fetchServices = async () => {
+    const fetchServices = useCallback(async () => {
         try {
             setLoading(true);
             const profile = await priestService.getProfile();
-            // Ensure services have an isActive flag if missing (default true)
             const serviceList = (profile.services || []).map((s: any) => ({
                 ...s,
                 isActive: s.isActive !== undefined ? s.isActive : true
@@ -29,155 +93,57 @@ export default function ServicesTab() {
         } finally {
             setLoading(false);
         }
-    };
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
             fetchServices();
-        }, [])
+        }, [fetchServices])
     );
 
-    const handleToggleActive = async (index: number, currentValue: boolean) => {
-        const newServices = [...services];
-        const service = newServices[index];
-        service.isActive = !currentValue;
-        setServices(newServices); // Optimistic update
-
-        try {
-            // Retrieve only necessary fields for update if the API expects partial object 
-            // OR send the whole services array if that's how updateProfile works.
-            // Based on priestService.ts updateProfile takes profileData.
-
-            // We need to strip extra UI fields if any, but currently we just added isActive.
-            // Warning: We are sending the WHOLE service list. This is potentially risky if concurrent edits happen,
-            // but standard for this simple architecture.
-
-            await priestService.updateProfile({ services: newServices });
-        } catch (error) {
-            console.error("Error updating service status", error);
-            Alert.alert("Error", "Failed to update status");
-            // Revert
-            service.isActive = currentValue;
-            setServices([...newServices]);
-        }
-    };
-
-    const startEditingPrice = (id: string, currentPrice: number) => {
-        setEditingPriceId(id);
-        setTempPrice(currentPrice.toString());
-    };
-
-    const savePrice = async (index: number) => {
-        const newServices = [...services];
-        const service = newServices[index];
-        const oldPrice = service.price;
-
-        if (parseFloat(tempPrice) === oldPrice) {
-            setEditingPriceId(null);
-            return;
-        }
-
-        service.price = parseFloat(tempPrice);
-        setServices(newServices);
-        setEditingPriceId(null);
-        setUpdating(service._id || index.toString());
-
-        try {
-            await priestService.updateProfile({ services: newServices });
-        } catch (error) {
-            console.error("Error updating price", error);
-            Alert.alert("Error", "Failed to update price");
-            service.price = oldPrice;
-            setServices([...newServices]);
-        } finally {
-            setUpdating(null);
-        }
-    };
-
-    const renderItem = ({ item, index }: { item: any, index: number }) => {
-        const isEditing = editingPriceId === (item._id || index.toString());
-        const isUpdating = updating === (item._id || index.toString());
-        const serviceId = item._id || index.toString();
-
-        const navigateToDetail = () => {
-            // Pass the item object as a string param
-            router.push({
-                pathname: "/priest/(priestScreens)/ServiceDetailScreen",
-                params: { service: JSON.stringify(item) }
+    const handleToggleActive = useCallback(async (index: number, currentValue: boolean) => {
+        setServices(prev => {
+            const newServices = [...prev];
+            newServices[index] = { ...newServices[index], isActive: !currentValue };
+            // Fire and forget the API call
+            priestService.updateProfile({ services: newServices }).catch((error) => {
+                console.error("Error updating service status", error);
+                Alert.alert("Error", "Failed to update status");
+                // Revert
+                setServices(old => {
+                    const reverted = [...old];
+                    reverted[index] = { ...reverted[index], isActive: currentValue };
+                    return reverted;
+                });
             });
-        };
+            return newServices;
+        });
+    }, []);
 
-        const imageUri = item.ceremonyId?.images?.[0]?.url
-            ? (item.ceremonyId.images[0].url.startsWith('http')
-                ? item.ceremonyId.images[0].url
-                : `${process.env.EXPO_PUBLIC_API_URL}${item.ceremonyId.images[0].url}`)
-            : 'https://via.placeholder.com/400x200';
+    const renderItem = useCallback(({ item, index }: { item: any; index: number }) => (
+        <ServiceCard item={item} index={index} onToggleActive={handleToggleActive} />
+    ), [handleToggleActive]);
 
-        return (
-            <TouchableOpacity
-                style={[styles.card, !item.isActive && styles.inactiveCard]}
-                onPress={navigateToDetail}
-                activeOpacity={0.9}
-            >
-                <ImageBackground
-                    source={{ uri: imageUri }}
-                    style={styles.cardBackground}
-                    imageStyle={styles.cardImage}
-                >
-                    <View style={styles.cardOverlay}>
-                        <View style={styles.cardHeader}>
-                            <View style={styles.titleContainer}>
-                                <Text style={[styles.serviceName, !item.isActive && styles.inactiveText]}>
-                                    {item.ceremonyId?.name || item.name || "Unknown Service"}
-                                </Text>
-                                <Switch
-                                    trackColor={{ false: "#767577", true: APP_COLORS.primary }}
-                                    thumbColor={APP_COLORS.white}
-                                    onValueChange={() => handleToggleActive(index, item.isActive)}
-                                    value={item.isActive}
-                                />
-                            </View>
-                        </View>
-
-                        <View style={styles.cardBody}>
-                            <View style={styles.priceTag}>
-                                <Text style={styles.priceLabel}>Base Price</Text>
-                                <Text style={styles.priceValue}>₹{item.price}</Text>
-                            </View>
-
-                            <View style={styles.detailButton}>
-                                <Text style={styles.detailButtonText}>Details</Text>
-                                <Ionicons name="arrow-forward" size={16} color={APP_COLORS.white} />
-                            </View>
-                        </View>
-                    </View>
-                </ImageBackground>
-            </TouchableOpacity>
-        );
-    };
+    const keyExtractor = useCallback((item: any, index: number) => item._id || index.toString(), []);
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom', 'left', 'right']}>
-
-            {
-                loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator size="large" color={APP_COLORS.primary} />
-                    </View>
-                ) : (
-                    <FlatList
-                        data={services}
-                        renderItem={renderItem}
-                        keyExtractor={(item, index) => item._id || index.toString()}
-                        contentContainerStyle={styles.listContent}
-                        ListEmptyComponent={
-                            <View style={styles.empty}>
-                                <Text style={styles.emptyText}>No services offered yet.</Text>
-                            </View>
-                        }
-                    />
-                )
-            }
+            {loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={APP_COLORS.primary} />
+                </View>
+            ) : (
+                <FlatList
+                    data={services}
+                    renderItem={renderItem}
+                    keyExtractor={keyExtractor}
+                    contentContainerStyle={styles.listContent}
+                    ListEmptyComponent={EmptyList}
+                    removeClippedSubviews
+                    maxToRenderPerBatch={5}
+                    windowSize={5}
+                />
+            )}
 
             {/* Floating Action Button */}
             <TouchableOpacity
@@ -188,7 +154,7 @@ export default function ServicesTab() {
                 <Ionicons name="add" size={30} color={APP_COLORS.white} />
                 <Text style={styles.fabText}>Add New</Text>
             </TouchableOpacity>
-        </SafeAreaView >
+        </SafeAreaView>
     );
 }
 

@@ -25,13 +25,35 @@ import devoteeService from "../../../services/devoteeService";
 
 // Format expiry date as MM/YY
 const formatExpiryDate = (text: string) => {
-  // Remove non-digits
+  // Remove all non-digits
   const cleaned = text.replace(/\D/g, '');
+  
+  // Handle deletion - if user is deleting and cleaned is shorter
+  if (cleaned.length === 0) {
+    return '';
+  }
+  
+  // Validate month (first 2 digits should be 01-12)
+  let month = cleaned.slice(0, 2);
+  if (month.length === 1 && parseInt(month) > 1) {
+    // If first digit is > 1, prepend with 0 (e.g., 3 becomes 03)
+    month = '0' + month;
+  } else if (month.length === 2) {
+    const monthNum = parseInt(month);
+    if (monthNum > 12) {
+      month = '12';
+    } else if (monthNum === 0) {
+      month = '01';
+    }
+  }
+  
   // Format as MM/YY
   if (cleaned.length >= 2) {
-    return cleaned.slice(0, 2) + '/' + cleaned.slice(2, 4);
+    const year = cleaned.slice(2, 4);
+    return month + '/' + year;
   }
-  return cleaned;
+  
+  return month.slice(0, cleaned.length);
 };
 
 const Payment: React.FC = () => {
@@ -105,27 +127,29 @@ const Payment: React.FC = () => {
         basePrice: bookingDetails.basePrice,
         platformFee: bookingDetails.platformFee,
         totalAmount: bookingDetails.totalAmount,
+        status: "requested", // Important: Set initial status to requested, not confirmed
         ...paymentDetails,
       };
       console.log("Booking Data to be sent:", bookingData);
 
       // Create booking via API
-      const createdBooking = await devoteeService.createBooking(bookingData);
+      const response = await devoteeService.createBooking(bookingData);
+      const createdBooking = response.data || response;
 
       // Refresh bookings in Redux store
       dispatch(getBookings());
 
       setIsProcessing(false);
 
-      // Navigate to confirmation screen with actual booking data
+      // Navigate to confirmation screen with Booking ID
       router.push({
         pathname: "/BookingConfirmation",
-        params: {
-          booking: JSON.stringify({
-            ...createdBooking,
-            priestName: bookingDetails.priestName,
-            priestImage: bookingDetails.priestImage,
-          }),
+        params: { 
+          bookingId: createdBooking._id || createdBooking.id,
+          // We still pass names for immediate display if needed, but the refactored 
+          // confirmation screen will fetch the source of truth using bookingId.
+          priestName: bookingDetails.priestName,
+          priestImage: bookingDetails.priestImage,
         },
       });
     } catch (error: unknown) {

@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useLocalSearchParams } from "expo-router";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Image,
   Linking,
@@ -9,14 +9,22 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { APP_COLORS } from "../../../constants/Colors";
+import { useQuery } from "@tanstack/react-query";
+import devoteeService from "../../../services/devoteeService";
+import { schedulePujaReminder } from "../../../utils/notificationUtils";
+import { getImageUri } from "../../../utils/imageUtils";
 
-const BookingDetailsScreen: React.FC = () => {
+export default function BookingDetailsScreen() {
   // Helper functions
   const formatDate = (dateStr: string) => {
     if (!dateStr) return "-";
@@ -31,12 +39,18 @@ const BookingDetailsScreen: React.FC = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
+      case "requested":
+        return "Pending Acceptance";
       case "pending":
-        return "Pending";
+        return "Payment Pending";
       case "confirmed":
         return "Confirmed";
       case "completed":
         return "Completed";
+      case "arrived":
+        return "Priest Arrived";
+      case "in_progress":
+        return "In Progress";
       case "cancelled":
         return "Cancelled";
       default:
@@ -46,12 +60,18 @@ const BookingDetailsScreen: React.FC = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "requested":
+        return APP_COLORS.warning;
       case "confirmed":
         return APP_COLORS.success;
       case "pending":
         return APP_COLORS.warning;
       case "completed":
         return APP_COLORS.info;
+      case "arrived":
+        return APP_COLORS.info;
+      case "in_progress":
+        return APP_COLORS.primary;
       case "cancelled":
         return APP_COLORS.error;
       default:
@@ -60,31 +80,181 @@ const BookingDetailsScreen: React.FC = () => {
   };
 
   const params = useLocalSearchParams();
-  let booking: any = null;
-  if (params.booking) {
-    try {
-      booking =
-        typeof params.booking === "string"
-          ? JSON.parse(params.booking)
-          : params.booking;
-    } catch {
-      booking = params.booking;
-    }
-  }
-  console.log("booking details: ", booking);
-  const loading = false;
+  const { bookingId: queryBookingId, booking: stringifiedBooking } = params;
 
-  const handleCallDevotee = () => {
-    const phone = booking?.devotee?.phone;
+  // 1. Initial booking from params
+  const [booking, setBooking] = useState<any>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (stringifiedBooking && typeof stringifiedBooking === 'string') {
+      try {
+        const parsed = JSON.parse(stringifiedBooking);
+        setBooking(parsed);
+      } catch (err) {
+        console.error("Failed to parse booking param", err);
+      }
+    } else if (stringifiedBooking) {
+      setBooking(stringifiedBooking);
+    }
+  }, [stringifiedBooking]);
+
+  // 2. Fetch booking
+  const { 
+    data: fetchedBooking, 
+    isLoading: isFetching,
+    error: fetchError,
+    refetch
+  } = useQuery({
+    queryKey: ['booking', queryBookingId],
+    queryFn: async () => {
+      const resp = await devoteeService.getBookingDetails(queryBookingId as string);
+      return resp;
+    },
+    enabled: !!queryBookingId,
+    // Refetch every 10 seconds if booking is active (not terminal)
+    refetchInterval: (query: any) => {
+      const status = query?.state?.data?.status || booking?.status;
+      return (status && !['completed', 'cancelled'].includes(status)) ? 10000 : false;
+    }
+  });
+
+  // Refetch when screen focused
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+    }, [refetch])
+  );
+
+  // 3. Update state when fetched
+  useEffect(() => {
+    if (fetchedBooking) {
+      setBooking(fetchedBooking);
+    }
+  }, [fetchedBooking]);
+
+  const loading = isFetching && !booking;
+
+  const [countdown, setCountdown] = useState<string | null>(null);
+  useEffect(() => {
+    if (!booking?.date) return;
+    
+    const update = () => {
+      const now = new Date().getTime();
+      
+      // Combine date and startTime for accurate target
+      const target = new Date(booking.date);
+      if (booking.startTime) {
+        const [hours, minutes] = booking.startTime.split(':').map(Number);
+        target.setHours(hours, minutes, 0, 0);
+      } else {
+        target.setHours(0, 0, 0, 0);
+      }
+      
+      const diff = target.getTime() - now;
+      if (diff <= 0) { 
+        setCountdown(null); 
+        return; 
+      }
+      
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      let text = '';
+      if (days > 0) text += `${days} day${days > 1 ? 's' : ''} `;
+      if (hours > 0) text += `${hours} hr${hours > 1 ? 's' : ''} `;
+      text += `${mins} min${mins > 1 ? 's' : ''}`;
+      
+      setCountdown(text.trim());
+    };
+    
+    update();
+    const id = setInterval(update, 60000); // Update every minute
+    return () => clearInterval(id);
+  }, [booking?.date, booking?.startTime]);
+
+  // Schedule local reminder for confirmed bookings
+  useEffect(() => {
+    if (booking?.status === "confirmed" && booking?.date && booking?.startTime) {
+      schedulePujaReminder(
+        booking._id || booking.id,
+        booking.ceremony?.name || booking.ceremonyType || "Puja",
+        booking.date,
+        booking.startTime,
+        120 // 2 hours before
+      );
+    }
+  }, [booking?.status, booking?._id, booking?.date, booking?.startTime]);
+
+  const handleCancelBooking = async () => {
+    if (!booking) return;
+
+    const now = new Date().getTime();
+    const target = new Date(booking.date);
+    const [hours, minutes] = (booking.startTime || '00:00').split(':').map(Number);
+    target.setHours(hours, minutes, 0, 0);
+
+    const diffHours = (target.getTime() - now) / (1000 * 60 * 60);
+
+    let warningMessage = "Are you sure you want to cancel this booking?";
+    let subMessage = "";
+
+    if (diffHours > 72) {
+      subMessage = "Cancellation policy: Full refund applies as you are cancelling more than 72 hours in advance.";
+    } else if (diffHours >= 24) {
+      subMessage = "Cancellation policy: You will be refunded the base price, but the platform fee will be retained as a late cancellation fee.";
+    } else {
+      subMessage = "Cancellation policy: Cancellations within 24 hours are non-refundable. The amount will be processed as compensation for the priest.";
+    }
+    if (booking.status === "requested") {
+      subMessage = "Cancellation policy: Since the priest hasn't accepted yet, you will receive a full refund.";
+    }
+
+    if (booking.status === "arrived" || booking.status === "in_progress") {
+      subMessage = "Important: The priest has already arrived or started the ritual. Cancellation at this stage is non-refundable and may affect your reliability score significantly.";
+    }
+
+    Alert.alert(
+      "Cancel Booking",
+      `${warningMessage}\n\n${subMessage}`,
+      [
+        { text: "Keep Booking", style: "cancel" },
+        { 
+          text: "Yes, Cancel", 
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setIsUpdating(true);
+              await devoteeService.cancelBooking(booking._id || booking.id, { reason: "Cancelled by devotee" });
+              Alert.alert("Success", "Booking cancelled successfully.");
+              router.push("/devotee/BookingsTab");
+            } catch (err: any) {
+              Alert.alert("Error", err || "Failed to cancel booking.");
+            } finally {
+              setIsUpdating(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleCallPriest = () => {
+    const phone = booking?.priestId?.phone || (typeof booking?.priestId === 'object' ? booking?.priestId?.userId?.phone : null);
     if (phone) {
       Linking.openURL(`tel:${phone}`);
+    } else {
+      Alert.alert("Error", "Priest's phone number not available.");
     }
   };
 
-  const handleMessageDevotee = () => {
-    const phone = booking?.devotee?.phone;
+  const handleMessagePriest = () => {
+    const phone = booking?.priestId?.phone || (typeof booking?.priestId === 'object' ? booking?.priestId?.userId?.phone : null);
     if (phone) {
       Linking.openURL(`sms:${phone}`);
+    } else {
+      Alert.alert("Error", "Priest's phone number not available.");
     }
   };
 
@@ -160,9 +330,11 @@ const BookingDetailsScreen: React.FC = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
           <View style={styles.ceremonyCard}>
-            {booking?.ceremony?.image && (
+            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url || booking?.ceremonyType) && (
               <Image
-                source={{ uri: booking.ceremony.image }}
+                source={{ 
+                  uri: getImageUri(booking.ceremony?.image || booking.ceremony?.images?.[0] || booking.ceremony) 
+                }}
                 style={styles.ceremonyImage}
               />
             )}
@@ -171,16 +343,98 @@ const BookingDetailsScreen: React.FC = () => {
                 {booking?.ceremony?.name || booking?.ceremonyType || "-"}
               </Text>
               <Text style={styles.ceremonyType}>
-                {booking?.ceremony?.type || "Ceremony"}
+                {booking?.ceremonyDetails?.category || booking?.ceremony?.type || "Ceremony"}
               </Text>
-              {booking?.ceremony?.duration && (
+              {(booking?.ceremonyDetails?.duration || booking?.ceremony?.duration) && (
                 <Text style={styles.ceremonyDuration}>
-                  Duration: {booking.ceremony.duration}
+                  Duration: {booking.ceremonyDetails?.duration?.typical || booking.ceremony?.duration} min
                 </Text>
               )}
             </View>
           </View>
         </View>
+
+        {/* Samagri (Materials) List */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="leaf-outline" size={18} color={APP_COLORS.primary} /> Samagri (Materials Required)
+            </Text>
+            <View style={styles.samagriCard}>
+              {booking.ceremonyDetails.materials && booking.ceremonyDetails.materials.length > 0 ? (
+                booking.ceremonyDetails.materials.map((item: any, index: number) => (
+                  <View key={index} style={styles.samagriItem}>
+                    <View style={styles.samagriDot} />
+                    <View style={styles.samagriContent}>
+                      <Text style={styles.samagriName}>
+                        {item.name}
+                        {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
+                      </Text>
+                      <Text style={styles.samagriMeta}>
+                        Qty: {item.quantity}
+                        {item.providedBy ? ` · By ${item.providedBy}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noInfoText}>No specific materials list available for this ceremony.</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Ritual Steps */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="list-outline" size={18} color={APP_COLORS.primary} /> Ritual Steps
+            </Text>
+            <View style={styles.stepsCard}>
+              {booking.ceremonyDetails.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 ? (
+                booking.ceremonyDetails.ritualSteps
+                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
+                  .map((step: any, index: number) => (
+                    <View key={index} style={styles.stepItem}>
+                      <View style={styles.stepCircle}>
+                        <Text style={styles.stepNum}>{step.stepNumber}</Text>
+                      </View>
+                      <View style={styles.stepInfo}>
+                        <Text style={styles.stepTitle}>{step.title}</Text>
+                        <Text style={styles.stepDesc}>{step.description}</Text>
+                        {step.durationEstimate && (
+                          <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
+                        )}
+                      </View>
+                    </View>
+                  ))
+              ) : (
+                <Text style={styles.noInfoText}>Standard ritual steps haven't been added yet.</Text>
+              )}
+            </View>
+          </View>
+        )}
+
+        {/* Special Instructions */}
+        {booking?.ceremonyDetails && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              <Ionicons name="alert-circle-outline" size={18} color={APP_COLORS.warning} /> Special Instructions
+            </Text>
+            <View style={styles.instructionsCard}>
+              {booking.ceremonyDetails.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 ? (
+                booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
+                  <View key={index} style={styles.instrItem}>
+                    <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
+                    <Text style={styles.instrText}>{instr}</Text>
+                  </View>
+                ))
+              ) : (
+                <Text style={styles.noInfoText}>No special instructions for this ceremony.</Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Date & Time */}
         <View style={styles.section}>
@@ -203,35 +457,54 @@ const BookingDetailsScreen: React.FC = () => {
           </View>
         </View>
 
-        {/* Devotee Details */}
-        {booking?.devotee && (
+        {/* Countdown Timer */}
+        {countdown && (booking?.status === "pending" || booking?.status === "confirmed") && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Devotee Information</Text>
+            <View style={styles.countdownCard}>
+              <Ionicons name="timer-outline" size={20} color={APP_COLORS.primary} />
+              <View style={{ marginLeft: 10, flex: 1 }}>
+                <Text style={styles.countdownLabel}>Starts in</Text>
+                <Text style={styles.countdownValue}>{countdown}</Text>
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Priest Information */}
+        {booking?.priestId && typeof booking.priestId === 'object' && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Priest Information</Text>
             <View style={styles.devoteeCard}>
-              {booking.devotee.image && (
+              {booking.priestId.profilePicture || booking.priestId.userId?.profilePicture ? (
                 <Image
-                  source={{ uri: booking.devotee.image }}
+                  source={{ 
+                    uri: getImageUri(booking.priestId.profilePicture || booking.priestId.userId?.profilePicture) 
+                  }}
                   style={styles.devoteeImage}
                 />
+              ) : (
+                <View style={[styles.devoteeImage, { backgroundColor: APP_COLORS.lightGray, justifyContent: 'center', alignItems: 'center' }]}>
+                  <Ionicons name="person" size={24} color={APP_COLORS.gray} />
+                </View>
               )}
               <View style={styles.devoteeInfo}>
                 <Text style={styles.devoteeName}>
-                  {booking.devotee.name || "-"}
+                  {booking.priestId.name || booking.priestId.userId?.name || "-"}
                 </Text>
                 <Text style={styles.devoteeEmail}>
-                  {booking.devotee.email || "-"}
+                  {booking.priestId.email || booking.priestId.userId?.email || "-"}
                 </Text>
               </View>
               <View style={styles.contactButtons}>
                 <TouchableOpacity
                   style={styles.contactButton}
-                  onPress={handleCallDevotee}
+                  onPress={handleCallPriest}
                 >
                   <Ionicons name="call" size={18} color={APP_COLORS.white} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.contactButton}
-                  onPress={handleMessageDevotee}
+                  onPress={handleMessagePriest}
                 >
                   <Ionicons
                     name="chatbubble"
@@ -323,25 +596,24 @@ const BookingDetailsScreen: React.FC = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionButtons}>
-          {booking?.status === "pending" && (
-            <>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.confirmButton]}
-                onPress={() => {
-                  /* handleUpdateStatus('confirmed') */
-                }}
-              >
-                <Text style={styles.actionButtonText}>Confirm Booking</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.cancelButton]}
-                onPress={() => {
-                  /* handleUpdateStatus('cancelled') */
-                }}
-              >
-                <Text style={styles.actionButtonText}>Cancel Booking</Text>
-              </TouchableOpacity>
-            </>
+          {(booking?.status === "requested" ||
+            booking?.status === "pending" || 
+            booking?.status === "confirmed" || 
+            booking?.status === "arrived" || 
+            booking?.status === "in_progress") && (
+            <TouchableOpacity
+              style={[
+                styles.actionButton, 
+                styles.cancelButton,
+                isUpdating && { opacity: 0.5 }
+              ]}
+              onPress={handleCancelBooking}
+              disabled={isUpdating}
+            >
+              <Text style={styles.actionButtonText}>
+                {isUpdating ? "Cancelling..." : "Cancel Booking"}
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 
@@ -588,6 +860,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 700 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   loadingContainer: {
     flex: 1,
@@ -658,6 +933,24 @@ const styles = StyleSheet.create({
     color: APP_COLORS.primary,
     fontWeight: "bold",
   },
+  countdownCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: APP_COLORS.primary + "10",
+    borderRadius: 12,
+    padding: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.primary,
+  },
+  countdownLabel: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+  },
+  countdownValue: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: APP_COLORS.primary,
+  },
   detailLabel: {
     fontSize: 14,
     color: APP_COLORS.gray,
@@ -671,6 +964,117 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     fontWeight: "bold",
   },
+  // Samagri Styles
+  samagriCard: {
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  samagriItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8,
+  },
+  samagriDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: APP_COLORS.primary,
+    marginTop: 6,
+    marginRight: 10,
+  },
+  samagriContent: {
+    flex: 1,
+  },
+  samagriName: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    fontWeight: "600",
+  },
+  optionalBadge: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    fontWeight: "normal",
+  },
+  samagriMeta: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+    marginTop: 2,
+  },
+  // Ritual Steps Styles
+  stepsCard: {
+    backgroundColor: APP_COLORS.background,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+  },
+  stepItem: {
+    flexDirection: "row",
+    marginBottom: 14,
+  },
+  stepCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: APP_COLORS.primary + "15",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    marginTop: 2,
+  },
+  stepNum: {
+    color: APP_COLORS.primary,
+    fontWeight: "bold",
+    fontSize: 14,
+  },
+  stepInfo: {
+    flex: 1,
+  },
+  stepTitle: {
+    fontSize: 15,
+    fontWeight: "600",
+    color: APP_COLORS.black,
+    marginBottom: 2,
+  },
+  stepDesc: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+    lineHeight: 18,
+  },
+  stepDur: {
+    fontSize: 12,
+    color: APP_COLORS.info,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  // Special Instructions Styles
+  instructionsCard: {
+    backgroundColor: APP_COLORS.warning + "10",
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: APP_COLORS.warning,
+  },
+  instrItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 6,
+  },
+  instrText: {
+    fontSize: 14,
+    color: APP_COLORS.black,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 20,
+  },
+  noInfoText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    fontStyle: "italic",
+    paddingVertical: 10,
+    textAlign: "center",
+  },
 });
-
-export default BookingDetailsScreen;

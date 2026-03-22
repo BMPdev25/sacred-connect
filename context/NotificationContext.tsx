@@ -2,6 +2,7 @@ import React, { createContext, useState, useContext, useEffect, ReactNode } from
 import { useSelector } from 'react-redux';
 import { RootState } from '../redux/store';
 import priestService from '../services/priestService';
+import api from '../api';
 
 interface Notification {
     id: string;
@@ -32,8 +33,33 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
         if (!userInfo?._id) return;
 
         try {
-            const bookings = await priestService.getBookings(userInfo._id);
-            const allBookings = Array.isArray(bookings) ? bookings : bookings?.data || [];
+            let allBookings: any[] = [];
+            let dbNotifications: any[] = [];
+
+            if ((userInfo as any).userType === 'priest') {
+                // Priest: fetch bookings AND db notifications in parallel
+                const [bookings, dbNotifs] = await Promise.all([
+                    priestService.getBookings(userInfo._id),
+                    priestService.getNotifications(userInfo._id)
+                ]);
+                allBookings = Array.isArray(bookings) ? bookings : bookings?.data || [];
+                dbNotifications = Array.isArray(dbNotifs) ? dbNotifs : dbNotifs?.data || [];
+            } else {
+                // Devotee: fetch bookings AND db notifications in parallel
+                const [bookingsRes, dbNotifRes] = await Promise.allSettled([
+                    api.get('/api/devotee/bookings'),
+                    api.get('/api/devotee/notifications'),
+                ]);
+                if (bookingsRes.status === 'fulfilled') {
+                    const d = bookingsRes.value.data;
+                    allBookings = Array.isArray(d) ? d : d?.data || [];
+                }
+                if (dbNotifRes.status === 'fulfilled') {
+                    dbNotifications = Array.isArray(dbNotifRes.value.data)
+                        ? dbNotifRes.value.data
+                        : [];
+                }
+            }
 
             const generatedNotifications: Notification[] = [];
 
@@ -42,7 +68,9 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
             pendingBookings.forEach((b: any) => {
                 generatedNotifications.push({
                     id: `notif-${b._id || b.id}`,
-                    message: `New booking request from ${b.devoteeId?.name || b.devotee || "Devotee"}`,
+                    message: (userInfo as any).userType === 'priest'
+                        ? `New booking request from ${b.devoteeId?.name || b.devotee || "Devotee"}`
+                        : `Your ${b.ceremonyType || 'booking'} is pending confirmation`,
                     read: false,
                     type: "booking",
                     data: b,
@@ -77,6 +105,20 @@ export const NotificationProvider: React.FC<{ children: ReactNode }> = ({ childr
                     type: "booking",
                     data: b,
                 });
+            });
+
+            // 3. DB-backed notifications (accept/reject events, reminders, etc.)
+            dbNotifications.forEach((n: any) => {
+                const alreadyExists = generatedNotifications.some(g => g.id === `db-${n._id}`);
+                if (!alreadyExists) {
+                    generatedNotifications.unshift({
+                        id: `db-${n._id}`,
+                        message: n.message,
+                        read: n.read || false,
+                        type: n.type || 'booking',
+                        data: n,
+                    });
+                }
             });
 
             setNotifications(generatedNotifications);

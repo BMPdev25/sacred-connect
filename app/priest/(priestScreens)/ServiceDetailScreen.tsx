@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
-    View, Text, StyleSheet, ScrollView, Image, TouchableOpacity,
-    TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform
+    View, Text, StyleSheet, Image, TouchableOpacity,
+    TextInput, Alert, ActivityIndicator, Platform, Modal
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useLocalSearchParams, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,14 +13,30 @@ import priestService from '../../../services/priestService';
 export default function ServiceDetailScreen() {
     const params = useLocalSearchParams();
     const serviceJson = typeof params.service === 'string' ? params.service : '{}';
-    const initialService = JSON.parse(serviceJson);
+    const initialService = React.useMemo(() => JSON.parse(serviceJson), [serviceJson]);
 
     // Form State
     const [price, setPrice] = useState(initialService.price?.toString() || '');
     const [requirements, setRequirements] = useState<string[]>(initialService.requirements || []);
+    const [customRitualSteps, setCustomRitualSteps] = useState<any[]>(initialService.customSteps || []);
     const [newRequirement, setNewRequirement] = useState('');
     const [loading, setLoading] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+
+    // Modal State for custom ritual step
+    const [showAddStepModal, setShowAddStepModal] = useState(false);
+    const [newStepTitle, setNewStepTitle] = useState('');
+    const [newStepDesc, setNewStepDesc] = useState('');
+    const [newStepCharge, setNewStepCharge] = useState('');
+
+    // Reset state when navigating to a different service
+    useEffect(() => {
+        setPrice(initialService.price?.toString() || '');
+        setRequirements(initialService.requirements || []);
+        setCustomRitualSteps(initialService.customSteps || []);
+        setNewRequirement('');
+        setHasChanges(false);
+    }, [initialService]);
 
     // Ceremony Details (read-only from ceremonyId)
     const ceremony = initialService.ceremonyId || {};
@@ -39,6 +56,31 @@ export default function ServiceDetailScreen() {
         setHasChanges(true);
     };
 
+    const handleAddCustomStep = () => {
+        if (!newStepTitle.trim() || !newStepDesc.trim()) {
+            Alert.alert("Missing Information", "Please enter both title and description.");
+            return;
+        }
+        const newStep = {
+            title: newStepTitle.trim(),
+            description: newStepDesc.trim(),
+            additionalCharge: parseFloat(newStepCharge) || 0,
+        };
+        setCustomRitualSteps([...customRitualSteps, newStep]);
+        setNewStepTitle('');
+        setNewStepDesc('');
+        setNewStepCharge('');
+        setShowAddStepModal(false);
+        setHasChanges(true);
+    };
+
+    const handleRemoveCustomStep = (index: number) => {
+        const updated = [...customRitualSteps];
+        updated.splice(index, 1);
+        setCustomRitualSteps(updated);
+        setHasChanges(true);
+    };
+
     const handleSave = async () => {
         if (!price || isNaN(parseFloat(price))) {
             Alert.alert("Invalid Input", "Please enter a valid price");
@@ -51,23 +93,32 @@ export default function ServiceDetailScreen() {
             const services = profile.services || [];
 
             // Find and update the specific service
-            // We match by _id or ceremonyId._id if _id is missing on local copy
-            const updatedServices = services.map((s: any) => {
-                const sId = s._id || s.ceremonyId?._id;
-                const targetId = initialService._id || initialService.ceremonyId?._id;
+            const getCeremonyId = (service: any) => {
+                if (service.ceremonyId && typeof service.ceremonyId === 'object') {
+                    return service.ceremonyId._id?.toString() || service.ceremonyId.toString();
+                }
+                return service.ceremonyId?.toString();
+            };
 
-                if (sId === targetId) {
+            const targetCeremonyId = getCeremonyId(initialService);
+
+            const updatedServices = services.map((s: any) => {
+                const serviceCeremonyId = getCeremonyId(s);
+
+                if (serviceCeremonyId === targetCeremonyId) {
                     return {
                         ...s,
                         price: parseFloat(price),
-                        requirements: requirements
+                        requirements: requirements,
+                        customSteps: customRitualSteps
                     };
                 }
                 return s;
             });
 
             await priestService.updateProfile({ services: updatedServices });
-            router.push("/priest/(tabs)/ServicesTab");
+            setHasChanges(false); 
+            Alert.alert("Success", "Changes saved successfully!");
         } catch (error: any) {
             console.error("Update error:", error);
             Alert.alert("Error", error.message || "Failed to update service");
@@ -78,7 +129,13 @@ export default function ServiceDetailScreen() {
 
     return (
         <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
+            <KeyboardAwareScrollView
+                contentContainerStyle={styles.scrollContent}
+                keyboardShouldPersistTaps="handled"
+                enableOnAndroid={true}
+                extraScrollHeight={200}
+                extraHeight={150}
+            >
                 {/* Hero Image - Taller & Clean */}
                 <Image
                     source={{ uri: imageUri }}
@@ -105,7 +162,70 @@ export default function ServiceDetailScreen() {
                         {ceremony.description || "No description available for this ceremony."}
                     </Text>
 
+                    {/* Ritual Steps - DEFAULT (Read-Only) */}
+                    <View style={styles.divider} />
+                    <Text style={styles.sectionHeader}>📋 What This Puja Includes</Text>
+                    <Text style={styles.helperText}>Default steps defined for this ceremony (Read-only)</Text>
+                    
+                    <View style={styles.ritualStepsList}>
+                        {ceremony.ritualSteps && ceremony.ritualSteps.length > 0 ? (
+                            ceremony.ritualSteps.map((step: any, idx: number) => (
+                                <View key={idx} style={styles.ritualStepItem}>
+                                    <View style={styles.stepBadge}>
+                                        <Text style={styles.stepBadgeText}>{step.stepNumber}</Text>
+                                    </View>
+                                    <View style={{ flex: 1, marginLeft: 12 }}>
+                                        <Text style={styles.ritualStepTitle}>{step.title}</Text>
+                                        <Text style={styles.ritualStepDesc}>{step.description}</Text>
+                                    </View>
+                                </View>
+                            ))
+                        ) : (
+                            <Text style={styles.description}>No default ritual steps defined.</Text>
+                        )}
+                    </View>
+
+                    {/* Custom Steps - EDITABLE */}
+                    <View style={styles.sectionHeaderRow}>
+                        <Text style={styles.sectionHeader}>✨ Your Custom Inclusions</Text>
+                        <TouchableOpacity style={styles.addStepIconBtn} onPress={() => setShowAddStepModal(true)}>
+                            <Ionicons name="add-circle" size={28} color={APP_COLORS.primary} />
+                        </TouchableOpacity>
+                    </View>
+                    <Text style={styles.helperText}>Add your unique offerings or extra steps for this puja.</Text>
+
+                    <View style={styles.customStepsList}>
+                        {customRitualSteps.length > 0 ? (
+                            customRitualSteps.map((step, idx) => (
+                                <View key={idx} style={styles.customStepItem}>
+                                    <View style={{ flex: 1 }}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                            <Text style={styles.ritualStepTitle}>{step.title}</Text>
+                                            {step.additionalCharge > 0 && (
+                                                <View style={styles.chargeBadge}>
+                                                    <Text style={styles.chargeBadgeText}>+ ₹{step.additionalCharge}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        <Text style={styles.ritualStepDesc}>{step.description}</Text>
+                                    </View>
+                                    <TouchableOpacity onPress={() => handleRemoveCustomStep(idx)} style={{ padding: 8 }}>
+                                        <Ionicons name="trash-outline" size={20} color={APP_COLORS.error} />
+                                    </TouchableOpacity>
+                                </View>
+                            ))
+                        ) : (
+                            <TouchableOpacity style={styles.emptyCustomStep} onPress={() => setShowAddStepModal(true)}>
+                                <Ionicons name="sparkles-outline" size={24} color={APP_COLORS.primary} />
+                                <Text style={styles.emptyCustomText}>Add your first custom service step</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+
+                    <View style={styles.divider} />
+
                     {/* Space & Participants Info */}
+                    <Text style={styles.sectionHeader}>Logistics</Text>
                     <View style={styles.infoCard}>
                         {ceremony.requirements?.spaceRequirements && (
                             <View style={styles.infoRow}>
@@ -134,8 +254,8 @@ export default function ServiceDetailScreen() {
                     <View style={styles.divider} />
 
                     {/* Pricing Edit */}
-                    <Text style={styles.sectionHeader}>Your Pricing</Text>
-                    <Text style={styles.helperText}>Set your base price for this service.</Text>
+                    <Text style={styles.sectionHeader}>Your Base Pricing</Text>
+                    <Text style={styles.helperText}>Set your base price for this service. Custom additions can have separate charges.</Text>
                     <View style={styles.inputContainer}>
                         <Text style={styles.currency}>₹</Text>
                         <TextInput
@@ -172,7 +292,7 @@ export default function ServiceDetailScreen() {
                     </View>
 
                     {/* Requirements Edit */}
-                    <Text style={styles.sectionHeader}>Your Additional Requirements</Text>
+                    <Text style={styles.sectionHeader}>Your Additional Item Requirements</Text>
                     <Text style={styles.helperText}>Add any extra items you need the devotee to arrange.</Text>
 
                     <View style={styles.addReqRow}>
@@ -200,7 +320,63 @@ export default function ServiceDetailScreen() {
                         ))}
                     </View>
                 </View>
-            </ScrollView>
+            </KeyboardAwareScrollView>
+
+            {/* Add Custom Step Modal */}
+            <Modal
+                visible={showAddStepModal}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowAddStepModal(false)}
+            >
+                <TouchableOpacity 
+                    style={styles.modalOverlay} 
+                    activeOpacity={1} 
+                    onPress={() => setShowAddStepModal(false)}
+                >
+                    <View style={styles.modalContent} onStartShouldSetResponder={() => true}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Add Custom Step</Text>
+                            <TouchableOpacity onPress={() => setShowAddStepModal(false)}>
+                                <Ionicons name="close" size={24} color={APP_COLORS.black} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <Text style={styles.inputLabel}>Step Title</Text>
+                        <TextInput
+                            style={styles.modalInput}
+                            value={newStepTitle}
+                            onChangeText={setNewStepTitle}
+                            placeholder="e.g., Special Mahadeeparadhana"
+                        />
+
+                        <Text style={styles.inputLabel}>Description</Text>
+                        <TextInput
+                            style={[styles.modalInput, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+                            value={newStepDesc}
+                            onChangeText={setNewStepDesc}
+                            placeholder="Describe what this step includes..."
+                            multiline
+                        />
+
+                        <Text style={styles.inputLabel}>Extra Charge (Optional)</Text>
+                        <View style={styles.chargeInputContainer}>
+                            <Text style={styles.currencyPrefix}>₹</Text>
+                            <TextInput
+                                style={styles.chargeInput}
+                                value={newStepCharge}
+                                onChangeText={setNewStepCharge}
+                                placeholder="0"
+                                keyboardType="numeric"
+                            />
+                        </View>
+
+                        <TouchableOpacity style={styles.modalAddBtn} onPress={handleAddCustomStep}>
+                            <Text style={styles.modalAddBtnText}>Add to Ritual</Text>
+                        </TouchableOpacity>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             {/* Bottom Save Bar - only show when there are changes */}
             {hasChanges && (
@@ -436,6 +612,166 @@ const styles = StyleSheet.create({
     saveText: {
         color: 'white',
         fontSize: 18,
+        fontWeight: 'bold',
+    },
+    // Ritual Steps Styles
+    ritualStepsList: {
+        marginTop: 12,
+        gap: 16,
+    },
+    ritualStepItem: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    stepBadge: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: APP_COLORS.saffronLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 2,
+    },
+    stepBadgeText: {
+        fontSize: 12,
+        fontWeight: 'bold',
+        color: APP_COLORS.saffron,
+    },
+    ritualStepTitle: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: APP_COLORS.black,
+        marginBottom: 4,
+    },
+    ritualStepDesc: {
+        fontSize: 14,
+        color: APP_COLORS.gray,
+        lineHeight: 20,
+    },
+    sectionHeaderRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 24,
+        marginBottom: 8,
+    },
+    addStepIconBtn: {
+        padding: 4,
+    },
+    customStepsList: {
+        marginTop: 8,
+        gap: 12,
+    },
+    customStepItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FDF7F0',
+        padding: 12,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#FFE8D1',
+    },
+    chargeBadge: {
+        backgroundColor: APP_COLORS.primary,
+        paddingHorizontal: 8,
+        paddingVertical: 2,
+        borderRadius: 10,
+        marginLeft: 8,
+    },
+    chargeBadgeText: {
+        color: 'white',
+        fontSize: 11,
+        fontWeight: 'bold',
+    },
+    emptyCustomStep: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        backgroundColor: '#F8F9FA',
+        borderRadius: 12,
+        borderStyle: 'dashed',
+        borderWidth: 1,
+        borderColor: APP_COLORS.lightGray,
+        gap: 10,
+    },
+    emptyCustomText: {
+        fontSize: 14,
+        color: APP_COLORS.gray,
+        fontWeight: '500',
+    },
+    // Modal Styles
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        justifyContent: 'flex-end',
+    },
+    modalContent: {
+        backgroundColor: 'white',
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
+        padding: 24,
+        paddingBottom: Platform.OS === 'ios' ? 40 : 24,
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 24,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: 'bold',
+        color: APP_COLORS.black,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: APP_COLORS.black,
+        marginBottom: 8,
+        marginTop: 16,
+    },
+    modalInput: {
+        borderWidth: 1,
+        borderColor: APP_COLORS.lightGray,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        fontSize: 16,
+        backgroundColor: '#FAFAFA',
+    },
+    chargeInputContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: APP_COLORS.lightGray,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        backgroundColor: '#FAFAFA',
+        height: 50,
+    },
+    currencyPrefix: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: APP_COLORS.gray,
+        marginRight: 8,
+    },
+    chargeInput: {
+        flex: 1,
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    modalAddBtn: {
+        backgroundColor: APP_COLORS.primary,
+        height: 50,
+        borderRadius: 25,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 32,
+    },
+    modalAddBtnText: {
+        color: 'white',
+        fontSize: 16,
         fontWeight: 'bold',
     },
 });

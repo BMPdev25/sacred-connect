@@ -1,0 +1,41 @@
+appId: host.exp.exponent
+---
+# Pre-requisite: A Devotee booking is accepted and paid
+- launchApp
+- tapOn:
+    id: "identifier-input"
+- inputText: "1234567890" # Devotee Phone
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+
+# Wait for Login API and Dashboard Redirection
+- assertVisible: "Explore" # Tab bar
+
+# Navigate to Bookings
+- tapOn: "Bookings"
+- tapOn: "Upcoming" # Ensure we are on the upcoming tab
+
+# Open the specific confirmed booking
+- extendedWaitUntil:
+    visible: "Ganesh Puja"
+    timeout: 10000
+- tapOn: "Ganesh Puja"
+
+# Verify Booking
+- assertVisible: "Status: Paid"
+- assertVisible: "Cancel Booking"
+- tapOn: "Cancel Booking"
+
+# Assert Cancellation Policy Modal
+- assertVisible: "Cancel Booking"
+- assertVisible: "Refund" # Should warn about refund policies
+- tapOn: "Confirm Cancel"
+
+# Verify we return to the list and it is removed from Upcoming
+- extendedWaitUntil:
+    visible: "Upcoming"
+    timeout: 10000
+- assertNotVisible: "Ganesh Puja"

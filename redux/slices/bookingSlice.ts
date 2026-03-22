@@ -1,7 +1,7 @@
-// src/redux/slices/bookingSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../api';
 import { RootState } from '../store';
+import devoteeService from '../../services/devoteeService';
 
 // Define types for the Booking and State
 interface Booking {
@@ -22,12 +22,13 @@ interface BookingState {
 // Get user bookings
 export const getBookings = createAsyncThunk<Booking[], void, { state: RootState; rejectValue: string }>(
   'booking/getBookings',
-  async (_, { rejectWithValue, getState }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/devotee/bookings');
-      return response.data;
+      const response = await devoteeService.getBookings();
+      // Handle the different possible response structures
+      return response.data || response.bookings || response;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
+      return rejectWithValue(typeof error === 'string' ? error : 'Failed to fetch bookings');
     }
   }
 );
@@ -46,25 +47,15 @@ export const updateBookingStatus = createAsyncThunk<Booking, { bookingId: string
 );
 
 // Submit rating and review
-export const submitRating = createAsyncThunk<any, { rating: number; review: string }, { state: RootState; rejectValue: string }>(
+export const submitRating = createAsyncThunk<any, any, { state: RootState; rejectValue: string }>(
   'booking/submitRating',
-  async (ratingData, { rejectWithValue, getState }) => {
+  async (ratingData, { rejectWithValue }) => {
     try {
-      // Get the auth token from state
-      const state = getState();
-      const userToken = (state.auth as any)?.userToken;
-
-      if (!userToken) {
-        return rejectWithValue('Authentication required');
-      }
-
-      const response = await api.post('/api/ratings', ratingData, {
-        headers: { Authorization: `Bearer ${userToken}` },
-      });
-      return response.data;
+      const response = await devoteeService.submitReview(ratingData);
+      return response;
     } catch (error: any) {
       console.error('Submit rating API error:', error);
-      return rejectWithValue(error.response?.data?.message || 'Failed to submit rating');
+      return rejectWithValue(typeof error === 'string' ? error : 'Failed to submit rating');
     }
   }
 );

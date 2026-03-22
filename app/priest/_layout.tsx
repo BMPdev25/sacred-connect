@@ -41,8 +41,8 @@ const NotificationOverlay = () => {
     closeNotifications();
     if (notification.type === 'booking' && notification.data) {
       router.push({
-        pathname: "/PriestBookingDetails",
-        params: { booking: JSON.stringify(notification.data) }
+        pathname: "/priest/PujaRequestDetails",
+        params: { bookingId: notification.data?._id || notification.data?.bookingId }
       });
     } else if (notification.type === 'earnings') {
       router.push("/priest/EarningsTab");
@@ -115,6 +115,7 @@ const PriestTabs = () => {
       <Tabs.Screen
         name="(tabs)/ServicesTab"
         options={{
+          href: null,
           title: "Services",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="list-outline" size={size || 20} color={color} />
@@ -182,15 +183,140 @@ const PriestTabs = () => {
           tabBarStyle: { display: "none" },
         }}
       />
+      <Tabs.Screen
+        name="weekly-schedule"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/ProfileSetup"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/PujaRequestDetails"
+        options={{
+          href: null,
+          title: "Puja Request",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+
+      <Tabs.Screen
+        name="(priestScreens)/AvailableOffers"
+        options={{
+          href: null,
+          title: "Available Offers",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/DocumentUpload"
+        options={{
+          href: null,
+          title: "Upload Documents",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/VerificationStatus"
+        options={{
+          href: null,
+          title: "Verification Status",
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/AvailabilitySetup"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
+      <Tabs.Screen
+        name="(priestScreens)/OnboardingWizard"
+        options={{
+          href: null,
+          headerShown: false,
+          tabBarStyle: { display: "none" },
+        }}
+      />
     </Tabs>
   );
 }
 
+import { useSocket } from "../../context/SocketContext";
+import priestService from "../../services/priestService";
+import IncomingRequestModal from "../../components/IncomingRequestModal";
+import { Alert } from "react-native";
+
 export default function PriestLayout() {
+  const { socket } = useSocket();
+  const [incomingRequest, setIncomingRequest] = React.useState<any>(null);
+  const [modalVisible, setModalVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    if (socket) {
+      socket.on("new_instant_request", (data) => {
+        console.log("New instant request received:", data);
+        setIncomingRequest(data);
+        setModalVisible(true);
+      });
+
+      return () => {
+        socket.off("new_instant_request");
+      };
+    }
+  }, [socket]);
+
+  const handleAccept = async (bookingId: string) => {
+    try {
+      await priestService.acceptInstantBooking(bookingId);
+      setModalVisible(false);
+      setIncomingRequest(null);
+      
+      // Navigate to booking details
+      router.push({
+        pathname: "/priest/PujaRequestDetails",
+        params: { bookingId }
+      });
+      
+      Alert.alert("Success", "Instant booking confirmed!");
+    } catch (error: any) {
+      console.error("Failed to accept instant booking:", error);
+      Alert.alert("Failed", error.message || "Could not accept booking. It might have expired or been taken.");
+      setModalVisible(false);
+      setIncomingRequest(null);
+    }
+  };
+
+  const handleDecline = () => {
+    setModalVisible(false);
+    setIncomingRequest(null);
+  };
+
   return (
     <NotificationProvider>
       <PriestTabs />
       <NotificationOverlay />
+      <IncomingRequestModal
+        visible={modalVisible}
+        request={incomingRequest}
+        onAccept={handleAccept}
+        onDecline={handleDecline}
+        onClose={handleDecline}
+      />
     </NotificationProvider>
   );
 }

@@ -1,5 +1,5 @@
 // src/services/priestService.js
-import api from '../api';
+import api, { API_BASE_URL } from '../api';
 
 /**
  * Service for priest-related API calls
@@ -81,10 +81,11 @@ const priestService = {
    */
   getBookings: async (priestId?: string, status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/priest/bookings?status=${status}&priestId=${priestId}` : `/api/priest/bookings?priestId=${priestId}`;
-      // console.log("Fetching bookings from URL:", url);
+      const url = status 
+        ? `/api/priest/bookings?status=${status}&priestId=${priestId}` 
+        : `/api/priest/bookings?priestId=${priestId}`;
       const response = await api.get(url);
-      return response.data;
+      return response.data.data?.all || response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
     }
@@ -190,6 +191,15 @@ const priestService = {
   },
 
   /**
+   * Get document URL for viewing
+   * @param documentType - Type of document (government_id, religious_certificate)
+   * @returns {string} URL to the document endpoint
+   */
+  getDocumentUrl: (documentType: string): string => {
+    return `${API_BASE_URL}/api/priest/documents/${documentType}`;
+  },
+
+  /**
    * Get notifications for the priest
    * @returns {Promise} Response from the API
    */
@@ -240,6 +250,102 @@ const priestService = {
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch document. Please try again.';
+    }
+  },
+  /**
+   * Toggle priest status
+   * @param {Object} data - { status: 'available'|'offline', autoToggle?: boolean }
+   * @returns {Promise} Response from the API
+   */
+  toggleStatus: async (data: { status?: string, autoToggle?: boolean }): Promise<any> => {
+    try {
+      const response = await api.put('/api/priest/status', data);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to update status. Please try again.';
+    }
+  },
+
+  /**
+   * Get recent reviews
+   * @returns {Promise} Response from the API
+   */
+  getRecentReviews: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/reviews/recent');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch recent reviews. Please try again.';
+    }
+  },
+
+  /**
+   * Get user reviews
+   * @param {string} userId - The user ID
+   * @returns {Promise} Response from the API
+   */
+  getUserReviews: async (userId: string): Promise<any> => {
+    try {
+      const response = await api.get(`/api/reviews/user/${userId}`);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch user reviews. Please try again.';
+    }
+  },
+
+  /**
+   * Get pending actions
+   * @returns {Promise} Response from the API
+   */
+  getPendingActions: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/priest/bookings/pending-actions');
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to fetch pending actions. Please try again.';
+    }
+  },
+
+  /**
+   * Submit a review
+   * @param {Object} reviewData - The review data
+   * @returns {Promise} Response from the API
+   */
+  submitReview: async (reviewData: any): Promise<any> => {
+    try {
+      const response = await api.post('/api/reviews/submit', reviewData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
+    }
+  },
+
+  /**
+   * Submit priest verification application
+   * @param {Object} verificationData - The verification application data
+   * @returns {Promise} Response from the API
+   */
+  submitVerification: async (verificationData: Record<string, any>): Promise<any> => {
+    try {
+      const response = await api.post('/api/priest/submit-verification', verificationData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to submit verification. Please try again.';
+    }
+  },
+
+
+
+  /**
+   * Accept an instant booking request
+   * @param {string} bookingId - The booking ID
+   */
+  acceptInstantBooking: async (bookingId: string): Promise<any> => {
+    try {
+      const response = await api.post('/api/priest/bookings/instant/accept', { bookingId });
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to accept instant booking.';
     }
   },
 };

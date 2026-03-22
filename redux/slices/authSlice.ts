@@ -1,6 +1,6 @@
 // src/redux/slices/authSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import * as SecureStore from "expo-secure-store";
+import { saveToken, getToken, removeToken } from "../../utils/storage";
 import api from "../../api"; // Import the API instance
 import { RootState } from "../store";
 
@@ -13,6 +13,14 @@ interface UserInfo {
   token: string;
   profileCompleted?: boolean;
   _id?: string;
+  profilePicture?: {
+    publicId?: string;
+    url?: string;
+  };
+  rating?: {
+    average: number;
+    count: number;
+  };
 }
 
 interface AuthState {
@@ -26,30 +34,37 @@ interface AuthState {
 interface LoginParams {
   identifier: string;
   password: string;
+  userType?: "devotee" | "priest";
 }
 
 export const login = createAsyncThunk<
   UserInfo,
   LoginParams,
   { rejectValue: string }
->("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
+>("auth/login", async ({ identifier, password, userType }, { rejectWithValue }) => {
   try {
     const response = await api.post("/api/auth/login", {
       identifier,
       password,
+      userType
     });
 
     // Store token in SecureStore
-    await SecureStore.setItemAsync("userToken", response.data.token);
+    await saveToken("userToken", response.data.token);
     // Ensure _id is present in userInfo for future use
     const userInfoToStore = response.data._id
       ? { ...response.data, _id: response.data._id }
       : response.data;
-    await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfoToStore));
-
+    await saveToken("userInfo", JSON.stringify(userInfoToStore));
+    
     return response.data;
   } catch (error: any) {
-    console.error("Error occurred during login:", error);
+    // Production Rule 3: Log specific error for debugging
+    console.error("Login Error Details:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
 
     // Create a user-friendly error message
     let errorMessage = "An error occurred during login.";
@@ -86,16 +101,21 @@ export const firebaseLogin = createAsyncThunk<
     });
 
     // Store token in SecureStore
-    await SecureStore.setItemAsync("userToken", response.data.token);
+    await saveToken("userToken", response.data.token);
     // Ensure _id is present in userInfo for future use
     const userInfoToStore = response.data._id
       ? { ...response.data, _id: response.data._id }
       : response.data;
-    await SecureStore.setItemAsync("userInfo", JSON.stringify(userInfoToStore));
-
+    await saveToken("userInfo", JSON.stringify(userInfoToStore));
+    
     return response.data;
   } catch (error: any) {
-    console.error("Error occurred during firebase login:", error);
+    // Production Rule 3: Log specific error for debugging
+    console.error("Firebase Login Error Details:", {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
 
     // Create a user-friendly error message
     let errorMessage = "An error occurred during login.";
@@ -145,19 +165,25 @@ export const register = createAsyncThunk<
       });
 
       // Store token in SecureStore
-      await SecureStore.setItemAsync("userToken", response.data.token);
+      await saveToken("userToken", response.data.token);
       // Ensure _id is present in userInfo for future use
       const userInfoToStore = response.data._id
         ? { ...response.data, _id: response.data._id }
         : response.data;
-      await SecureStore.setItemAsync(
+      await saveToken(
         "userInfo",
         JSON.stringify(userInfoToStore)
       );
 
       return response.data;
     } catch (error: any) {
-      console.error("Registration error:", error);
+      // Production Rule 3: Log specific error for debugging
+      console.error("Registration Error Details:", {
+        status: error.response?.status,
+        data: error.response?.data,
+        message: error.message
+      });
+
       let errorMessage = "An error occurred during registration.";
 
       if (error.response) {
@@ -176,26 +202,54 @@ export const register = createAsyncThunk<
   }
 );
 
-// Load user info from AsyncStorage
+// Load user info from AsyncStorage and validate with server
 export const loadUser = createAsyncThunk<
   UserInfo,
   void,
   { rejectValue: string }
 >("auth/loadUser", async (_, { rejectWithValue }) => {
   try {
-    const userInfo = await SecureStore.getItemAsync("userInfo");
-    const userToken = await SecureStore.getItemAsync("userToken");
+    const userInfoStr = await getToken("userInfo");
+    const userToken = await getToken("userToken");
 
-    if (!userInfo || !userToken) {
-      return rejectWithValue("No user info found");
+    if (!userInfoStr || !userToken) {
+      return rejectWithValue("No cached user info found");
     }
 
-    return JSON.parse(userInfo);
+    // Production-Ready: Validate token by fetching profile from server
+    // This handles the "expired token on app open" edge case
+    try {
+      const response = await api.get("/api/users/profile", {
+        headers: { Authorization: `Bearer ${userToken}` }
+      });
+      
+      const userData = response.data.data || response.data;
+      const userInfo = { ...JSON.parse(userInfoStr), ...userData, token: userToken };
+      
+      // Update local storage with fresh data
+      await saveToken("userInfo", JSON.stringify(userInfo));
+      
+      return userInfo;
+    } catch (apiError: any) {
+      console.error("Server token validation failed:", apiError.message);
+      
+      // If server check fails with 401, we want to clear storage and reject
+      if (apiError.response?.status === 401) {
+        await removeToken("userToken");
+        await removeToken("userInfo");
+        return rejectWithValue("Session expired. Please login again.");
+      }
+      
+      // For generic network errors, fallback to cached data if it exists
+      // as the user might be offline but still has a valid (not yet expired) token
+      return { ...JSON.parse(userInfoStr), token: userToken };
+    }
   } catch (error: any) {
     console.error("Failed to load user info:", error);
     return rejectWithValue("Failed to load user info");
   }
 });
+
 
 // Update profile
 interface UpdateProfileParams {
@@ -206,13 +260,17 @@ interface UpdateProfileParams {
   password?: string;
   userType?: "devotee" | "priest";
   profileCompleted?: boolean;
+  profilePicture?: {
+    url: string;
+    publicId?: string;
+  };
 }
 
-export const updateProfile = createAsyncThunk<
+export const updateUserProfile = createAsyncThunk<
   UserInfo,
   UpdateProfileParams,
   { rejectValue: string }
->("auth/updateProfile", async (profileData, { rejectWithValue, getState }) => {
+>("auth/updateUserProfile", async (profileData, { rejectWithValue, getState }) => {
   try {
     const state = getState() as RootState;
     // Get the auth token from state
@@ -233,7 +291,7 @@ export const updateProfile = createAsyncThunk<
     });
 
       // Update AsyncStorage
-      const userInfoStr = await SecureStore.getItemAsync("userInfo");
+      const userInfoStr = await getToken("userInfo");
       if (userInfoStr) {
         const userInfo = JSON.parse(userInfoStr);
         
@@ -258,7 +316,7 @@ export const updateProfile = createAsyncThunk<
           storageUserInfo.languagesSpoken = storageUserInfo.languagesSpoken.map(l => l._id);
         }
 
-        await SecureStore.setItemAsync(
+        await saveToken(
           "userInfo",
           JSON.stringify(storageUserInfo)
         );
@@ -266,8 +324,6 @@ export const updateProfile = createAsyncThunk<
       
       // Return the correct payload to the reducer (keep populated data for Redux/UI)
       return (response.data && response.data.data) ? response.data.data : response.data;
-
-    return response.data;
   } catch (error: any) {
     console.error("Profile update error:", error);
 
@@ -292,8 +348,8 @@ export const logout = createAsyncThunk<void, void, { rejectValue: string }>(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await SecureStore.deleteItemAsync("userToken");
-      await SecureStore.deleteItemAsync("userInfo");
+      await removeToken("userToken");
+      await removeToken("userInfo");
       return;
     } catch (error: any) {
       console.error("Logout error:", error);
@@ -383,12 +439,12 @@ const authSlice = createSlice({
         state.userToken = null;
       })
       // Update Profile
-      .addCase(updateProfile.pending, (state) => {
+      .addCase(updateUserProfile.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
       .addCase(
-        updateProfile.fulfilled,
+        updateUserProfile.fulfilled,
         (state, action: PayloadAction<UserInfo>) => {
           state.isLoading = false;
           state.userInfo = { ...state.userInfo, ...action.payload };
@@ -399,7 +455,7 @@ const authSlice = createSlice({
           }
         }
       )
-      .addCase(updateProfile.rejected, (state, action) => {
+      .addCase(updateUserProfile.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error?.message || "Profile update failed";
       })

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -10,13 +11,36 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+// Note: Alert is still used for sendOTP feedback
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from "react-redux";
 import InputField from "../../components/InputField";
 import { APP_COLORS } from "../../constants/Colors";
-import { clearError, login, firebaseLogin } from "../../redux/slices/authSlice";
+import { login, firebaseLogin } from "../../redux/slices/authSlice";
 import { AppDispatch, RootState } from "../../redux/store";
 import { detectIdentifierType } from "../../utils/identifierDetection";
+
+/** Maps raw server/network error strings to friendly user-facing messages. */
+function getFriendlyLoginError(raw: string): string {
+  const lower = raw.toLowerCase();
+  if (lower.includes('no user found') || lower.includes('user not found')) {
+    return 'No account found with that email or phone number. Please check your details or sign up.';
+  }
+  if (lower.includes('invalid credentials') || lower.includes('incorrect password') || lower.includes('wrong password')) {
+    return 'Incorrect password. Please try again or use "Forgot Password" to reset it.';
+  }
+  if (lower.includes('network') || lower.includes('internet') || lower.includes('reach the server') || lower.includes('econnrefused')) {
+    return 'Unable to connect. Please check your internet connection and try again.';
+  }
+  if (lower.includes('account exists, but is registered as a')) {
+    return raw; // Keep exact backend message for role mismatch
+  }
+  if (lower.includes('server error') || lower.includes('500')) {
+    return 'Something went wrong on our end. Please try again in a moment.';
+  }
+  // Fallback for anything else
+  return 'Login failed. Please check your credentials and try again.';
+}
 
 interface LoginState {
   identifier: string; // This can be phone or email
@@ -31,42 +55,36 @@ interface LoginState {
 export default function LoginScreen() {
   const [state, setState] = useState<LoginState>({
     identifier: "",
-    authMethod: "password", // Default to password
+    authMethod: "password",
     password: "",
     showPassword: false,
-    userType: "devotee", // Default
+    userType: "devotee",
   });
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
-  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+  const { isLoading } = useSelector((state: RootState) => state.auth);
 
-  useEffect(() => {
-    if (error) {
-      Alert.alert("Login Error", error);
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
+  const clearLoginError = () => setLoginError(null);
 
   const handleLogin = async (): Promise<void> => {
+    setLoginError(null);
+
     if (!state.identifier || !state.password) {
-      Alert.alert(
-        "Validation Error",
-        "Please enter your email or mobile number and password"
-      );
+      setLoginError('Please enter your email or mobile number and password.');
       return;
     }
 
     try {
-      // Auto-detect identifier type
-      const identifierType = detectIdentifierType(state.identifier);
-
-      // Await the login thunk and get the returned user info
-      const user = await dispatch(login({ identifier: state.identifier, password: state.password })).unwrap();
-
+      const user = await dispatch(login({
+        identifier: state.identifier,
+        password: state.password,
+        userType: state.userType
+      })).unwrap();
       navigateHome(user?.userType);
     } catch (err: any) {
-      const message = err?.message || 'Login failed. Please try again.';
-      Alert.alert('Login Error', message);
+      const raw = err?.message || err || 'Login failed';
+      setLoginError(getFriendlyLoginError(String(raw)));
     }
   };
 
@@ -78,10 +96,11 @@ export default function LoginScreen() {
     const mockIdToken = `mock_token_${identifierType}_${state.identifier.replace(/[^a-zA-Z0-9]/g, '')}`;
 
     try {
-      await dispatch(firebaseLogin({ idToken: mockIdToken, userType: 'devotee' })).unwrap(); // Defaulting to devotee for OTP login for now or need selector
-      navigateHome('devotee'); // Assume devotee for OTP flow or fetch profile
+      await dispatch(firebaseLogin({ idToken: mockIdToken, userType: 'devotee' })).unwrap();
+      navigateHome('devotee');
     } catch (e: any) {
-      Alert.alert("Login Error", e.message || "Failed");
+      const raw = e?.message || e || 'OTP login failed';
+      setLoginError(getFriendlyLoginError(String(raw)));
     }
   };
 
@@ -129,6 +148,7 @@ export default function LoginScreen() {
               <Text style={styles.label}>I am a:</Text>
               <View style={styles.userTypeToggle}>
                 <TouchableOpacity
+                  testID="user-type-devotee"
                   style={[
                     styles.userTypeButton,
                     state.userType === 'devotee' && styles.activeUserTypeButton
@@ -141,6 +161,7 @@ export default function LoginScreen() {
                   ]}>Devotee</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
+                  testID="user-type-priest"
                   style={[
                     styles.userTypeButton,
                     state.userType === 'priest' && styles.activeUserTypeButton
@@ -155,13 +176,22 @@ export default function LoginScreen() {
               </View>
             </View>
 
+            {/* Inline error banner */}
+            {loginError ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>⚠ {loginError}</Text>
+              </View>
+            ) : null}
+
             {/* Identifier Input - Auto-detects Phone or Email */}
             <InputField
+              testID="identifier-input"
               label="Email or Mobile Number"
               value={state.identifier}
-              onChangeText={(text: string) =>
-                setState((prev) => ({ ...prev, identifier: text }))
-              }
+              onChangeText={(text: string) => {
+                clearLoginError();
+                setState((prev) => ({ ...prev, identifier: text }));
+              }}
               placeholder="Enter your email or mobile number"
               keyboardType="default"
               autoCapitalize="none"
@@ -190,11 +220,13 @@ export default function LoginScreen() {
             {state.authMethod === 'password' ? (
               <>
                 <InputField
+                  testID="password-input"
                   label="Password"
                   value={state.password}
-                  onChangeText={(text: string) =>
-                    setState((prev) => ({ ...prev, password: text }))
-                  }
+                  onChangeText={(text: string) => {
+                    clearLoginError();
+                    setState((prev) => ({ ...prev, password: text }));
+                  }}
                   placeholder="Enter your password"
                   secureTextEntry={!state.showPassword}
                   showTogglePassword={true}
@@ -204,23 +236,31 @@ export default function LoginScreen() {
                   }
                 />
                 <TouchableOpacity
-                  style={styles.loginButton}
+                  testID="login-button"
+                  style={[styles.loginButton, isLoading && styles.disabledButton]}
                   onPress={handleLogin}
                   disabled={isLoading}
                 >
-                  <Text style={styles.loginButtonText}>
-                    {isLoading ? "Logging in..." : "Login"}
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={APP_COLORS.white} />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Login</Text>
+                  )}
                 </TouchableOpacity>
               </>
             ) : (
               <View style={styles.otpContainer}>
                 {!state.confirmResult ? (
                   <TouchableOpacity
-                    style={styles.sendOtpButton}
+                    style={[styles.sendOtpButton, isLoading && styles.disabledButton]}
                     onPress={sendOTP}
+                    disabled={isLoading}
                   >
-                    <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                    {isLoading ? (
+                      <ActivityIndicator color={APP_COLORS.white} />
+                    ) : (
+                      <Text style={styles.sendOtpButtonText}>Send OTP</Text>
+                    )}
                   </TouchableOpacity>
                 ) : (
                   <>
@@ -235,18 +275,21 @@ export default function LoginScreen() {
                       keyboardType="number-pad"
                     />
                     <TouchableOpacity
-                      style={styles.loginButton}
+                      style={[styles.loginButton, isLoading && styles.disabledButton]}
                       onPress={handleOTPLogin}
                       disabled={isLoading}
                     >
-                      <Text style={styles.loginButtonText}>
-                        {isLoading ? "Verifying..." : "Verify & Login"}
-                      </Text>
+                      {isLoading ? (
+                        <ActivityIndicator color={APP_COLORS.white} />
+                      ) : (
+                        <Text style={styles.loginButtonText}>Verify & Login</Text>
+                      )}
                     </TouchableOpacity>
                   </>
                 )}
               </View>
             )}
+
 
             <View style={styles.divider}>
               <View style={styles.dividerLine} />
@@ -288,6 +331,9 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     paddingBottom: 40,
+    width: Platform.OS === 'web' ? '100%' : undefined,
+    maxWidth: Platform.OS === 'web' ? 600 : undefined,
+    alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   logoContainer: {
     alignItems: "center",
@@ -371,6 +417,20 @@ const styles = StyleSheet.create({
     color: APP_COLORS.white,
     fontSize: 16,
     fontWeight: "bold",
+  },
+  errorBanner: {
+    backgroundColor: '#fff3f3',
+    borderWidth: 1,
+    borderColor: '#f5c6c6',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    color: '#c0392b',
+    fontSize: 13,
+    lineHeight: 18,
   },
   divider: {
     flexDirection: "row",
@@ -489,5 +549,8 @@ const styles = StyleSheet.create({
   sendOtpButtonText: {
     color: 'white',
     fontWeight: 'bold',
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
 });

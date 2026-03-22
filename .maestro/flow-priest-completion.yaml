@@ -1,0 +1,43 @@
+appId: host.exp.exponent # Expo Go bundle ID
+---
+# Pre-requisite: A Devotee booking is paid and the date/time has arrived
+- launchApp
+- tapOn:
+    id: "identifier-input"
+- inputText: "9876543210" # Priest Phone
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+
+# Wait for Login API and Dashboard Redirection
+- assertVisible: "Dashboard" # Priest Home Header
+
+# Navigate to Bookings
+- tapOn: "Bookings"
+- tapOn: "Upcoming"
+
+# Open the specific confirmed booking
+- extendedWaitUntil:
+    visible: "Ganesh Puja"
+    timeout: 10000
+- tapOn: "Ganesh Puja"
+
+# Trigger Completion
+- assertVisible: "Mark as Completed"
+- tapOn: "Mark as Completed"
+
+# Assert OTP Verification Modal
+- assertVisible: "OTP Verification"
+- tapOn: "1"
+- tapOn: "2"
+- tapOn: "3"
+- tapOn: "4"
+- tapOn: "Verify OTP"
+
+# Verify Success and redirection back to bookings list or updated status
+- extendedWaitUntil:
+    visible: "Completed" # Status or History Tab
+    timeout: 10000
+- assertNotVisible: "Ganesh Puja" # Should disappear from Upcoming

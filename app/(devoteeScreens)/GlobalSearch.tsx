@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';import * as Location from 'expo-location';
 import { View, Text, StyleSheet, TextInput, FlatList, TouchableOpacity, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +6,9 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { APP_COLORS } from '../../constants/Colors';
 import devoteeService from '../../services/devoteeService';
 import ceremonyService from '../../services/ceremonyService';
+import PujariCard from '../../components/PujariCard';
+import { calculateDistance } from '../../utils/locationUtils';
+import { getImageUri } from '../../utils/imageUtils';
 
 export default function GlobalSearchScreen() {
     const router = useRouter();
@@ -16,93 +19,104 @@ export default function GlobalSearchScreen() {
     const [priests, setPriests] = useState<any[]>([]);
     const [ceremonies, setCeremonies] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+    const timeoutRef = useRef<any>(null);
 
-    // Debounced search
-    const debouncedSearch = useCallback((text: string) => {
+    const performSearch = useCallback(async (text: string) => {
+        if (!text.trim()) {
+            setPriests([]);
+            setCeremonies([]);
+            setLoading(false);
+            return;
+        }
+
         setLoading(true);
-        const timeoutId = setTimeout(async () => {
-            if (!text.trim()) {
-                setPriests([]);
-                setCeremonies([]);
-                setLoading(false);
-                return;
+        try {
+            // Parallel fetch
+            const [priestRes, ceremonyRes] = await Promise.allSettled([
+                devoteeService.searchPriests({ search: text, limit: 10 }),
+                ceremonyService.getAllPujas({ limit: 100 })
+            ]);
+
+            if (priestRes.status === 'fulfilled') {
+                let priests = priestRes.value.priests || [];
+                if (userCoords) {
+                    priests = priests.map((p: any) => {
+                        if (p.location?.coordinates) {
+                            const distance = calculateDistance(
+                                userCoords.latitude,
+                                userCoords.longitude,
+                                p.location.coordinates[1],
+                                p.location.coordinates[0]
+                            );
+                            return { ...p, distance };
+                        }
+                        return p;
+                    });
+                }
+                setPriests(priests);
             }
 
-            try {
-                const [priestRes, ceremonyRes] = await Promise.all([
-                    devoteeService.searchPriests({ search: text, limit: 10 }),
-                    ceremonyService.getAllPujas({ limit: 50 }) // Using fetch all and filter as temp solution if searchPujas not ready
-                    // Or use ceremonyService.searchPujas(text) if backend supports it
-                ]);
-
-                // Filter ceremonies locally for now if search API isn't robust
-                const allCeremonies = ceremonyRes.ceremonies || [];
+            if (ceremonyRes.status === 'fulfilled') {
+                const allCeremonies = ceremonyRes.value.ceremonies || [];
                 const filteredCeremonies = allCeremonies.filter((c: any) =>
                     c.name.toLowerCase().includes(text.toLowerCase()) ||
                     c.description?.toLowerCase().includes(text.toLowerCase())
                 );
-
-                setPriests(priestRes.priests || []);
                 setCeremonies(filteredCeremonies);
-            } catch (err) {
-                console.error("Global search error:", err);
-            } finally {
-                setLoading(false);
             }
-        }, 500);
-        return () => clearTimeout(timeoutId);
+        } catch (error) {
+            console.error("Global search error:", error);
+        } finally {
+            setLoading(false);
+        }
     }, []);
-
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
     const handleTextChange = (text: string) => {
         setQuery(text);
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
-        setLoading(true);
-        timeoutRef.current = setTimeout(async () => {
-            if (!text.trim()) {
-                setPriests([]);
-                setCeremonies([]);
-                setLoading(false);
-                return;
-            }
-
-            try {
-                // Parallel fetch
-                const [priestRes, ceremonyRes] = await Promise.all([
-                    devoteeService.searchPriests({ search: text, limit: 5 }),
-                    // Using getAllPujas and filtering client side for now as we know it works
-                    ceremonyService.getAllPujas({ limit: 100 })
-                ]);
-
-                const allCeremonies = ceremonyRes.ceremonies || [];
-                const filteredCeremonies = allCeremonies.filter((c: any) =>
-                    c.name.toLowerCase().includes(text.toLowerCase())
-                );
-
-                setPriests(priestRes.priests || []);
-                setCeremonies(filteredCeremonies);
-            } catch (error) {
-                console.error(error);
-            } finally {
-                setLoading(false);
-            }
+        timeoutRef.current = setTimeout(() => {
+            performSearch(text);
         }, 500);
     };
 
     useEffect(() => {
-        if (initialQuery) {
-            handleTextChange(initialQuery);
-        }
-    }, []);
+        const initLocationAndSearch = async () => {
+            try {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                if (status === 'granted') {
+                    const loc = await Location.getCurrentPositionAsync({});
+                    setUserCoords({
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                    });
+                    // If initial query exists, search with location
+                    if (initialQuery) {
+                        performSearch(initialQuery);
+                    }
+                } else if (initialQuery) {
+                    performSearch(initialQuery);
+                }
+            } catch (err) {
+                console.warn("GlobalSearch: Failed to get location:", err);
+                if (initialQuery) performSearch(initialQuery);
+            }
+        };
+
+        initLocationAndSearch();
+
+        return () => {
+            if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        };
+    }, [initialQuery, performSearch]);
 
     const renderCeremonyItem = ({ item }: { item: any }) => (
         <TouchableOpacity
             style={styles.resultCard}
             onPress={() => router.push(`/(devoteeScreens)/(pujas)/${item._id}`)}
         >
-            <Image source={{ uri: item.image || "https://via.placeholder.com/100" }} style={styles.resultImage} />
+            <Image source={{ uri: getImageUri(item.image) }} style={styles.resultImage} />
             <View style={styles.resultContent}>
                 <Text style={styles.resultTitle}>{item.name}</Text>
                 <Text style={styles.resultSubtitle} numberOfLines={1}>{item.description}</Text>
@@ -112,20 +126,9 @@ export default function GlobalSearchScreen() {
     );
 
     const renderPriestItem = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            style={styles.resultCard}
-            onPress={() => router.push({ pathname: "/PriestDetails", params: { priestId: item._id } })}
-        >
-            <Image
-                source={item.profilePicture ? { uri: item.profilePicture } : require("../../assets/images/pandit1.jpg")}
-                style={styles.resultImage}
-            />
-            <View style={styles.resultContent}>
-                <Text style={styles.resultTitle}>{item.name}</Text>
-                <Text style={styles.resultSubtitle}>{item.religiousTradition} • {item.experience} yrs</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={20} color={APP_COLORS.gray} />
-        </TouchableOpacity>
+        <View style={{ marginHorizontal: 16 }}>
+            <PujariCard pujari={item} />
+        </View>
     );
 
     return (
@@ -160,24 +163,22 @@ export default function GlobalSearchScreen() {
                     {ceremonies.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Ceremonies ({ceremonies.length})</Text>
-                            <FlatList
-                                data={ceremonies}
-                                renderItem={renderCeremonyItem}
-                                keyExtractor={item => item._id}
-                                scrollEnabled={false}
-                            />
+                            {ceremonies.map((item) => (
+                                <View key={item._id}>
+                                    {renderCeremonyItem({ item })}
+                                </View>
+                            ))}
                         </View>
                     )}
 
                     {priests.length > 0 && (
                         <View style={styles.section}>
                             <Text style={styles.sectionTitle}>Priests ({priests.length})</Text>
-                            <FlatList
-                                data={priests}
-                                renderItem={renderPriestItem}
-                                keyExtractor={item => item._id}
-                                scrollEnabled={false}
-                            />
+                            {priests.map((item) => (
+                                <View key={item._id}>
+                                    {renderPriestItem({ item })}
+                                </View>
+                            ))}
                         </View>
                     )}
 

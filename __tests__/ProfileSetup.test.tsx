@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
-import ProfileSetup from '../app/(priestScreens)/ProfileSetup';
+import ProfileSetup from '../app/priest/(priestScreens)/ProfileSetup';
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from '../redux/slices/authSlice';
@@ -8,6 +8,12 @@ import priestReducer from '../redux/slices/priestSlice';
 import * as ImagePicker from 'expo-image-picker';
 
 // Mock dependencies
+jest.mock('expo-secure-store', () => ({
+    getItemAsync: jest.fn(),
+    setItemAsync: jest.fn(),
+    deleteItemAsync: jest.fn(),
+}));
+
 jest.mock('expo-image-picker', () => ({
     requestMediaLibraryPermissionsAsync: jest.fn(),
     launchImageLibraryAsync: jest.fn(),
@@ -22,6 +28,23 @@ jest.mock('expo-location', () => ({
 jest.mock('expo-router', () => ({
     useLocalSearchParams: () => ({ isEditing: 'true', section: 'personalDetails' }),
     router: { back: jest.fn(), push: jest.fn() },
+}));
+
+jest.mock('expo-document-picker', () => ({
+    getDocumentAsync: jest.fn(),
+}));
+
+jest.mock('expo-file-system/legacy', () => ({
+    readAsStringAsync: jest.fn(),
+    writeAsStringAsync: jest.fn(),
+    deleteAsync: jest.fn(),
+    documentDirectory: 'test-directory/',
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+    useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
+    SafeAreaProvider: ({ children }: any) => children,
+    SafeAreaView: ({ children }: any) => children,
 }));
 
 jest.mock('../services/priestService', () => ({
@@ -56,15 +79,24 @@ const createTestStore = () => {
         },
         preloadedState: {
             auth: {
-                userInfo: { name: 'Test Priest', email: 'test@example.com' },
+                userInfo: { name: 'Test Priest', email: 'test@example.com', phone: '1234567890', userType: 'priest', token: 'mock-token' } as any,
+                userToken: 'mock-token',
+                isLoading: false,
+                error: null,
             },
-            priest: {},
+            priest: {
+                profile: null,
+                bookings: [],
+                earnings: null,
+                isLoading: false,
+                error: null,
+            },
         },
     });
 };
 
 describe('ProfileSetup Screen', () => {
-    let store;
+    let store: ReturnType<typeof createTestStore>;
 
     beforeEach(() => {
         store = createTestStore();
@@ -80,34 +112,11 @@ describe('ProfileSetup Screen', () => {
 
         await waitFor(() => {
             // Check for the text inside the button
-            expect(getByText('Upload Photo')).toBeTruthy();
+            expect(getByText('Upload Profile Photo')).toBeTruthy();
         });
     });
 
-    //   it('triggers ImagePicker when upload button is pressed', async () => {
-    //     (ImagePicker.requestMediaLibraryPermissionsAsync as jest.Mock).mockResolvedValue({ status: 'granted' });
-    //     (ImagePicker.launchImageLibraryAsync as jest.Mock).mockResolvedValue({
-    //       canceled: false,
-    //       assets: [{ uri: 'file://test.jpg' }],
-    //     });
-    //
-    //     const { getByText } = render(
-    //       <Provider store={store}>
-    //         <ProfileSetup />
-    //       </Provider>
-    //     );
-    //
-    //     await waitFor(() => {
-    //       const uploadBtn = getByText('Upload Photo');
-    //       fireEvent.press(uploadBtn);
-    //     });
-    //
-    //     await waitFor(() => {
-    //       expect(ImagePicker.requestMediaLibraryPermissionsAsync).toHaveBeenCalled();
-    //     });
-    //   });
-
-    it('renders Location update button', async () => {
+    it('renders Personal Details section', async () => {
         const { getByText } = render(
             <Provider store={store}>
                 <ProfileSetup />
@@ -115,7 +124,8 @@ describe('ProfileSetup Screen', () => {
         );
 
         await waitFor(() => {
-            expect(getByText('Update Location')).toBeTruthy();
+            expect(getByText('Years of Experience *')).toBeTruthy();
+            expect(getByText('Religious Tradition *')).toBeTruthy();
         });
     });
 });

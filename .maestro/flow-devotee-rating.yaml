@@ -1,0 +1,44 @@
+appId: host.exp.exponent
+---
+# Pre-requisite: A Devotee booking is completed by the Priest
+- launchApp
+- tapOn:
+    id: "identifier-input"
+- inputText: "1234567890" # Devotee Phone
+- tapOn:
+    id: "password-input"
+- inputText: "password123"
+- tapOn:
+    id: "login-button"
+
+# Wait for Login API and Dashboard Redirection
+- assertVisible: "Explore" # Tab bar
+
+# Navigate to Bookings
+- tapOn: "Bookings"
+- tapOn: "History" # Previously completed bookings
+
+# Open the specific completed booking
+- extendedWaitUntil:
+    visible: "Ganesh Puja"
+    timeout: 10000
+- tapOn: "Ganesh Puja"
+
+# Verify Booking is Completed and Ready for Rating
+- assertVisible: "Status: Completed"
+- assertVisible: "Rate Priest"
+- tapOn: "Rate Priest"
+
+# Rating Modal Interaction
+- assertVisible: "Rate your experience"
+- tapOn: "5 Stars" # Or tap on the 5th star graphic/index
+- tapOn:
+    id: "review-input" # Or placeholder "Write a review (optional)"
+- inputText: "The Puja was wonderful. Pandit ji explained everything clearly."
+- tapOn: "Submit Rating"
+
+# Verify Success UI Updates
+- extendedWaitUntil:
+    visible: "Thank you for your feedback!" # Toast or updated UI
+    timeout: 10000
+- assertNotVisible: "Rate Priest" # Button should disappear or change to "View Rating"

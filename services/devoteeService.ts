@@ -71,9 +71,11 @@ const devoteeService = {
    */
   getPriestDetails: async (priestId: string): Promise<any> => {
     try {
+      console.log("devoteeService: getPriestDetails for id:", priestId);
       const response = await api.get(`/api/devotee/priests/${priestId}`);
       return response.data;
     } catch (error: any) {
+      console.error("devoteeService: getPriestDetails error:", error);
       throw error?.response?.data?.message || 'Failed to fetch priest details. Please try again.';
     }
   },
@@ -103,11 +105,51 @@ const devoteeService = {
    */
   getBookings: async (status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/devotee/bookings?status=${status}` : '/api/devotee/bookings';
+      const url = status ? `/api/bookings/my-bookings?status=${status}` : '/api/bookings/my-bookings';
       const response = await api.get(url);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch bookings. Please try again.';
+    }
+  },
+
+  /**
+   * Get home screen banners
+   */
+  getBanners: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/metadata/banners');
+      return response.data;
+    } catch (error: any) {
+      console.error('getBanners error:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get Panchang data for today or specific date
+   */
+  getPanchang: async (date?: string): Promise<any> => {
+    try {
+      const url = date ? `/api/metadata/panchang?date=${date}` : '/api/metadata/panchang';
+      const response = await api.get(url);
+      return response.data;
+    } catch (error: any) {
+      console.error('getPanchang error:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Get ceremony categories
+   */
+  getCategories: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/metadata/categories');
+      return response.data;
+    } catch (error: any) {
+      console.error('getCategories error:', error);
+      return [];
     }
   },
 
@@ -119,7 +161,7 @@ const devoteeService = {
   getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
       const response = await api.get(`/api/devotee/bookings/${bookingId}`);
-      return response.data;
+      return response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
     }
@@ -138,6 +180,19 @@ const devoteeService = {
       throw error?.response?.data?.message || 'Failed to create booking. Please try again.';
     }
   },
+  
+  /**
+   * Book an instant ceremony
+   * @param {Object} instantData - The instant booking data (ceremonyType, coords, etc)
+   */
+  bookInstantCeremony: async (instantData: Record<string, any>): Promise<any> => {
+    try {
+      const response = await api.post('/api/devotee/bookings/instant', instantData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Failed to initiate instant booking.';
+    }
+  },
 
   /**
    * Cancel a booking
@@ -147,7 +202,8 @@ const devoteeService = {
    */
   cancelBooking: async (bookingId: string, cancellationData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.put(`/api/devotee/bookings/${bookingId}/cancel`, cancellationData);
+      // Use the standard cancellation endpoint
+      const response = await api.put(`/api/bookings/${bookingId}/cancel-devotee`, cancellationData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to cancel booking. Please try again.';
@@ -171,16 +227,29 @@ const devoteeService = {
 
   /**
    * Submit a review for a priest
-   * @param {string} priestId - The priest ID
    * @param {Object} reviewData - The review data
    * @returns {Promise} Response from the API
    */
-  submitReview: async (priestId: string, reviewData: Record<string, any>): Promise<any> => {
+  submitReview: async (reviewData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post(`/api/devotee/priests/${priestId}/reviews`, reviewData);
+      const response = await api.post('/api/reviews', reviewData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to submit review. Please try again.';
+    }
+  },
+
+  /**
+   * Get pending actions for devotee
+   * @returns {Promise} Response from the API
+   */
+  getPendingActions: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/devotee/pending-actions');
+      return response.data;
+    } catch (error: any) {
+      console.error('getPendingActions error:', error);
+      return []; // Return empty array on error to prevent UI crash
     }
   },
 
@@ -204,7 +273,7 @@ const devoteeService = {
    */
   getCeremonies: async (): Promise<any> => {
     try {
-      const response = await api.get('/api/devotee/ceremonies');
+      const response = await api.get('/api/ceremonies');
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch ceremonies. Please try again.';
@@ -263,6 +332,29 @@ const devoteeService = {
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch favorites. Please try again.';
+    }
+  },
+
+  /**
+   * Get active booking requests (pending / confirmed / cancelled) for status tracking
+   * @returns {Promise} Response from the API
+   */
+  getMyRequests: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/devotee/bookings');
+      const all = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Start of today
+
+      // Only return non-completed bookings that are scheduled for today or in the future
+      return all.filter((b: any) => {
+        const bookingDate = new Date(b.date);
+        return b.status !== 'completed' && bookingDate >= today;
+      });
+    } catch (error: any) {
+      console.error('getMyRequests error:', error);
+      return [];
     }
   },
 

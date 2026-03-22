@@ -1,6 +1,6 @@
 // src/redux/slices/priestSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
+import priestService from '../../services/priestService';
 
 // Define types for Priest Profile and Booking
 interface PriestProfile {
@@ -19,10 +19,15 @@ interface Booking {
 }
 
 interface Earnings {
-  total: number;
-  completed: number;
-  pending: number;
-  // Add any other earnings-related fields
+  thisMonth: number;
+  lastMonth: number;
+  growthPercentage: number;
+  availableBalance: number;
+  transactions: any[];
+  totalBookings: number;
+  totalCompletedBookings: number;
+  pujasCompleted: number;
+  pujasPending: number;
 }
 
 interface PriestState {
@@ -38,36 +43,36 @@ export const getProfile = createAsyncThunk<PriestProfile, void, { rejectValue: s
   'priest/getProfile',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/priest/profile');
-      return response.data;
+      const data = await priestService.getProfile();
+      return data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch profile');
+      return rejectWithValue(typeof error === 'string' ? error : error.message || 'Failed to fetch profile');
     }
   }
 );
 
 // Get bookings
-export const getBookings = createAsyncThunk<Booking[], void, { rejectValue: string }>(
+export const getBookings = createAsyncThunk<Booking[], string | undefined, { rejectValue: string }>(
   'priest/getBookings',
-  async (_, { rejectWithValue }) => {
+  async (priestId, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/priest/bookings');
-      return response.data;
+      const data = await priestService.getBookings(priestId);
+      return Array.isArray(data) ? data : data?.data || [];
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch bookings');
+      return rejectWithValue(typeof error === 'string' ? error : error.message || 'Failed to fetch bookings');
     }
   }
 );
 
-// Get earnings
-export const getEarnings = createAsyncThunk<Earnings, void, { rejectValue: string }>(
+// Get earnings — accepts priestId so the backend can query by priest
+export const getEarnings = createAsyncThunk<Earnings, string, { rejectValue: string }>(
   'priest/getEarnings',
-  async (_, { rejectWithValue }) => {
+  async (priestId, { rejectWithValue }) => {
     try {
-      const response = await api.get('/api/priest/earnings');
-      return response.data;
+      const data = await priestService.getEarnings(priestId);
+      return data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to fetch earnings');
+      return rejectWithValue(typeof error === 'string' ? error : error.message || 'Failed to fetch earnings');
     }
   }
 );
@@ -76,18 +81,30 @@ export const updateProfile = createAsyncThunk<PriestProfile, Partial<PriestProfi
   'priest/updateProfile',
   async (profileData, { rejectWithValue }) => {
     try {
-      const response = await api.put('/api/priest/profile', profileData);
-      return response.data;
+      const data = await priestService.updateProfile(profileData);
+      return data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update profile');
+      return rejectWithValue(typeof error === 'string' ? error : error.message || 'Failed to update profile');
     }
   }
 );
 
+const defaultEarnings: Earnings = {
+  thisMonth: 0,
+  lastMonth: 0,
+  growthPercentage: 0,
+  availableBalance: 0,
+  transactions: [],
+  totalBookings: 0,
+  totalCompletedBookings: 0,
+  pujasCompleted: 0,
+  pujasPending: 0,
+};
+
 const initialState: PriestState = {
   profile: null,
   bookings: [],
-  earnings: null,
+  earnings: defaultEarnings,
   isLoading: false,
   error: null,
 };

@@ -105,7 +105,7 @@ export default function AvailabilitySetup() {
             });
 
             Alert.alert("Success", "Availability updated!", [
-                { text: "Continue", onPress: () => router.push("/priest/DocumentUpload" as any) }
+                { text: "Continue", onPress: () => router.push("/priest/HomeTab" as any) }
             ]);
         } catch (err: any) {
             Alert.alert("Error", err.message || "Failed to update availability");
@@ -204,7 +204,7 @@ export default function AvailabilitySetup() {
                 
                 <TouchableOpacity 
                     style={styles.skipBtn} 
-                    onPress={() => router.push("/priest/DocumentUpload" as any)}
+                    onPress={() => router.push("/priest/HomeTab" as any)}
                 >
                     <Text style={styles.skipBtnText}>Skip for now</Text>
                 </TouchableOpacity>

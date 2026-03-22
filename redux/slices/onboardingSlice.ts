@@ -12,7 +12,7 @@ interface OnboardingState {
     experienceYears: string;
     bio: string;
     // Step 2: Region & Tradition
-    operatingCity: string;
+    address: string;
     languages: string[];
     sampradaya: string;
     // Step 3: Rituals
@@ -35,7 +35,7 @@ const initialState: OnboardingState = {
     whatsappNumber: '',
     experienceYears: '',
     bio: '',
-    operatingCity: '',
+    address: '',
     languages: [],
     sampradaya: '',
     selectedCeremonies: [],

@@ -42,7 +42,7 @@ const Step1BasicInfo = () => {
   return (
     <View style={styles.stepContainer}>
       <Text style={styles.stepTitle}>Tell us about yourself</Text>
-      <Text style={styles.stepLabel}>Full Name</Text>
+      <Text style={styles.stepLabel}>Full Name *</Text>
       <TextInput
         style={styles.input}
         value={formData.name}
@@ -50,7 +50,7 @@ const Step1BasicInfo = () => {
         placeholder="Acharaya Name"
       />
       
-      <Text style={styles.stepLabel}>WhatsApp Number</Text>
+      <Text style={styles.stepLabel}>WhatsApp Number *</Text>
       <TextInput
         style={styles.input}
         value={formData.whatsappNumber}
@@ -59,7 +59,7 @@ const Step1BasicInfo = () => {
         keyboardType="phone-pad"
       />
 
-      <Text style={styles.stepLabel}>Years of Experience</Text>
+      <Text style={styles.stepLabel}>Years of Experience *</Text>
       <TextInput
         style={styles.input}
         value={formData.experienceYears}
@@ -68,7 +68,7 @@ const Step1BasicInfo = () => {
         keyboardType="numeric"
       />
 
-      <Text style={styles.stepLabel}>Short Bio</Text>
+      <Text style={styles.stepLabel}>Short Bio * (Min 20 characters)</Text>
       <TextInput
         style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
         value={formData.bio}
@@ -90,15 +90,16 @@ const Step2RegionTradition = () => {
       <View style={styles.stepContainer}>
         <Text style={styles.stepTitle}>Region & Tradition</Text>
         
-        <Text style={styles.stepLabel}>Operating City</Text>
+        <Text style={styles.stepLabel}>Full Address *</Text>
         <TextInput
-          style={styles.input}
-          value={formData.operatingCity}
-          onChangeText={(v) => dispatch(updateFormData({ operatingCity: v }))}
-          placeholder="e.g. Bangalore"
+          style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+          value={formData.address}
+          onChangeText={(v) => dispatch(updateFormData({ address: v }))}
+          placeholder="e.g. 123 Temple Road, City, State, PIN"
+          multiline
         />
   
-        <Text style={styles.stepLabel}>Sampradaya / Tradition</Text>
+        <Text style={styles.stepLabel}>Sampradaya / Tradition *</Text>
         <View style={styles.traditionGrid}>
           {traditions.map((t) => (
             <TouchableOpacity
@@ -147,7 +148,7 @@ const Step3RitualsSelection = () => {
 
     return (
         <View style={styles.stepContainer}>
-            <Text style={styles.stepTitle}>Rituals & Services</Text>
+            <Text style={styles.stepTitle}>Rituals & Services *</Text>
             <Text style={styles.subtitle}>Select the ceremonies you are qualified to perform.</Text>
             {ceremonies.map((c) => (
                 <TouchableOpacity
@@ -232,6 +233,26 @@ export default function OnboardingWizard() {
 
   useEffect(() => {
     (async () => {
+      // 1. Pre-fill existing profile data if the user is already authenticated
+      if (userInfo) {
+          try {
+              const res = await priestService.getProfile();
+              const profile = res.profile || res;
+              if (profile) {
+                  dispatch(updateFormData({
+                      bio: profile.description || "",
+                      experienceYears: profile.experience?.toString() || "",
+                      sampradaya: profile.sampradaya || "",
+                      address: profile.address || profile.location?.city || "",
+                      languages: profile.languagesSpoken || []
+                  }));
+              }
+          } catch (e) {
+              console.log("Could not fetch existing profile", e);
+          }
+      }
+
+      // 2. Load recent draft from SecureStore
       const draft = await SecureStore.getItemAsync('priest_onboarding_draft');
       if (draft) {
         const parsedDraft = JSON.parse(draft);
@@ -255,6 +276,32 @@ export default function OnboardingWizard() {
   const totalSteps = 4;
 
   const handleNext = async () => {
+    // Step-by-step validation
+    if (currentStep === 0) {
+      if (!formData.name?.trim() || !formData.whatsappNumber?.trim() || !formData.experienceYears?.trim() || !formData.bio?.trim()) {
+        Alert.alert("Required Fields", "Please fill in all mandatory information.");
+        return;
+      }
+      if (formData.bio.trim().length < 20) {
+        Alert.alert("Bio Too Short", "Please write at least 20 characters in your bio so devotees can learn more about you.");
+        return;
+      }
+    }
+
+    if (currentStep === 1) {
+      if (!formData.address?.trim() || !formData.sampradaya) {
+        Alert.alert("Required Fields", "Please provide your address and select a tradition.");
+        return;
+      }
+    }
+
+    if (currentStep === 2) {
+      if (!formData.selectedCeremonies || formData.selectedCeremonies.length === 0) {
+        Alert.alert("Selection Required", "Please select at least one ritual you are qualified to perform.");
+        return;
+      }
+    }
+
     if (currentStep < totalSteps - 1) {
       dispatch(setStep(currentStep + 1));
     } else {
@@ -313,7 +360,7 @@ export default function OnboardingWizard() {
             experience: parseInt(formData.experienceYears) || 0,
             description: formData.bio,
             sampradaya: formData.sampradaya,
-            // Add other fields as needed
+            address: formData.address,
         });
 
         // 6. Submit for Verification
@@ -329,8 +376,8 @@ export default function OnboardingWizard() {
         dispatch(setProfileCompleted(true));
         dispatch(resetOnboarding());
         
-        Alert.alert("Success!", "Your profile has been submitted for review. You will be notified once approved.", [
-            { text: "OK", onPress: () => router.replace("/priest/HomeTab") }
+        Alert.alert("Success!", "Your profile has been submitted for review. Let's finish by setting your availability.", [
+            { text: "OK", onPress: () => router.replace("/priest/AvailabilitySetup" as any) }
         ]);
 
     } catch (e: any) {

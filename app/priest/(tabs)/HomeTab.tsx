@@ -263,8 +263,8 @@ const HomeScreen: React.FC = () => {
             <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.info + "12", borderLeftColor: APP_COLORS.info }]}>
               <Ionicons name="time-outline" size={24} color={APP_COLORS.info} />
               <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.info }]}>Profile Under Review</Text>
-                <Text style={styles.bannerText}>Your documents are being verified by our team. You will be able to accept bookings soon.</Text>
+                <Text style={[styles.bannerTitle, { color: APP_COLORS.info }]}>Application Under Review</Text>
+                <Text style={styles.bannerText}>Your documents are being verified by our team. You can still set up your schedule while you wait!</Text>
               </View>
             </View>
           )}
@@ -340,8 +340,8 @@ const HomeScreen: React.FC = () => {
                 completionPercentage={profileCompletion?.completionPercentage || 0}
                 onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
                 style={{ marginBottom: 20 }}
-                disabled={verificationStatus === 'pending'}
-                disabledMessage={verificationStatus === 'pending' ? "Profile Under Review" : undefined}
+                disabled={verificationStatus !== 'approved'}
+                disabledMessage={verificationStatus === 'pending' ? "Profile Under Review" : (verificationStatus === 'rejected' ? "Verification Rejected" : "Incomplete Profile")}
               />
 
               {/* Pending Actions Carousel */}

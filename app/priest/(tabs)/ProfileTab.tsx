@@ -38,6 +38,87 @@ interface PriestProfile {
   [key: string]: any;
 }
 
+const menuStyles = StyleSheet.create({
+  menuSection: {
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  menuSectionTitle: {
+    fontSize: 12,
+    fontWeight: "bold",
+    color: APP_COLORS.gray,
+    marginBottom: 8,
+    marginLeft: 4,
+    letterSpacing: 0.5,
+  },
+  menuSectionBox: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    overflow: "hidden",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: APP_COLORS.lightGray,
+  },
+  menuItemLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: APP_COLORS.primary + '1A',
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  menuItemLabel: {
+    fontSize: 16,
+    color: APP_COLORS.black,
+    fontWeight: "500",
+  },
+  rightText: {
+    fontSize: 14,
+    color: APP_COLORS.gray,
+    marginRight: 8,
+  }
+});
+
+const MenuItem = ({ icon, label, onPress, destructive = false, rightText = "", isLast = false }: any) => (
+  <TouchableOpacity style={[menuStyles.menuItem, isLast && { borderBottomWidth: 0 }]} onPress={onPress}>
+    <View style={menuStyles.menuItemLeft}>
+      <View style={[menuStyles.iconContainer, destructive && { backgroundColor: APP_COLORS.error + '1A' }]}>
+        <Ionicons name={icon} size={20} color={destructive ? APP_COLORS.error : APP_COLORS.primary} />
+      </View>
+      <Text style={[menuStyles.menuItemLabel, destructive && { color: APP_COLORS.error }]}>{label}</Text>
+    </View>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        {rightText ? <Text style={menuStyles.rightText}>{rightText}</Text> : null}
+        <Ionicons name="chevron-forward" size={18} color={APP_COLORS.gray} />
+    </View>
+  </TouchableOpacity>
+);
+
+const MenuSection = ({ title, children }: any) => (
+  <View style={menuStyles.menuSection}>
+    <Text style={menuStyles.menuSectionTitle}>{title.toUpperCase()}</Text>
+    <View style={menuStyles.menuSectionBox}>
+      {children}
+    </View>
+  </View>
+);
+
 const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
 
 const ProfileScreen: React.FC = () => {
@@ -53,11 +134,17 @@ const ProfileScreen: React.FC = () => {
 
   // --- UI Refactor State ---
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const [isDocsModalVisible, setIsDocsModalVisible] = useState(false);
+  const [isReviewsModalVisible, setIsReviewsModalVisible] = useState(false);
   
   const [isPersonalModalVisible, setIsPersonalModalVisible] = useState(false);
   const [isSavingPersonal, setIsSavingPersonal] = useState(false);
   const [personalDetails, setPersonalDetails] = useState({ name: "", email: "", phone: "", experience: "", religiousTradition: "", description: "", serviceRadiusKm: "" });
-
+  const [addressDetails, setAddressDetails] = useState({ houseNo: "", street: "", town: "", state: "", country: "India", pincode: "", fullAddress: "" });
+  
+  const [isAddressModalVisible, setIsAddressModalVisible] = useState(false);
+  const [isSavingAddress, setIsSavingAddress] = useState(false);
+  
   const [isTempleModalVisible, setIsTempleModalVisible] = useState(false);
   const [isSavingTemple, setIsSavingTemple] = useState(false);
   const [templeDetails, setTempleDetails] = useState([{ name: "", address: "" }]);
@@ -91,6 +178,15 @@ const ProfileScreen: React.FC = () => {
           serviceRadiusKm: priestProfile.serviceRadiusKm?.toString() || "10",
           description: priestProfile.description || ""
         }));
+        setAddressDetails({
+          houseNo: priestProfile.address?.houseNo || "",
+          street: priestProfile.address?.street || "",
+          town: priestProfile.address?.town || "",
+          state: priestProfile.address?.state || "",
+          country: priestProfile.address?.country || "India",
+          pincode: priestProfile.address?.pincode || "",
+          fullAddress: priestProfile.address?.fullAddress || (typeof priestProfile.address === 'string' ? priestProfile.address : "")
+        });
         setTempleDetails(priestProfile.templesAffiliated?.length ? [...priestProfile.templesAffiliated] : [{ name: "", address: "" }]);
       }
 
@@ -231,6 +327,40 @@ const ProfileScreen: React.FC = () => {
       Alert.alert("Error", error.toString() || "Failed to save details");
     } finally {
       setIsSavingPersonal(false);
+    }
+  };
+
+  const saveAddressDetails = async () => {
+    try {
+      setIsSavingAddress(true);
+      
+      const parts = [
+        addressDetails.houseNo,
+        addressDetails.street,
+        addressDetails.town,
+        addressDetails.state,
+        addressDetails.country,
+        addressDetails.pincode
+      ].filter(Boolean);
+      
+      const fullAddress = parts.join(", ");
+      
+      const payload = {
+        address: {
+          ...addressDetails,
+          fullAddress
+        }
+      };
+
+      await priestService.updateProfile(payload);
+      
+      Alert.alert("Success", "Business address updated");
+      setIsAddressModalVisible(false);
+      getProfile(true);
+    } catch (error: any) {
+      Alert.alert("Error", error.toString() || "Failed to save address");
+    } finally {
+      setIsSavingAddress(false);
     }
   };
 
@@ -407,7 +537,14 @@ const ProfileScreen: React.FC = () => {
             <TouchableOpacity style={styles.editProfileButton} onPress={handlePickPhoto}>
               <Ionicons name="camera-outline" size={20} color={APP_COLORS.white} />
             </TouchableOpacity>
-            <Text style={styles.userName}>{userInfo?.name || "Pandit Sharma"}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+              <Text style={styles.userName}>{userInfo?.name || "Pandit Sharma"}</Text>
+              {profile?.isVerified && (
+                <View style={{ marginLeft: 6, backgroundColor: APP_COLORS.primary, borderRadius: 10, padding: 1 }}>
+                  <Ionicons name="checkmark-circle" size={18} color={APP_COLORS.white} />
+                </View>
+              )}
+            </View>
 
             {/* Overall Rating */}
             {(profile?.userId as any)?.rating?.count > 0 && (
@@ -434,130 +571,89 @@ const ProfileScreen: React.FC = () => {
             )}
           </View>
 
-          {/* Personal Details */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Personal Details</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => setIsPersonalModalVisible(true)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
+          {/* Menu Sections */}
+          <MenuSection title="Account & Profile">
+            <MenuItem 
+                icon="person-outline" 
+                label="Personal Details" 
+                rightText={profileCompletion < 100 ? "Incomplete" : ""}
+                onPress={() => setIsPersonalModalVisible(true)} 
+            />
+            <MenuItem 
+                icon="location-outline" 
+                label="Business Address" 
+                rightText={addressDetails.fullAddress ? (addressDetails.fullAddress.length > 15 ? addressDetails.fullAddress.substring(0, 12) + "..." : addressDetails.fullAddress) : "Not Set"}
+                onPress={() => setIsAddressModalVisible(true)} 
+            />
+            <MenuItem 
+                icon="business-outline" 
+                label="Temple Affiliations" 
+                rightText={`${profile?.templesAffiliated?.length || 0} Added`}
+                onPress={() => setIsTempleModalVisible(true)} 
+            />
+            <MenuItem 
+                icon="document-text-outline" 
+                label="Verification Documents" 
+                rightText={profile?.isVerified ? "Approved" : (profile?.verificationStatus === 'pending' ? "Under Review" : (profile?.verificationStatus === 'rejected' ? "Rejected" : "Incomplete"))}
+                onPress={() => setIsDocsModalVisible(true)} 
+                isLast={true}
+            />
+          </MenuSection>
 
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Full Name</Text>
-              <Text style={styles.infoValue}>{userInfo?.name || "Pandit Sharma"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Years of Experience</Text>
-              <Text style={styles.infoValue}>{profile?.experience || 0}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Religious Tradition</Text>
-              <Text style={styles.infoValue}>{profile?.religiousTradition || "Tradition"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Languages Spoken</Text>
-              <Text style={styles.infoValue}>
-                <Text style={styles.infoValue}>
-                  {(() => {
-                    const langs = profile?.userId?.languagesSpoken;
-                    if (!langs || langs.length === 0) return 'Not specified';
-                    if (typeof langs[0] === 'object') {
-                      return langs.map((l: any) => l.name || JSON.stringify(l)).join(', ');
-                    }
-                    return langs.join(', ');
-                  })()}
-                </Text>
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Description</Text>
-              <Text style={styles.infoValue}>{profile?.description || 'Not provided'}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Phone Number</Text>
-              <Text style={styles.infoValue}>{userInfo?.phone || "+91 XXXXX XXXXX"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Email Address</Text>
-              <Text style={styles.infoValue}>{userInfo?.email || "example@email.com"}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Location Coordinates</Text>
-              <Text style={styles.infoValue}>
-                {profile?.location && profile.location.coordinates[0] !== 0
-                  ? `Lat: ${profile.location.coordinates[1].toFixed(4)}, Lng: ${profile.location.coordinates[0].toFixed(4)}`
-                  : 'Not Set'}
-              </Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Service Radius (Km)</Text>
-              <Text style={styles.infoValue}>{profile?.serviceRadiusKm || 10} km</Text>
-            </View>
-          </View>
+          <MenuSection title="Business & Schedule">
+            <MenuItem 
+                icon="calendar-outline" 
+                label="Availability" 
+                onPress={() => router.push("/priest/AvailabilitySetup" as any)} 
+            />
+            <MenuItem 
+                icon="star-outline" 
+                label="My Reviews" 
+                rightText={`${userReviews.length} Reviews`}
+                onPress={() => setIsReviewsModalVisible(true)} 
+                isLast={true}
+            />
+          </MenuSection>
 
-          {/* Services moved to ServicesTab */}
+          <MenuSection title="Settings & Support">
+            <MenuItem 
+                icon="notifications-outline" 
+                label="Notifications" 
+                onPress={() => { Alert.alert("Coming Soon", "Notification preferences will be available soon.") }} 
+            />
+            <MenuItem 
+                icon="help-circle-outline" 
+                label="Help Center" 
+                onPress={() => { Linking.openURL("mailto:support@sacredconnect.com") }} 
+            />
+            <MenuItem 
+                icon="log-out-outline" 
+                label="Logout" 
+                destructive={true} 
+                onPress={handleLogout} 
+                isLast={true}
+            />
+          </MenuSection>
 
-          {/* Availability */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Availability</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => router.push("/priest/weekly-schedule" as any)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-          </View>
+        </ScrollView>
 
-          <View style={styles.infoCard}>
-            {(() => {
-              const availability = profile?.availability;
-              const schedule = availability?.weeklySchedule || availability;
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </View>
 
-              if (!schedule || Object.keys(schedule).length === 0) {
-                return (
-                  <View style={styles.infoRow}>
-                    <Text style={styles.infoValue}>Availability not set</Text>
-                  </View>
-                );
-              }
-
-              return Object.entries(schedule).map(([day, slots]: [string, any]) => {
-                if (day === 'dateOverrides' || day === 'timeZone' || day === '_id') return null;
-
-                let timeText = "";
-                // New format: ["09:00-17:00"]
-                if (Array.isArray(slots) && slots.length > 0) {
-                  if (typeof slots[0] === 'string') {
-                    timeText = slots.join(', ');
-                  }
-                }
-                // Old format fallback
-                else if (slots && typeof slots === 'object' && slots.startTime) {
-                  if (!slots.available) return null;
-                  timeText = `${slots.startTime} - ${slots.endTime}`;
-                }
-
-                if (!timeText) return null;
-
-                return (
-                  <View style={[styles.infoRow, { flexDirection: 'row', justifyContent: 'space-between' }]} key={day}>
-                    <Text style={[styles.infoValue, { textTransform: 'capitalize' }]}>{day}</Text>
-                    <Text style={styles.infoLabel}>{timeText}</Text>
-                  </View>
-                );
-              });
-            })()}
-          </View>
-
-          {/* Verification Documents */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Verification Documents</Text>
-          </View>
-
+      {/* --- Documents Modal --- */}
+      <Modal visible={isDocsModalVisible} transparent={true} animationType="slide">
+        <View style={localStyles.modalOverlay}>
+          <View style={localStyles.modalContent}>
+             <View style={localStyles.modalHeader}>
+               <Text style={localStyles.modalTitle}>Verification Documents</Text>
+               <TouchableOpacity onPress={() => setIsDocsModalVisible(false)}>
+                 <Ionicons name="close" size={24} color={APP_COLORS.gray} />
+               </TouchableOpacity>
+             </View>
+             <ScrollView showsVerticalScrollIndicator={false}>
           {profile?.isVerified ? (
             <View style={[styles.documentsCard, { alignItems: 'center', paddingVertical: 24 }]}>
               <Ionicons name="checkmark-circle" size={48} color={APP_COLORS.success} style={{ marginBottom: 12 }} />
@@ -627,84 +723,25 @@ const ProfileScreen: React.FC = () => {
             </View>
           </View>
           )}
-
-          {(profile?.specializations && profile.specializations.length > 0) && (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Specializations</Text>
-              </View>
-              <View style={styles.infoCard}>
-                {profile.specializations.map((spec: any, idx: number) => (
-                  <View key={`spec-${idx}`} style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>{spec.name}</Text>
-                    <Text style={styles.infoValue}>{spec.experience} yr exp | {spec.verificationStatus}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-
-          {(profile?.serviceAreas && profile.serviceAreas.length > 0) && (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Custom Service Areas</Text>
-              </View>
-              <View style={styles.infoCard}>
-                {profile.serviceAreas.map((area: any, idx: number) => (
-                  <View key={`area-${idx}`} style={styles.infoRow}>
-                    <Text style={styles.infoLabel}>{area.city}, {area.state}</Text>
-                    <Text style={styles.infoValue}>Radius: {area.radius}km | Travel Charge: ₹{area.travelCharges}</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Temple Affiliation</Text>
-            <TouchableOpacity
-              style={styles.editButton}
-              onPress={() => setIsTempleModalVisible(true)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
+             </ScrollView>
           </View>
+        </View>
+      </Modal>
 
-          <View style={styles.infoCard}>
-            {profile?.templesAffiliated &&
-              profile.templesAffiliated.length > 0 ? (
-              profile.templesAffiliated.map((temple: any, idx: number) => (
-                <View style={styles.infoRow} key={`temple-${idx}`}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.infoLabel}>Temple {idx + 1}</Text>
-                    <Text style={[styles.infoLabel, styles.templeName]}>
-                      {temple.name || "Temple"}
-                    </Text>
-                    <Text style={[styles.infoValue, styles.templeAddress]}>
-                      {temple.address || "Address not provided"}
-                    </Text>
-                  </View>
-                </View>
-              ))
-            ) : (
-              <View style={styles.infoRow}>
-                <Text style={styles.infoValue}>
-                  No temple affiliations added
-                </Text>
-              </View>
-            )}
-          </View>
-
-
-
-          {/* Reviews Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Reviews ({userReviews.length})</Text>
-          </View>
-
+      {/* --- Reviews Modal --- */}
+      <Modal visible={isReviewsModalVisible} transparent={true} animationType="slide">
+        <View style={localStyles.modalOverlay}>
+          <View style={localStyles.modalContent}>
+             <View style={localStyles.modalHeader}>
+               <Text style={localStyles.modalTitle}>Reviews ({userReviews.length})</Text>
+               <TouchableOpacity onPress={() => setIsReviewsModalVisible(false)}>
+                 <Ionicons name="close" size={24} color={APP_COLORS.gray} />
+               </TouchableOpacity>
+             </View>
+             <ScrollView showsVerticalScrollIndicator={false}>
           {userReviews.length > 0 ? (
             <View style={styles.infoCard}>
-              {userReviews.slice(0, 5).map((review, index) => (
+              {userReviews.map((review, index) => (
                 <View key={index} style={{ marginBottom: 16, borderBottomWidth: index < userReviews.length - 1 ? 1 : 0, borderBottomColor: APP_COLORS.lightGray, paddingBottom: 12 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={{ fontWeight: 'bold' }}>{review.reviewerId?.name || "User"}</Text>
@@ -723,25 +760,53 @@ const ProfileScreen: React.FC = () => {
                   )}
                 </View>
               ))}
-              {userReviews.length > 5 && (
-                <TouchableOpacity style={{ alignItems: 'center', marginTop: 8 }}>
-                  <Text style={{ color: APP_COLORS.primary, fontWeight: 'bold' }}>See all reviews</Text>
-                </TouchableOpacity>
-              )}
             </View>
           ) : (
             <View style={styles.infoCard}>
               <Text style={{ textAlign: 'center', color: APP_COLORS.gray, padding: 16 }}>No reviews yet</Text>
             </View>
           )}
+             </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
-        </ScrollView>
+      {/* --- Address Details Modal --- */}
+      <Modal visible={isAddressModalVisible} transparent={true} animationType="slide">
+        <View style={localStyles.modalOverlay}>
+          <View style={localStyles.modalContent}>
+            <View style={localStyles.modalHeader}>
+              <Text style={localStyles.modalTitle}>Edit Business Address</Text>
+              <TouchableOpacity onPress={() => setIsAddressModalVisible(false)}>
+                <Ionicons name="close" size={24} color={APP_COLORS.gray} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={localStyles.inputLabel}>House / Flat No.</Text>
+              <TextInput style={localStyles.input} value={addressDetails.houseNo} onChangeText={(text) => setAddressDetails({ ...addressDetails, houseNo: text })} placeholder="e.g. 123, Block A" />
+              
+              <Text style={localStyles.inputLabel}>Street / Area</Text>
+              <TextInput style={localStyles.input} value={addressDetails.street} onChangeText={(text) => setAddressDetails({ ...addressDetails, street: text })} placeholder="e.g. Temple Road" />
+              
+              <Text style={localStyles.inputLabel}>Town / City</Text>
+              <TextInput style={localStyles.input} value={addressDetails.town} onChangeText={(text) => setAddressDetails({ ...addressDetails, town: text })} placeholder="e.g. Varanasi" />
 
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color={APP_COLORS.error} />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+              <Text style={localStyles.inputLabel}>State</Text>
+              <TextInput style={localStyles.input} value={addressDetails.state} onChangeText={(text) => setAddressDetails({ ...addressDetails, state: text })} placeholder="e.g. Uttar Pradesh" />
+
+              <Text style={localStyles.inputLabel}>Country</Text>
+              <TextInput style={localStyles.input} value={addressDetails.country} onChangeText={(text) => setAddressDetails({ ...addressDetails, country: text })} />
+
+              <Text style={localStyles.inputLabel}>Pincode</Text>
+              <TextInput style={localStyles.input} value={addressDetails.pincode} onChangeText={(text) => setAddressDetails({ ...addressDetails, pincode: text })} keyboardType="numeric" placeholder="e.g. 221001" />
+
+              <TouchableOpacity style={localStyles.saveButton} onPress={saveAddressDetails} disabled={isSavingAddress}>
+                {isSavingAddress ? <ActivityIndicator color={APP_COLORS.white} /> : <Text style={localStyles.saveButtonText}>Save Address</Text>}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* --- Personal Details Modal --- */}
       <Modal visible={isPersonalModalVisible} transparent={true} animationType="slide">

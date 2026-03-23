@@ -211,17 +211,26 @@ const devoteeService = {
   },
 
   /**
-   * Process payment for a booking
-   * @param {string} bookingId - The booking ID
-   * @param {Object} paymentData - The payment data
-   * @returns {Promise} Response from the API
+   * Create Razorpay Order
    */
-  processPayment: async (bookingId: string, paymentData: Record<string, any>): Promise<any> => {
+  createRazorpayOrder: async (bookingId: string, amount: number): Promise<any> => {
     try {
-      const response = await api.post(`/api/devotee/bookings/${bookingId}/payment`, paymentData);
+      const response = await api.post('/api/bookings/payment/order', { bookingId, amount });
       return response.data;
     } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to process payment. Please try again.';
+      throw error?.response?.data?.message || 'Failed to create payment order.';
+    }
+  },
+
+  /**
+   * Verify Razorpay Payment
+   */
+  verifyRazorpayPayment: async (verificationData: { razorpay_order_id: string, razorpay_payment_id: string, razorpay_signature: string, bookingId: string }): Promise<any> => {
+    try {
+      const response = await api.post('/api/bookings/payment/verify', verificationData);
+      return response.data;
+    } catch (error: any) {
+      throw error?.response?.data?.message || 'Payment verification failed.';
     }
   },
 

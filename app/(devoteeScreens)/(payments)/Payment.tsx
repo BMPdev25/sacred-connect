@@ -18,6 +18,7 @@ import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
+import RazorpayCheckout from "react-native-razorpay";
 import { APP_COLORS } from "../../../constants/Colors";
 import { getBookings } from "../../../redux/slices/bookingSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
@@ -71,12 +72,6 @@ const Payment: React.FC = () => {
   }
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardExpiry, setCardExpiry] = useState("");
-  const [cardCvv, setCardCvv] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [upiId, setUpiId] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const formatDate = (dateString: string) => {
@@ -89,32 +84,11 @@ const Payment: React.FC = () => {
   };
 
   const handlePayment = async () => {
-    // Validate payment details
-    if (selectedPaymentMethod === "card") {
-      if (!cardNumber || !cardExpiry || !cardCvv || !cardName) {
-        Alert.alert("Error", "Please enter all card details");
-        return;
-      }
-    } else if (selectedPaymentMethod === "upi") {
-      if (!upiId) {
-        Alert.alert("Error", "Please enter UPI ID");
-        return;
-      }
-    }
-
+    // Note: We bypass manual UI card validations since Razorpay provides its own checkout UI.
     setIsProcessing(true);
 
     try {
-      // Generate payment details
-      const paymentDetails = {
-        paymentMethod: selectedPaymentMethod,
-        paymentStatus: "completed",
-        paymentId:
-          "PAY" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        paymentDate: new Date().toISOString(),
-      };
-
-      // Create booking data for API
+      // 1. Create booking data for API
       const bookingData = {
         devoteeId: userInfo?._id,
         priestId: bookingDetails.priestId,
@@ -127,38 +101,89 @@ const Payment: React.FC = () => {
         basePrice: bookingDetails.basePrice,
         platformFee: bookingDetails.platformFee,
         totalAmount: bookingDetails.totalAmount,
-        status: "requested", // Important: Set initial status to requested, not confirmed
-        ...paymentDetails,
+        status: "requested", // Initialize as pending/requested
+        paymentStatus: "pending", 
       };
-      console.log("Booking Data to be sent:", bookingData);
 
-      // Create booking via API
-      const response = await devoteeService.createBooking(bookingData);
-      const createdBooking = response.data || response;
+      // 2. Insert booking via API
+      let createdBooking: any;
+      try {
+        const response = await devoteeService.createBooking(bookingData);
+        createdBooking = response.data || response;
+      } catch (e: any) {
+        throw new Error(e?.message || "Failed to create pending booking.");
+      }
 
-      // Refresh bookings in Redux store
-      dispatch(getBookings());
+      const bookingId = createdBooking._id || createdBooking.id;
 
-      setIsProcessing(false);
+      // 3. Create Razorpay Order matching this booking
+      let orderResponse: any;
+      try {
+        orderResponse = await devoteeService.createRazorpayOrder(bookingId, bookingDetails.totalAmount);
+      } catch (e: any) {
+        throw new Error(e?.message || "Failed to generate Razorpay Order from server.");
+      }
+      
+      const orderParams = orderResponse.data || orderResponse;
 
-      // Navigate to confirmation screen with Booking ID
-      router.push({
-        pathname: "/BookingConfirmation",
-        params: { 
-          bookingId: createdBooking._id || createdBooking.id,
-          // We still pass names for immediate display if needed, but the refactored 
-          // confirmation screen will fetch the source of truth using bookingId.
-          priestName: bookingDetails.priestName,
-          priestImage: bookingDetails.priestImage,
+      // 4. Open Razorpay Checkout Modal
+      const options = {
+        description: `${bookingDetails.ceremonyType} Booking`,
+        image: 'https://i.imgur.com/3g7nmJC.png', // Temporary placeholder logo
+        currency: orderParams.currency || 'INR',
+        key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_HERE', 
+        amount: orderParams.amount,
+        name: 'Sacred Connect',
+        order_id: orderParams.orderId || orderParams.id, 
+        prefill: {
+          email: userInfo?.email || '',
+          contact: userInfo?.phone || '',
+          name: userInfo?.name || ''
         },
+        theme: { color: APP_COLORS.primary }
+      };
+
+      RazorpayCheckout.open(options).then(async (data: any) => {
+        // 5. Verify the cryptographic signature post-payment
+        try {
+          await devoteeService.verifyRazorpayPayment({
+            razorpay_payment_id: data.razorpay_payment_id,
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_signature: data.razorpay_signature,
+            bookingId: bookingId
+          });
+
+          // Refresh global booking state
+          dispatch(getBookings());
+          setIsProcessing(false);
+
+          // Route to Confirmation Screen
+          router.push({
+            pathname: "/BookingConfirmation",
+            params: { 
+              bookingId: bookingId,
+              priestName: bookingDetails.priestName,
+              priestImage: bookingDetails.priestImage,
+            },
+          });
+        } catch (verifyErr: any) {
+          throw new Error("Payment verification failed on the server.");
+        }
+      }).catch((error: any) => {
+        setIsProcessing(false);
+        // Razorpay modal closed or failed
+        const errorMsg = error?.error?.description || "Payment was cancelled or failed.";
+        Alert.alert("Payment Issue", errorMsg);
+        // Expected behavior: booking remains in "pending" status, user can try again later
       });
+
     } catch (error: unknown) {
       setIsProcessing(false);
       console.error("Payment/Booking creation error:", error);
       Alert.alert(
-        "Payment Failed",
-        (error as any)?.message ||
-        "An error occurred while processing your payment. Please try again."
+        "Booking Failed",
+        (error as Error)?.message ||
+        "An error occurred while processing your booking. Please try again."
       );
     }
   };
@@ -248,118 +273,11 @@ const Payment: React.FC = () => {
           </View>
 
           <View style={styles.paymentMethodContainer}>
-            <Text style={styles.sectionTitle}>Payment Method</Text>
-            <TouchableOpacity
-              style={[
-                styles.paymentMethodOption,
-                selectedPaymentMethod === "upi" && styles.selectedPaymentMethod,
-              ]}
-              onPress={() => setSelectedPaymentMethod("upi")}
-            >
-              <View style={styles.paymentMethodLeft}>
-                <View style={styles.radioButton}>
-                  {selectedPaymentMethod === "upi" && (
-                    <View style={styles.radioButtonInner} />
-                  )}
-                </View>
-                <Text style={styles.paymentMethodText}>UPI</Text>
-              </View>
-              <Image
-                source={require("../../../assets/images/upi-logo.png")}
-                style={styles.paymentIcon}
-              />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.paymentMethodOption,
-                selectedPaymentMethod === "card" &&
-                styles.selectedPaymentMethod,
-              ]}
-              onPress={() => setSelectedPaymentMethod("card")}
-            >
-              <View style={styles.paymentMethodLeft}>
-                <View style={styles.radioButton}>
-                  {selectedPaymentMethod === "card" && (
-                    <View style={styles.radioButtonInner} />
-                  )}
-                </View>
-                <Text style={styles.paymentMethodText}>Credit/Debit Card</Text>
-              </View>
-              <View style={styles.cardIcons}>
-                <Image
-                  source={require("../../../assets/images/visa-logo.png")}
-                  style={styles.cardIcon}
-                />
-                <Image
-                  source={require("../../../assets/images/mastercard-logo.png")}
-                  style={styles.cardIcon}
-                />
-              </View>
-            </TouchableOpacity>
-
-            {selectedPaymentMethod === "upi" && (
-              <View style={styles.upiContainer}>
-                <Text style={styles.inputLabel}>UPI ID</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="username@upi"
-                  value={upiId}
-                  onChangeText={setUpiId}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-            )}
-
-            {selectedPaymentMethod === "card" && (
-              <View style={styles.cardContainer}>
-                <Text style={styles.inputLabel}>Card Number</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="1234 5678 9012 3456"
-                  value={cardNumber}
-                  onChangeText={setCardNumber}
-                  keyboardType="number-pad"
-                  maxLength={19}
-                />
-
-                <View style={styles.cardDetailsRow}>
-                  <View style={styles.cardDetailHalf}>
-                    <Text style={styles.inputLabel}>Expiry Date</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="MM/YY"
-                      value={cardExpiry}
-                      onChangeText={(text) => setCardExpiry(formatExpiryDate(text))}
-                      keyboardType="number-pad"
-                      maxLength={5}
-                    />
-                  </View>
-                  <View style={styles.cardDetailHalf}>
-                    <Text style={styles.inputLabel}>CVV</Text>
-                    <TextInput
-                      style={styles.input}
-                      placeholder="123"
-                      value={cardCvv}
-                      onChangeText={setCardCvv}
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      secureTextEntry
-                    />
-                  </View>
-                </View>
-
-                <Text style={styles.inputLabel}>Cardholder Name</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter name on card"
-                  value={cardName}
-                  onChangeText={setCardName}
-                  autoCapitalize="words"
-                />
-              </View>
-            )}
+            <Text style={styles.sectionTitle}>Secure Payment via Razorpay</Text>
+            <Text style={styles.paymentMethodText}>
+              Tap the Pay button below to securely open Razorpay Checkout. 
+              You can pay via UPI, Credit/Debit Cards, Netbanking, or Wallets.
+            </Text>
           </View>
 
           <View style={styles.securityNote}>

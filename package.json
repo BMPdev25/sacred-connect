@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "test:mobile:success": "node scripts/run-maestro.js flow-booking-success.yaml",
     "test:mobile:accept": "node scripts/run-maestro.js flow-priest-acceptance.yaml",
@@ -47,6 +47,7 @@
     "react-native-calendars": "^1.1313.0",
     "react-native-chart-kit": "^6.12.0",
     "react-native-keyboard-aware-scroll-view": "^0.9.5",
+    "react-native-razorpay": "^2.3.1",
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",

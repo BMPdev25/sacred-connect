@@ -70,9 +70,28 @@ const Payment: React.FC = () => {
       bookingDetails = null;
     }
   }
+
   const dispatch = useDispatch<AppDispatch>();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  if (!bookingDetails) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+        <View style={{ padding: 16, backgroundColor: APP_COLORS.white, borderBottomWidth: 1, borderBottomColor: APP_COLORS.lightGray, flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, justifyContent: 'center' }}>
+            <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Error</Text>
+        </View>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+          <Text style={{ fontSize: 16, textAlign: 'center', color: APP_COLORS.gray }}>
+            Booking details were lost (possibly due to an app reload). Please go back and select a time slot again.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const formatDate = (dateString: string) => {
     const options: Intl.DateTimeFormatOptions = {
@@ -171,8 +190,11 @@ const Payment: React.FC = () => {
         }
       }).catch((error: any) => {
         setIsProcessing(false);
-        // Razorpay modal closed or failed
-        const errorMsg = error?.error?.description || "Payment was cancelled or failed.";
+        // Log the full detailed error object required for debugging native Razorpay SDK problems
+        console.error("Razorpay SDK Error:", JSON.stringify(error, null, 2));
+        
+        // Error format varies, safely extract message
+        const errorMsg = error?.error?.description || error?.description || "Payment was cancelled or failed.";
         Alert.alert("Payment Issue", errorMsg);
         // Expected behavior: booking remains in "pending" status, user can try again later
       });

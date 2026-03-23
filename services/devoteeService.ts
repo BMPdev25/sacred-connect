@@ -218,7 +218,8 @@ const devoteeService = {
       const response = await api.post('/api/bookings/payment/order', { bookingId, amount });
       return response.data;
     } catch (error: any) {
-      throw error?.response?.data?.message || 'Failed to create payment order.';
+      const errorMsg = error?.response?.data?.message || error?.message || 'Failed to create payment order.';
+      throw new Error(errorMsg);
     }
   },
 

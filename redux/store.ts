@@ -1,7 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './slices/authSlice';
 import bookingReducer from './slices/bookingSlice';
-import devoteeReducer from './slices/devoteeSlice';
 import priestReducer from './slices/priestSlice';
 import onboardingReducer from './slices/onboardingSlice';
 
@@ -10,7 +9,6 @@ const store = configureStore({
   reducer: {
     auth: authReducer,
     priest: priestReducer,
-    devotee: devoteeReducer,
     booking: bookingReducer,
     onboarding: onboardingReducer,
   },

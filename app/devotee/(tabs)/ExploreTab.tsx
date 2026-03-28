@@ -1,12 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
+import { router } from "expo-router";
+import React from "react";
 import {
-    Dimensions,
     FlatList,
     Image,
     ScrollView,
-    StyleSheet,
     Text,
     TextInput,
     TouchableOpacity,
@@ -18,116 +16,54 @@ import { StatusBar } from "expo-status-bar";
 import { APP_COLORS } from "../../../constants/Colors";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
-import ceremonyService from "../../../services/ceremonyService";
-import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator } from "react-native";
 import { getImageUri } from "../../../utils/imageUtils";
 import ErrorMessage from "../../../components/ErrorMessage";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import { useExplorePujas } from "../../../hooks/useExplorePujas";
 
-// ─── useDebounce Hook (Internal) ───────────────
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-    return debouncedValue;
-}
-
-const { width: WINDOW_WIDTH } = Dimensions.get("window");
-const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
-const SIDEBAR_WIDTH = 72; // Fixed width for sidebar instead of percentage
-
-// ─── Component ────────────────────────────────────────────────────────────
 const ExploreScreen: React.FC = () => {
-    const { category: initialCategory } = useLocalSearchParams<{ category?: string }>();
     const insets = useSafeAreaInsets();
-    const [searchQuery, setSearchQuery] = useState("");
-    const debouncedSearch = useDebounce(searchQuery, 500);
-    const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
-
-    // Sync activeCategory with param updates
-    useEffect(() => {
-        if (initialCategory) {
-            setActiveCategory(initialCategory);
-        }
-    }, [initialCategory]);
-
-    // Fetch Categories
-    const { 
-        data: categories = [], 
-        isLoading: isLoadingCats, 
-        isError: isErrorCats,
-        refetch: refetchCats 
-    } = useQuery({
-        queryKey: ["ceremony-categories"],
-        queryFn: ceremonyService.getCategories,
-    });
-
-    // Fetch Ceremonies (all initially, by category, OR by search)
-    const { 
-        data: ceremoniesData, 
-        isLoading: isLoadingCeremonies, 
-        isError: isErrorCeremonies,
-        refetch: refetchCeremonies 
-    } = useQuery({
-        queryKey: ["ceremonies", activeCategory, debouncedSearch],
-        queryFn: () => {
-            if (debouncedSearch.trim()) {
-                return ceremonyService.searchPujas(debouncedSearch);
-            }
-            return activeCategory === "all" 
-                ? ceremonyService.getAllPujas() 
-                : ceremonyService.getPujasByCategory(activeCategory);
-        },
-    });
-
-    const ceremonies = ceremoniesData?.ceremonies || ceremoniesData || [];
-    const isLoading = isLoadingCats || isLoadingCeremonies;
-    const isError = isErrorCats || isErrorCeremonies;
-
-    const handleRetry = () => {
-        if (isErrorCats) refetchCats();
-        if (isErrorCeremonies) refetchCeremonies();
-    };
-
-    const searchedServices = ceremonies;
+    const {
+        searchQuery,
+        setSearchQuery,
+        activeCategory,
+        setActiveCategory,
+        categories,
+        ceremonies,
+        isLoading,
+        isError,
+        handleRetry,
+    } = useExplorePujas();
 
     const renderServiceCard = ({ item }: { item: any }) => (
-        <Card style={styles.serviceCard}>
-            <View style={styles.serviceRow}>
+        <Card className="mb-3 p-0 overflow-hidden">
+            <View className="flex-row">
                 <Image
-                    source={{ 
-                        uri: getImageUri(item.image || (item.images && item.images[0])) 
-                    }}
-                    style={styles.serviceImage}
+                    source={{ uri: getImageUri(item.image || (item.images && item.images[0])) }}
+                    className="w-24 h-30"
+                    style={{ borderTopLeftRadius: 16, borderBottomLeftRadius: 16 }}
                     resizeMode="cover"
                 />
-                <View style={styles.serviceInfo}>
-                    <Text style={styles.serviceName} numberOfLines={2}>{item.name}</Text>
-                    <View style={styles.serviceMetaRow}>
+                <View className="flex-1 p-3 justify-between">
+                    <Text className="text-sm font-bold text-[#1A1A1A] mb-1" numberOfLines={2}>{item.name}</Text>
+                    <View className="flex-row items-center gap-1 mb-0.5">
                         <Ionicons name="star" size={13} color="#FFD700" />
-                        <Text style={styles.serviceRating}>{item.rating?.average?.toFixed(1) || "4.5"}</Text>
-                        <Text style={styles.serviceBookings}>({item.bookingsCount || 0} booked)</Text>
+                        <Text className="text-xs font-semibold text-[#4A4A4A]">{item.rating?.average?.toFixed(1) || "4.5"}</Text>
+                        <Text className="text-[11px] text-[#666666]">({item.bookingsCount || 0} booked)</Text>
                     </View>
-                    <View style={styles.serviceMetaRow}>
-                        <Ionicons name="time-outline" size={13} color={APP_COLORS.gray} />
-                        <Text style={styles.serviceDuration}>
+                    <View className="flex-row items-center gap-1 mb-0.5">
+                        <Ionicons name="time-outline" size={13} color="#666666" />
+                        <Text className="text-xs text-[#666666]">
                             {typeof item.duration === 'object' ? (item.duration.typical || item.duration.minimum) : item.duration} mins
                         </Text>
                     </View>
-                    <View style={styles.servicePriceRow}>
-                        <Text style={styles.servicePrice}>₹{item.pricing?.basePrice || item.basePrice || "0"}</Text>
+                    <View className="flex-row justify-between items-center mt-1">
+                        <Text className="text-lg font-extrabold text-[#1A1A1A]">₹{item.pricing?.basePrice || item.basePrice || "0"}</Text>
                         <PrimaryButton
                             title="Select"
                             onPress={() => router.push(`/(devoteeScreens)/(pujas)/${item._id}`)}
                             size="sm"
-                            style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 12 }}
+                            className="py-1.5 px-3.5 rounded-xl"
                         />
                     </View>
                 </View>
@@ -136,57 +72,59 @@ const ExploreScreen: React.FC = () => {
     );
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View 
+            className="flex-1 bg-white self-center w-full" 
+            style={{ 
+                paddingTop: insets.top,
+                maxWidth: Platform.OS === 'web' ? 600 : undefined 
+            }}
+        >
             <StatusBar style="dark" />
 
             {/* ── Search Bar ──────────────────────────────── */}
-            <View style={styles.searchContainer}>
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color={APP_COLORS.gray} />
+            <View className="px-4 py-3 bg-white border-b border-[#E0E0E0]">
+                <View className="flex-row items-center bg-[#F5F5F5] rounded-2xl px-3.5 py-2.5">
+                    <Ionicons name="search" size={20} color="#666666" />
                     <TextInput
-                        style={styles.searchInput}
+                        className="flex-1 ml-2.5 text-sm text-[#4A4A4A]"
                         placeholder="Search for 'Griha Pravesh'..."
-                        placeholderTextColor={APP_COLORS.gray}
+                        placeholderTextColor="#666666"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <Ionicons name="close-circle" size={20} color={APP_COLORS.gray} />
+                            <Ionicons name="close-circle" size={20} color="#666666" />
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
 
             {/* ── Body: Sidebar + Main Content ──────────── */}
-            <View style={styles.body}>
+            <View className="flex-1 flex-row">
                 {/* Sidebar */}
                 <ScrollView
-                    style={styles.sidebar}
+                    className="w-18 flex-none bg-white border-r border-[#E0E0E0]"
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingVertical: 8 }}
                 >
                     <TouchableOpacity
-                        key="all-category"
-                        style={[styles.sidebarItem, activeCategory === "all" && styles.sidebarItemActive]}
+                        className={`items-center py-3.5 px-1 relative ${activeCategory === "all" ? 'bg-[#FFF2E0]' : ''}`}
                         onPress={() => setActiveCategory("all")}
                         activeOpacity={0.7}
                     >
                         <Ionicons
                             name="apps"
                             size={20}
-                            color={activeCategory === "all" ? APP_COLORS.saffron : APP_COLORS.gray}
+                            color={activeCategory === "all" ? '#FF9800' : '#666666'}
                         />
                         <Text
-                            style={[
-                                styles.sidebarText,
-                                activeCategory === "all" && styles.sidebarTextActive,
-                            ]}
+                            className={`text-[10px] mt-1 text-center ${activeCategory === "all" ? 'text-[#FF9800] font-bold' : 'text-[#666666] font-medium'}`}
                             numberOfLines={1}
                         >
                             All
                         </Text>
-                        {activeCategory === "all" && <View style={styles.sidebarIndicator} />}
+                        {activeCategory === "all" && <View className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-[#FF9800] rounded-r" />}
                     </TouchableOpacity>
 
                     {categories.map((cat: any, index: number) => {
@@ -195,25 +133,22 @@ const ExploreScreen: React.FC = () => {
                         return (
                             <TouchableOpacity
                                 key={`category-${categoryId}-${index}`}
-                                style={[styles.sidebarItem, isActive && styles.sidebarItemActive]}
+                                className={`items-center py-3.5 px-1 relative ${isActive ? 'bg-[#FFF2E0]' : ''}`}
                                 onPress={() => setActiveCategory(categoryId)}
                                 activeOpacity={0.7}
                             >
                                 <Ionicons
                                     name={(cat.icon || "flower") as any}
                                     size={20}
-                                    color={isActive ? APP_COLORS.saffron : APP_COLORS.gray}
+                                    color={isActive ? '#FF9800' : '#666666'}
                                 />
                                 <Text
-                                    style={[
-                                        styles.sidebarText,
-                                        isActive && styles.sidebarTextActive,
-                                    ]}
+                                    className={`text-[10px] mt-1 text-center ${isActive ? 'text-[#FF9800] font-bold' : 'text-[#666666] font-medium'}`}
                                     numberOfLines={1}
                                 >
                                     {cat.name}
                                 </Text>
-                                {isActive && <View style={styles.sidebarIndicator} />}
+                                {isActive && <View className="absolute left-0 top-2.5 bottom-2.5 w-1 bg-[#FF9800] rounded-r" />}
                             </TouchableOpacity>
                         );
                     })}
@@ -221,7 +156,7 @@ const ExploreScreen: React.FC = () => {
 
                 {/* Main Content */}
                 {isError ? (
-                    <View style={styles.emptyState}>
+                    <View className="flex-1 justify-center items-center p-4">
                         <ErrorMessage 
                             message="Failed to load ceremonies. Please check your connection." 
                             showRetry 
@@ -229,22 +164,22 @@ const ExploreScreen: React.FC = () => {
                         />
                     </View>
                 ) : isLoading ? (
-                    <View style={styles.emptyState}>
+                    <View className="flex-1 justify-center items-center">
                         <LoadingSpinner text="Finding sacred services..." />
                     </View>
                 ) : (
                     <FlatList
-                        data={searchedServices}
+                        data={ceremonies}
                         renderItem={renderServiceCard}
                         keyExtractor={(item, index) => item._id || item.id || index.toString()}
-                        style={styles.mainContent}
+                        className="flex-1"
                         contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
                         showsVerticalScrollIndicator={false}
                         ListEmptyComponent={
-                            <View style={styles.emptyState}>
-                                <Ionicons name="search-outline" size={48} color={APP_COLORS.lightGray} />
-                                <Text style={styles.emptyTitle}>No services found</Text>
-                                <Text style={styles.emptySubtitle}>Try a different category or search term</Text>
+                            <View className="items-center justify-center pt-14 gap-2">
+                                <Ionicons name="search-outline" size={48} color="#E0E0E0" />
+                                <Text className="text-base font-bold text-[#4A4A4A]">No services found</Text>
+                                <Text className="text-sm text-[#666666]">Try a different category or search term</Text>
                             </View>
                         }
                     />
@@ -254,164 +189,5 @@ const ExploreScreen: React.FC = () => {
         </View>
     );
 };
-
-// ─── Styles ───────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: APP_COLORS.background,
-        width: Platform.OS === 'web' ? '100%' : undefined,
-        maxWidth: Platform.OS === 'web' ? 600 : undefined,
-        alignSelf: Platform.OS === 'web' ? 'center' : undefined,
-    },
-
-    // Search
-    searchContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: APP_COLORS.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.divider,
-    },
-    searchBar: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: APP_COLORS.background,
-        borderRadius: 16,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
-    },
-    searchInput: {
-        flex: 1,
-        marginLeft: 10,
-        fontSize: 15,
-        color: APP_COLORS.bodyText,
-    },
-
-    // Body layout
-    body: {
-        flex: 1,
-        flexDirection: "row",
-    },
-
-    // Sidebar
-    sidebar: {
-        width: 72,
-        maxWidth: 72,
-        flexShrink: 0,
-        backgroundColor: APP_COLORS.surface,
-        borderRightWidth: 1,
-        borderRightColor: APP_COLORS.divider,
-    },
-    sidebarItem: {
-        alignItems: "center",
-        paddingVertical: 14,
-        paddingHorizontal: 4,
-        position: "relative",
-    },
-    sidebarItemActive: {
-        backgroundColor: APP_COLORS.saffronLight,
-    },
-    sidebarText: {
-        fontSize: 10,
-        color: APP_COLORS.gray,
-        marginTop: 4,
-        textAlign: "center",
-        fontWeight: "500",
-    },
-    sidebarTextActive: {
-        color: APP_COLORS.saffron,
-        fontWeight: "700",
-    },
-    sidebarIndicator: {
-        position: "absolute",
-        left: 0,
-        top: 10,
-        bottom: 10,
-        width: 3,
-        backgroundColor: APP_COLORS.saffron,
-        borderTopRightRadius: 3,
-        borderBottomRightRadius: 3,
-    },
-
-    // Main content
-    mainContent: {
-        flex: 1,
-    },
-
-    // Service Card
-    serviceCard: {
-        marginBottom: 12,
-        padding: 0,
-        overflow: "hidden",
-    },
-    serviceRow: {
-        flexDirection: "row",
-    },
-    serviceImage: {
-        width: 100,
-        height: 120,
-        borderTopLeftRadius: 16,
-        borderBottomLeftRadius: 16,
-    },
-    serviceInfo: {
-        flex: 1,
-        padding: 12,
-        justifyContent: "space-between",
-    },
-    serviceName: {
-        fontSize: 15,
-        fontWeight: "700",
-        color: APP_COLORS.headingText,
-        marginBottom: 4,
-    },
-    serviceMetaRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginBottom: 2,
-    },
-    serviceRating: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: APP_COLORS.bodyText,
-    },
-    serviceBookings: {
-        fontSize: 11,
-        color: APP_COLORS.gray,
-    },
-    serviceDuration: {
-        fontSize: 12,
-        color: APP_COLORS.gray,
-    },
-    servicePriceRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 4,
-    },
-    servicePrice: {
-        fontSize: 17,
-        fontWeight: "800",
-        color: APP_COLORS.headingText,
-    },
-
-    // Empty state
-    emptyState: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingTop: 60,
-        gap: 8,
-    },
-    emptyTitle: {
-        fontSize: 16,
-        fontWeight: "700",
-        color: APP_COLORS.bodyText,
-    },
-    emptySubtitle: {
-        fontSize: 13,
-        color: APP_COLORS.gray,
-    },
-});
 
 export default ExploreScreen;

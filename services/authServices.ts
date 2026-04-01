@@ -1,4 +1,5 @@
-// src/services/authService.js
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, signOut } from "firebase/auth";
+import { auth } from "../config/firebase";
 import { saveToken, getToken, removeToken } from '../utils/storage';
 import api from "../api";
 
@@ -7,48 +8,73 @@ import api from "../api";
  */
 const authService = {
   /**
-   * Login with phone and password
-   * @param {string} phone - User's phone number
-   * @param {string} password - User's password
-   * @returns {Promise} Response from the API
+   * Login with email/phone and password using Firebase
    */
   login: async (identifier: string, password: string): Promise<any> => {
     try {
-      const response = await api.post("/api/auth/login", { identifier, password });
-      await saveToken("userToken", response.data.token);
+      // 1. Authenticate locally with Firebase
+      // Note: Identifier is usually email. If you allow phone login via password, it might need Firebase custom auth, 
+      // but typically we use email for password login in Firebase Native.
+      const userCredential = await signInWithEmailAndPassword(auth, identifier, password);
+      
+      // 2. API interceptor will now automatically include the new Firebase Token.
+      // Call backend to sync profile
+      const response = await api.post("/api/auth/sync", { 
+         // Send basic info if needed, though backend will look up existing by UID
+         identifier 
+      });
+
       await saveToken("userInfo", JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
+      // Handle Firebase specific Errors cleanly
+      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
+         throw "Invalid credentials. Please check your email and password.";
+      }
       throw error?.response?.data?.message || "Login failed. Please try again.";
     }
   },
 
   /**
-   * Register a new user
-   * @param {Object} userData - User registration data
-   * @returns {Promise} Response from the API
+   * Register a new user via Firebase
    */
   register: async (userData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post("/api/auth/register", userData);
-      await saveToken("userToken", response.data.token);
+      // 1. Register with Firebase using Email/Password
+      if (!userData.email || !userData.password) {
+         throw new Error("Email and password are required for Firebase registration");
+      }
+
+      const userCredential = await createUserWithEmailAndPassword(auth, userData.email, userData.password);
+
+      // (Optional) Update their Display Name in Firebase
+      if (userData.name) {
+          await updateProfile(userCredential.user, { displayName: userData.name });
+      }
+
+      // 2. API interceptor sends the Firebase token.
+      // Send the REST of the profile data to MongoDB via /sync
+      const response = await api.post("/api/auth/sync", {
+         ...userData
+      });
+
       await saveToken("userInfo", JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
-      throw (
-        error?.response?.data?.message ||
-        "Registration failed. Please try again."
-      );
+      if (error.code === 'auth/email-already-in-use') {
+         throw "This email is already registered.";
+      }
+      throw error?.response?.data?.message || error.message || "Registration failed. Please try again.";
     }
   },
 
   /**
-   * Logout the current user
-   * @returns {Promise} Resolves when logout is complete
+   * Logout the current user from Firebase & Storage
    */
   logout: async (): Promise<boolean> => {
     try {
-      await removeToken("userToken");
+      await signOut(auth); // Clear Firebase session
+      await removeToken("userToken"); // Cleanup old legacy tokens
       await removeToken("userInfo");
       return true;
     } catch (error: any) {

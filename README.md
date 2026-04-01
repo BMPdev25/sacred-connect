@@ -69,6 +69,9 @@ Use these accounts to test the application flows (Priest & Devotee).
 *   **Devotee 2:**
     *   **Email:** `devotee2@example.com`
     *   **Password:** `password123`
+*   **Devotee 3:**
+    *   **Email:** `demo@example.com`
+    *   **Password:** `Anish@123`
 
 ## Testing
 

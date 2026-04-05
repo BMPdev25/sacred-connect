@@ -4,13 +4,17 @@ import { saveToken, getToken, removeToken } from "../../utils/storage";
 import api from "../../api"; // Import the API instance
 import { RootState } from "../store";
 
+import authService from '../../services/authServices';
+import { auth } from '../../config/firebase';
+
 // Types for user data and state
 interface UserInfo {
   name: string;
   email: string;
   phone: string;
   userType: "devotee" | "priest";
-  token: string;
+  token?: string; // Firebase IDs are dynamic, this might be optional now
+  firebaseUid?: string;
   profileCompleted?: boolean;
   _id?: string;
   profilePicture?: {
@@ -41,49 +45,17 @@ export const login = createAsyncThunk<
   UserInfo,
   LoginParams,
   { rejectValue: string }
->("auth/login", async ({ identifier, password, userType }, { rejectWithValue }) => {
+>("auth/login", async ({ identifier, password }, { rejectWithValue }) => {
   try {
-    const response = await api.post("/api/auth/login", {
-      identifier,
-      password,
-      userType
-    });
-
-    // Store token in SecureStore
-    await saveToken("userToken", response.data.token);
-    // Ensure _id is present in userInfo for future use
-    const userInfoToStore = response.data._id
-      ? { ...response.data, _id: response.data._id }
-      : response.data;
-    await saveToken("userInfo", JSON.stringify(userInfoToStore));
-    
-    return response.data;
+    const data = await authService.login(identifier, password);
+    return data;
   } catch (error: any) {
-    // Production Rule 3: Log specific error for debugging
-    console.error("Login Error Details:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-
-    // Create a user-friendly error message
-    let errorMessage = "An error occurred during login.";
-
-    if (error.response) {
-      errorMessage =
-        error.response.data.message || `Server error: ${error.response.status}`;
-    } else if (error.request) {
-      errorMessage =
-        "Unable to reach the server. Please check your internet connection and make sure the server is running.";
-    } else {
-      errorMessage = `Request error: ${error.message}`;
-    }
-
-    return rejectWithValue(errorMessage);
+    console.error("Login Error Details:", error);
+    return rejectWithValue(typeof error === 'string' ? error : error.message || "An error occurred during login.");
   }
 });
 
-// Firebase Login
+// Firebase Login (Legacy wrapper, now everything is firebase sync)
 interface FirebaseLoginParams {
   idToken: string;
   userType?: "devotee" | "priest";
@@ -95,42 +67,12 @@ export const firebaseLogin = createAsyncThunk<
   { rejectValue: string }
 >("auth/firebaseLogin", async ({ idToken, userType }, { rejectWithValue }) => {
   try {
-    const response = await api.post("/api/auth/firebase-login", {
-      idToken,
-      userType
-    });
-
-    // Store token in SecureStore
-    await saveToken("userToken", response.data.token);
-    // Ensure _id is present in userInfo for future use
-    const userInfoToStore = response.data._id
-      ? { ...response.data, _id: response.data._id }
-      : response.data;
-    await saveToken("userInfo", JSON.stringify(userInfoToStore));
-    
+    // If they explicitly pass a token (e.g., from an external Google Login button)
+    const response = await api.post("/api/auth/sync", { userType });
+    await saveToken("userInfo", JSON.stringify(response.data));
     return response.data;
   } catch (error: any) {
-    // Production Rule 3: Log specific error for debugging
-    console.error("Firebase Login Error Details:", {
-      status: error.response?.status,
-      data: error.response?.data,
-      message: error.message
-    });
-
-    // Create a user-friendly error message
-    let errorMessage = "An error occurred during login.";
-
-    if (error.response) {
-      errorMessage =
-        error.response.data.message || `Server error: ${error.response.status}`;
-    } else if (error.request) {
-      errorMessage =
-        "Unable to reach the server. Please check your internet connection.";
-    } else {
-      errorMessage = `Request error: ${error.message}`;
-    }
-
-    return rejectWithValue(errorMessage);
+    return rejectWithValue(error?.response?.data?.message || "Firebase sync failed");
   }
 });
 
@@ -150,54 +92,13 @@ export const register = createAsyncThunk<
   { rejectValue: string }
 >(
   "auth/register",
-  async (
-    { name, email, phone, password, userType, languagesSpoken },
-    { rejectWithValue }
-  ) => {
+  async (userData, { rejectWithValue }) => {
     try {
-      const response = await api.post("/api/auth/register", {
-        name,
-        email,
-        phone,
-        password,
-        userType,
-        languagesSpoken,
-      });
-
-      // Store token in SecureStore
-      await saveToken("userToken", response.data.token);
-      // Ensure _id is present in userInfo for future use
-      const userInfoToStore = response.data._id
-        ? { ...response.data, _id: response.data._id }
-        : response.data;
-      await saveToken(
-        "userInfo",
-        JSON.stringify(userInfoToStore)
-      );
-
-      return response.data;
+      const data = await authService.register(userData);
+      return data;
     } catch (error: any) {
-      // Production Rule 3: Log specific error for debugging
-      console.error("Registration Error Details:", {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message
-      });
-
-      let errorMessage = "An error occurred during registration.";
-
-      if (error.response) {
-        errorMessage =
-          error.response.data.message ||
-          `Server error: ${error.response.status}`;
-      } else if (error.request) {
-        errorMessage =
-          "Unable to reach the server. Please check your internet connection and make sure the server is running.";
-      } else {
-        errorMessage = `Request error: ${error.message}`;
-      }
-
-      return rejectWithValue(errorMessage);
+      console.error("Registration Error Details:", error);
+      return rejectWithValue(typeof error === 'string' ? error : error.message || "An error occurred during registration.");
     }
   }
 );
@@ -210,39 +111,30 @@ export const loadUser = createAsyncThunk<
 >("auth/loadUser", async (_, { rejectWithValue }) => {
   try {
     const userInfoStr = await getToken("userInfo");
-    const userToken = await getToken("userToken");
 
-    if (!userInfoStr || !userToken) {
+    if (!userInfoStr && !auth.currentUser) {
       return rejectWithValue("No cached user info found");
     }
 
-    // Production-Ready: Validate token by fetching profile from server
-    // This handles the "expired token on app open" edge case
+    // Call profile endpoint to ensure valid session and fresh data
     try {
-      const response = await api.get("/api/users/profile", {
-        headers: { Authorization: `Bearer ${userToken}` }
-      });
-      
+      // The interceptor automatically attaches the Firebase Token
+      const response = await api.get("/api/users/profile");
       const userData = response.data.data || response.data;
-      const userInfo = { ...JSON.parse(userInfoStr), ...userData, token: userToken };
       
-      // Update local storage with fresh data
+      const userInfo = { ...(userInfoStr ? JSON.parse(userInfoStr) : {}), ...userData };
       await saveToken("userInfo", JSON.stringify(userInfo));
       
       return userInfo;
     } catch (apiError: any) {
       console.error("Server token validation failed:", apiError.message);
       
-      // If server check fails with 401, we want to clear storage and reject
       if (apiError.response?.status === 401) {
-        await removeToken("userToken");
-        await removeToken("userInfo");
+        await authService.logout();
         return rejectWithValue("Session expired. Please login again.");
       }
       
-      // For generic network errors, fallback to cached data if it exists
-      // as the user might be offline but still has a valid (not yet expired) token
-      return { ...JSON.parse(userInfoStr), token: userToken };
+      return userInfoStr ? JSON.parse(userInfoStr) : rejectWithValue("Network Error");
     }
   } catch (error: any) {
     console.error("Failed to load user info:", error);
@@ -389,7 +281,7 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action: PayloadAction<UserInfo>) => {
         state.isLoading = false;
         state.userInfo = action.payload;
-        state.userToken = action.payload.token;
+        state.userToken = action.payload.token || null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
@@ -403,7 +295,7 @@ const authSlice = createSlice({
       .addCase(firebaseLogin.fulfilled, (state, action: PayloadAction<UserInfo>) => {
         state.isLoading = false;
         state.userInfo = action.payload;
-        state.userToken = action.payload.token;
+        state.userToken = action.payload.token || null;
       })
       .addCase(firebaseLogin.rejected, (state, action) => {
         state.isLoading = false;
@@ -417,7 +309,7 @@ const authSlice = createSlice({
       .addCase(register.fulfilled, (state, action: PayloadAction<UserInfo>) => {
         state.isLoading = false;
         state.userInfo = action.payload;
-        state.userToken = action.payload.token;
+        state.userToken = action.payload.token || null;
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
@@ -431,7 +323,7 @@ const authSlice = createSlice({
       .addCase(loadUser.fulfilled, (state, action: PayloadAction<UserInfo>) => {
         state.isLoading = false;
         state.userInfo = action.payload;
-        state.userToken = action.payload.token;
+        state.userToken = action.payload.token || null;
       })
       .addCase(loadUser.rejected, (state) => {
         state.isLoading = false;

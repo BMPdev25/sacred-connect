@@ -28,19 +28,28 @@ export const setLogoutCallback = (callback: () => void) => {
   logoutCallback = callback;
 };
 
-// Request interceptor to attach Authorization header with JWT from SecureStore
+import { auth } from '../config/firebase';
+
+// Request interceptor to attach Authorization header with JWT from Firebase
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await getToken('userToken');
-      if (token) {
-        // cast to any to avoid Axios header typing issues
-        (config.headers as any) = config.headers || {};
-        (config.headers as any)['Authorization'] = `Bearer ${token}`;
+      // 1. Check for active Firebase Session natively
+      if (auth.currentUser) {
+         // This automatically handles token refresh in the background
+         const token = await auth.currentUser.getIdToken();
+         (config.headers as any) = config.headers || {};
+         (config.headers as any)['Authorization'] = `Bearer ${token}`;
+      } else {
+         // 2. Fallback to Local Storage token if Firebase SDK hasn't fully initialized
+         const token = await getToken('userToken');
+         if (token) {
+           (config.headers as any) = config.headers || {};
+           (config.headers as any)['Authorization'] = `Bearer ${token}`;
+         }
       }
     } catch (e) {
-      // ignore SecureStore errors; proceed without token
-      console.warn('Failed to read token from SecureStore in api interceptor', e);
+      console.warn('Failed to read token in api interceptor', e);
     }
     return config;
   },

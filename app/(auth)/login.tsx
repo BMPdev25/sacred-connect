@@ -90,14 +90,10 @@ export default function LoginScreen() {
 
   const handleOTPLogin = async () => {
     if (!state.otp) return;
-    // Simulate verify
-    // In real app, we verify OTP sent to state.identifier (email or phone)
-    const identifierType = detectIdentifierType(state.identifier);
-    const mockIdToken = `mock_token_${identifierType}_${state.identifier.replace(/[^a-zA-Z0-9]/g, '')}`;
-
     try {
-      await dispatch(firebaseLogin({ idToken: mockIdToken, userType: 'devotee' })).unwrap();
-      navigateHome('devotee');
+      // TODO: Implement actual Firebase OTP using auth.signInWithPhoneNumber
+      Alert.alert('Not Implemented', 'Firebase Phone Authentication requires RecaptchaVerifier setup. Current configuration only supports Email/Password.');
+      // await dispatch(firebaseLogin({ idToken: actualFirebaseToken, userType: state.userType })).unwrap();
     } catch (e: any) {
       const raw = e?.message || e || 'OTP login failed';
       setLoginError(getFriendlyLoginError(String(raw)));

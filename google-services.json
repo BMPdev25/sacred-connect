@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "188917761852",
+    "project_id": "bookmypujari-17c67",
+    "storage_bucket": "bookmypujari-17c67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:188917761852:android:7d0a4e4e2b0c43aed30039",
+        "android_client_info": {
+          "package_name": "com.anonymous.bookmypujari"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCK3az1qDzCPzHLkxrGnPPrgZbkl5uuURw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

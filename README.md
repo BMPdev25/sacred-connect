@@ -1,95 +1,65 @@
 # Sacred Connect (Frontend)
 
-## Getting Started
+Welcome to the **Sacred Connect** mobile application frontend. This project is built with Expo and React Native, designed to connect devotees with priests for religious ceremonies.
 
-1.  **Install dependencies:**
-    ```bash
-    npm install
-    ```
+---
 
-## Running the App
-To start the development server:
+## 🚀 Quick Start
 
+### 1. Install Dependencies
 ```bash
+npm install
+```
+
+### 2. Run the App
+```bash
+# Start Expo development server
 npx expo start
 ```
+*   **Android**: Press `a` (requires Emulator or connected device)
+*   **iOS**: Press `i` (requires Xcode Simulator or connected device)
+*   **Web**: Press `w`
 
-### Platform Specific
-- **Android:** Press `a` in the terminal (requires Android Emulator or connected device)
-- **iOS:** Press `i` in the terminal (requires Xcode Simulator or connected device)
-- **Web:** Press `w` in the terminal
+---
 
-### Troubleshooting
-If you encounter errors or changes aren't reflecting:
+## 📖 Documentation
 
-**Clear Cache:**
-```bash
-npx expo start -c
-```
-This is useful when:
-- Installing new packages
-- Editing `app.json` or `babel.config.js`
-- Encountering "InternalBytecode" or metro bundler errors
+The project documentation has been consolidated for better readability:
 
-## Features
+*   **[Developer Guide](./docs/guides/DEVELOPMENT.md)**: Standard workflows (Dev → Test → Fix) and troubleshooting common errors.
+*   **[UI/UX Architecture](./docs/ui-ux/UI_UX_MAP.md)**: Complete maps for both **Devotee** and **Priest** user journeys.
+*   **[Testing Guide](./docs/testing/README.md)**: Instructions for running Jest unit tests and manual verification procedures.
 
-### User Types
-- **Devotees**: Book religious ceremonies and services
-- **Priests**: Offer religious services and manage bookings
+---
 
-### Priest Signup
-When registering as a priest, you'll be asked to:
-- Provide basic information (name, email, phone, password)
-- Select languages you speak from the top 20 Indian languages
-- Complete your profile with additional details
+## 🛠️ Tech Stack & Features
 
-### Language Selection
-Priests can select multiple languages they speak from:
-- Hindi, Bengali, Marathi, Telugu, Tamil
-- Gujarati, Urdu, Kannada, Odia, Malayalam
-- Punjabi, Assamese, Maithili, Bhojpuri
-- And 6 more languages
+*   **Core**: React Native (Expo), TypeScript, Redux Toolkit.
+*   **Authentication**: Firebase Native Auth with automatic sync to MongoDB.
+*   **Key Features**:
+    *   **Unified Search**: Smart detection for Email/Phone login.
+    *   **Priest Onboarding**: Multi-select language picker and profile completion tracking.
+    *   **Service Management**: Dynamic pricing and ceremony requirement settings.
+    *   **Real-time Alerts**: Push notifications for bookings and payments.
 
-## Test Credentials
+---
 
-Use these accounts to test the application flows (Priest & Devotee).
+## 🧪 Test Credentials
+
+Use these accounts to test the application flows.
 
 ### Priests
-*   **Priest 1 (Pandit Sharma - North Indian):**
-    *   **Email:** `priest1@example.com`
-    *   **Password:** `password123`
-*   **Priest 2 (Acharya Mishra - South Indian):**
-    *   **Email:** `priest2@example.com`
-    *   **Password:** `password123`
+*   **Priest 1**: `priest1@example.com` / `password123`
+*   **Priest 2**: `priest2@example.com` / `password123`
 
 ### Devotees
-*   **Devotee 1:**
-    *   **Email:** `devotee1@example.com`
-    *   **Password:** `password123`
-*   **Devotee 2:**
-    *   **Email:** `devotee2@example.com`
-    *   **Password:** `password123`
-*   **Devotee 3:**
-    *   **Email:** `demo@example.com`
-    *   **Password:** `Anish@123`
+*   **Devotee 1**: `devotee1@example.com` / `password123`
+*   **Devotee 3**: `demo@example.com` / `Anish@123`
 
-## Testing
+---
 
-For detailed information on running tests and understanding test cases, please refer to [TESTING.md](./TESTING.md).
-
-To run the tests:
-```bash
-npm test
-```
-
-## Components
-
-### Key Components
-- **LanguagePicker**: Multi-select language picker for priest signup
-- **InputField**: Reusable input field component
-- **ReligiousTraditionPicker**: (Deprecated) Replaced by LanguagePicker
-
-## Recent Updates
-- ✅ Language selection feature for priest signup
-- ✅ Multi-select language picker with native names
-- ✅ Updated signup flow for priests
+## ✅ Recent Updates
+*   **Architecture**: Consolidated all documentation into a structured `docs/` folder.
+*   **UI/UX**: Enhanced booking cards with distance/travel time and added skeleton loaders.
+*   **Onboarding**: Implemented progressive onboarding for priests with "Go Online" validation.
+*   **Testing**: Added unit tests for identifier detection and UI components.

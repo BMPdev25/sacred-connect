@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { APP_COLORS } from '../../../constants/Colors';
 import devoteeService from '../../../services/devoteeService';
 import LoadingSpinner from '../../../components/LoadingSpinner';
@@ -108,9 +109,9 @@ const BookingConfirmation: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container} edges={["top","left","right"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient colors={['#FCA311', '#FFB703']} style={[styles.header, { paddingTop: insets.top + 16, paddingBottom: 16 }]}>
         <Text style={styles.headerTitle}>Booking Confirmed</Text>
-      </View>
+      </LinearGradient>
 
       <ScrollView style={styles.contentContainer} contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}>
         <View style={styles.successContainer}>
@@ -258,51 +259,71 @@ const styles = StyleSheet.create({
     alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
-    paddingVertical: 16,
     alignItems: 'center',
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 10,
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '700',
     color: APP_COLORS.white,
+    fontFamily: 'serif',
   },
   contentContainer: {
     flex: 1,
   },
   scrollContent: {
-    padding: 16,
+    padding: 20,
   },
   successContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
     alignItems: 'center',
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   successIconContainer: {
     marginBottom: 16,
   },
   successTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
+    fontSize: 22,
+    fontWeight: '700',
+    marginBottom: 12,
+    color: "#704214",
+    fontFamily: "serif",
   },
   successText: {
-    fontSize: 14,
+    fontSize: 15,
     color: APP_COLORS.gray,
     textAlign: 'center',
+    lineHeight: 22,
   },
   bookingDetailsContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+    color: "#704214",
+    fontFamily: "serif",
   },
   bookingId: {
     flexDirection: 'row',
@@ -318,25 +339,33 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   bookingIdValue: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 15,
+    fontWeight: '700',
+    color: "#704214",
   },
   detailItem: {
-    marginBottom: 12,
+    marginBottom: 16,
   },
   detailLabel: {
-    fontSize: 12,
+    fontSize: 13,
     color: APP_COLORS.gray,
     marginBottom: 4,
   },
   detailValue: {
     fontSize: 16,
+    fontWeight: "500",
+    color: APP_COLORS.black,
   },
   paymentContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   statusContainer: {
     flexDirection: 'row',
@@ -372,27 +401,34 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: APP_COLORS.lightGray,
-    marginVertical: 8,
+    backgroundColor: "rgba(112, 66, 20, 0.1)",
+    marginVertical: 12,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    color: "#704214",
   },
   totalValue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: APP_COLORS.primary,
+    fontSize: 18,
+    fontWeight: '700',
+    color: APP_COLORS.saffron,
   },
   instructionsContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   instructionItem: {
     flexDirection: 'row',
@@ -445,21 +481,31 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: APP_COLORS.white,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: 20,
+    paddingHorizontal: 20,
     borderTopWidth: 1,
-    borderTopColor: APP_COLORS.lightGray,
+    borderTopColor: "rgba(112, 66, 20, 0.1)",
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   homeButton: {
-    backgroundColor: APP_COLORS.primary,
-    padding: 14,
-    borderRadius: 8,
+    backgroundColor: APP_COLORS.saffron,
+    paddingVertical: 14,
+    borderRadius: 24,
     alignItems: 'center',
+    shadowColor: APP_COLORS.saffron,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   homeButtonText: {
     color: APP_COLORS.white,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   loadingWrapper: {
     flex: 1,

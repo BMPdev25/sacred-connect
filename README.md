@@ -1,4 +1,4 @@
-# Sacred Connect - Mobile Application
+# BookMyPujari - Mobile Application
 
 [![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=white)](https://reactnative.dev/)
 [![Expo](https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white)](https://expo.dev/)

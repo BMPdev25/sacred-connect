@@ -13,12 +13,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import {
-  SafeAreaView,
-  useSafeAreaInsets,
-} from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import RazorpayCheckout from "react-native-razorpay";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import { getBookings } from "../../../redux/slices/bookingSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
@@ -148,7 +146,7 @@ const Payment: React.FC = () => {
       // 4. Open Razorpay Checkout Modal
       const options = {
         description: `${bookingDetails.ceremonyType} Booking`,
-        image: 'https://i.imgur.com/3g7nmJC.png', // Temporary placeholder logo
+        // image: 'https://i.imgur.com/3g7nmJC.png', // Removed placeholder logo
         currency: orderParams.currency || 'INR',
         key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_HERE', 
         amount: orderParams.amount,
@@ -218,16 +216,16 @@ const Payment: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
-        <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <LinearGradient colors={['#FFE5D9', '#FFF5E6']} style={[styles.header, { paddingTop: insets.top + 8 }]}>
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+            <Ionicons name="arrow-back" size={24} color="#704214" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Payment</Text>
           <View style={styles.placeholder} />
-        </View>
+        </LinearGradient>
 
         <ScrollView
           style={styles.contentContainer}
@@ -345,13 +343,20 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.background,
   },
   header: {
-    backgroundColor: APP_COLORS.white,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    marginBottom: 8,
+    zIndex: 10,
   },
   backButton: {
     width: 40,
@@ -360,31 +365,40 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#704214",
+    fontFamily: "serif",
   },
   placeholder: {
     width: 40,
   },
   contentContainer: {
     flex: 1,
-    padding: 16,
+    padding: 20,
   },
   bookingSummaryContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 12,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#704214",
+    fontFamily: "serif",
+    marginBottom: 16,
   },
   bookingDetail: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 8,
+    marginBottom: 12,
   },
   bookingLabel: {
     fontSize: 14,
@@ -392,13 +406,19 @@ const styles = StyleSheet.create({
   },
   bookingValue: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    color: APP_COLORS.black,
   },
   priceSummaryContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   priceRow: {
     flexDirection: "row",
@@ -411,27 +431,33 @@ const styles = StyleSheet.create({
   },
   priceValue: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
   },
   divider: {
     height: 1,
-    backgroundColor: APP_COLORS.lightGray,
+    backgroundColor: "rgba(112, 66, 20, 0.1)",
     marginVertical: 12,
   },
   totalLabel: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
+    color: "#704214",
   },
   totalValue: {
     fontSize: 18,
-    fontWeight: "bold",
-    color: APP_COLORS.primary,
+    fontWeight: "700",
+    color: APP_COLORS.saffron,
   },
   paymentMethodContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 20,
+    padding: 20,
     marginBottom: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   paymentMethodOption: {
     flexDirection: "row",
@@ -515,9 +541,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
+    borderRadius: 20,
     padding: 16,
     marginBottom: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   securityText: {
     marginLeft: 12,
@@ -526,11 +557,16 @@ const styles = StyleSheet.create({
   },
   footer: {
     backgroundColor: APP_COLORS.white,
-    padding: 16,
+    padding: 20,
     flexDirection: "row",
     alignItems: "center",
     borderTopWidth: 1,
-    borderTopColor: APP_COLORS.lightGray,
+    borderTopColor: "rgba(112, 66, 20, 0.1)",
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   totalContainer: {
     flex: 1,
@@ -540,20 +576,25 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   totalFooterValue: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: APP_COLORS.primary,
+    fontSize: 22,
+    fontWeight: "700",
+    color: APP_COLORS.saffron,
   },
   payButton: {
-    backgroundColor: APP_COLORS.primary,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
+    backgroundColor: APP_COLORS.saffron,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 24,
+    shadowColor: APP_COLORS.saffron,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   payButtonText: {
     color: APP_COLORS.white,
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "700",
   },
 });
 

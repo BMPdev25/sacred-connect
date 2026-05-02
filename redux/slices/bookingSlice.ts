@@ -25,8 +25,13 @@ export const getBookings = createAsyncThunk<Booking[], void, { state: RootState;
   async (_, { rejectWithValue }) => {
     try {
       const response = await devoteeService.getBookings();
-      // Handle the different possible response structures
-      return response.data || response.bookings || response;
+      // Server returns: { success: true, data: { today: [], upcoming: [], completed: [], all: [] }, pagination: {} }
+      // Extract the flat 'all' array. Fall back gracefully for any other shape.
+      const payload = response?.data ?? response;
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.all)) return payload.all;
+      if (Array.isArray(payload?.bookings)) return payload.bookings;
+      return [];
     } catch (error: any) {
       return rejectWithValue(typeof error === 'string' ? error : 'Failed to fetch bookings');
     }

@@ -13,10 +13,10 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
 import PujariCard from "../../../components/PujariCard";
-
 
 import { Priest } from "../../../types";
 import { calculateDistance } from "../../../utils/locationUtils";
@@ -190,22 +190,22 @@ const PriestSearch: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <LinearGradient colors={['#FFE5D9', '#FFF5E6']} style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+          <Ionicons name="arrow-back" size={24} color="#704214" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Find Priests</Text>
         <TouchableOpacity
           style={styles.filterButton}
           onPress={() => setShowFilters(!showFilters)}
         >
-          <Ionicons name="options-outline" size={24} color={APP_COLORS.black} />
+          <Ionicons name="options-outline" size={24} color="#704214" />
         </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
@@ -401,13 +401,20 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.background,
   },
   header: {
-    backgroundColor: APP_COLORS.white,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 8,
+    marginBottom: 8,
+    zIndex: 10,
   },
   backButton: {
     width: 40,
@@ -416,8 +423,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#704214",
+    fontFamily: "serif",
   },
   filterButton: {
     width: 40,
@@ -426,17 +435,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   searchContainer: {
-    padding: 16,
-    backgroundColor: APP_COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: APP_COLORS.background,
   },
   searchBar: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 8,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 20,
     padding: 12,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 3,
   },
   searchInput: {
     flex: 1,
@@ -447,35 +460,43 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   filtersContainer: {
-    backgroundColor: APP_COLORS.white,
-    padding: 16,
+    backgroundColor: APP_COLORS.background,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: APP_COLORS.lightGray,
   },
   filterTitle: {
     fontSize: 16,
-    fontWeight: "bold",
+    fontWeight: "600",
+    color: "#704214",
+    fontFamily: "serif",
     marginBottom: 8,
   },
   filterScroll: {
     paddingBottom: 8,
   },
   filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     marginRight: 8,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.white,
     borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
+    borderColor: "rgba(112, 66, 20, 0.1)",
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   selectedFilterChip: {
-    backgroundColor: APP_COLORS.primary,
-    borderColor: APP_COLORS.primary,
+    backgroundColor: APP_COLORS.saffron,
+    borderColor: APP_COLORS.saffron,
   },
   filterChipText: {
-    fontSize: 12,
-    color: APP_COLORS.black,
+    fontSize: 13,
+    color: "#704214",
   },
   selectedFilterChipText: {
     color: APP_COLORS.white,
@@ -484,7 +505,7 @@ const styles = StyleSheet.create({
   filterRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 8,
+    marginTop: 16,
   },
   filterColumn: {
     flex: 1,
@@ -494,26 +515,27 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     marginTop: 16,
     borderTopWidth: 1,
-    borderTopColor: APP_COLORS.lightGray,
+    borderTopColor: "rgba(112, 66, 20, 0.1)",
     paddingTop: 16,
   },
   clearFiltersButton: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
+    borderRadius: 20,
     marginRight: 8,
+    backgroundColor: APP_COLORS.white,
     borderWidth: 1,
-    borderColor: APP_COLORS.gray,
+    borderColor: "rgba(112, 66, 20, 0.2)",
   },
   clearFiltersText: {
     fontSize: 14,
-    color: APP_COLORS.gray,
+    color: "#704214",
   },
   applyFiltersButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    backgroundColor: APP_COLORS.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20,
+    backgroundColor: APP_COLORS.saffron,
   },
   applyFiltersText: {
     fontSize: 14,
@@ -522,15 +544,17 @@ const styles = StyleSheet.create({
   },
   resultsContainer: {
     flex: 1,
-    padding: 16,
+    padding: 20,
   },
   resultsText: {
-    fontSize: 16,
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#704214",
+    fontFamily: "serif",
     marginBottom: 16,
   },
   priestsList: {
-    paddingBottom: 16,
+    paddingBottom: 24,
   },
   priestCard: {
     backgroundColor: APP_COLORS.white,

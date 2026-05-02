@@ -117,10 +117,10 @@ const DevoteeTabs = () => {
       <Tabs.Screen
         name="(tabs)/ExploreTab"
         options={{
-          title: "Wallet",
-          tabBarLabel: "WALLET",
+          title: "Explore",
+          tabBarLabel: "EXPLORE",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="wallet" size={size || 22} color={color} />
+            <Ionicons name="apps" size={size || 22} color={color} />
           ),
         }}
       />
@@ -144,6 +144,8 @@ const DevoteeTabs = () => {
           ),
         }}
       />
+      {/* Hide these screens from the tab bar — they are stack screens */}
+      <Tabs.Screen name="FestivalsCalendar" options={{ href: null }} />
     </Tabs>
   );
 };

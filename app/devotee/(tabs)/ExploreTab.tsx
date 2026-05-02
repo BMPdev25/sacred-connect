@@ -13,6 +13,7 @@ import {
     View,
     Platform,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { APP_COLORS } from "../../../constants/Colors";
@@ -45,18 +46,21 @@ const SIDEBAR_WIDTH = 72; // Fixed width for sidebar instead of percentage
 
 // ─── Component ────────────────────────────────────────────────────────────
 const ExploreScreen: React.FC = () => {
-    const { category: initialCategory } = useLocalSearchParams<{ category?: string }>();
+    const { category: initialCategory, search: initialSearch } = useLocalSearchParams<{ category?: string, search?: string }>();
     const insets = useSafeAreaInsets();
-    const [searchQuery, setSearchQuery] = useState("");
+    const [searchQuery, setSearchQuery] = useState(initialSearch || "");
     const debouncedSearch = useDebounce(searchQuery, 500);
     const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
 
-    // Sync activeCategory with param updates
+    // Sync activeCategory and searchQuery with param updates
     useEffect(() => {
         if (initialCategory) {
             setActiveCategory(initialCategory);
         }
-    }, [initialCategory]);
+        if (initialSearch) {
+            setSearchQuery(initialSearch);
+        }
+    }, [initialCategory, initialSearch]);
 
     // Fetch Categories
     const { 
@@ -99,8 +103,8 @@ const ExploreScreen: React.FC = () => {
     const searchedServices = ceremonies;
 
     const renderServiceCard = ({ item }: { item: any }) => (
-        <Card style={styles.serviceCard}>
-            <View style={styles.serviceRow}>
+        <View style={styles.serviceCardShadow}>
+            <View style={styles.serviceCard}>
                 <Image
                     source={{ 
                         uri: getImageUri(item.image || (item.images && item.images[0])) 
@@ -110,11 +114,7 @@ const ExploreScreen: React.FC = () => {
                 />
                 <View style={styles.serviceInfo}>
                     <Text style={styles.serviceName} numberOfLines={2}>{item.name}</Text>
-                    <View style={styles.serviceMetaRow}>
-                        <Ionicons name="star" size={13} color="#FFD700" />
-                        <Text style={styles.serviceRating}>{item.rating?.average?.toFixed(1) || "4.5"}</Text>
-                        <Text style={styles.serviceBookings}>({item.bookingsCount || 0} booked)</Text>
-                    </View>
+
                     <View style={styles.serviceMetaRow}>
                         <Ionicons name="time-outline" size={13} color={APP_COLORS.gray} />
                         <Text style={styles.serviceDuration}>
@@ -132,15 +132,19 @@ const ExploreScreen: React.FC = () => {
                     </View>
                 </View>
             </View>
-        </Card>
+        </View>
+
     );
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={styles.container}>
             <StatusBar style="dark" />
 
-            {/* ── Search Bar ──────────────────────────────── */}
-            <View style={styles.searchContainer}>
+            {/* ── Header & Search Bar ──────────────────────────────── */}
+            <LinearGradient
+                colors={['#FFE5D9', '#FFF5E6']}
+                style={[styles.searchContainer, { paddingTop: insets.top + 16 }]}
+            >
                 <View style={styles.searchBar}>
                     <Ionicons name="search" size={20} color={APP_COLORS.gray} />
                     <TextInput
@@ -149,14 +153,15 @@ const ExploreScreen: React.FC = () => {
                         placeholderTextColor={APP_COLORS.gray}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        returnKeyType="search"
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <Ionicons name="close-circle" size={20} color={APP_COLORS.gray} />
+                            <Ionicons name="close-circle" size={20} color="#704214" />
                         </TouchableOpacity>
                     )}
                 </View>
-            </View>
+            </LinearGradient>
 
             {/* ── Body: Sidebar + Main Content ──────────── */}
             <View style={styles.body}>
@@ -267,25 +272,35 @@ const styles = StyleSheet.create({
 
     // Search
     searchContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: APP_COLORS.surface,
+        paddingHorizontal: 20,
+        paddingBottom: 16,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.divider,
+        borderBottomColor: 'rgba(112, 66, 20, 0.1)',
+        shadowColor: "#704214",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+        elevation: 4,
+        zIndex: 10,
     },
     searchBar: {
         flexDirection: "row",
         alignItems: "center",
-        backgroundColor: APP_COLORS.background,
-        borderRadius: 16,
-        paddingHorizontal: 14,
-        paddingVertical: 10,
+        backgroundColor: '#FFF',
+        borderRadius: 20,
+        paddingHorizontal: 16,
+        shadowColor: '#704214',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+        elevation: 4,
     },
     searchInput: {
         flex: 1,
+        height: 50,
         marginLeft: 10,
-        fontSize: 15,
-        color: APP_COLORS.bodyText,
+        fontSize: 16,
+        color: '#704214',
     },
 
     // Body layout
@@ -296,42 +311,37 @@ const styles = StyleSheet.create({
 
     // Sidebar
     sidebar: {
-        width: 72,
-        maxWidth: 72,
+        width: 76,
+        maxWidth: 76,
         flexShrink: 0,
-        backgroundColor: APP_COLORS.surface,
+        backgroundColor: '#FFFFFF',
         borderRightWidth: 1,
-        borderRightColor: APP_COLORS.divider,
+        borderRightColor: 'rgba(112, 66, 20, 0.05)',
     },
     sidebarItem: {
         alignItems: "center",
-        paddingVertical: 14,
-        paddingHorizontal: 4,
-        position: "relative",
+        paddingVertical: 12,
+        paddingHorizontal: 6,
+        marginHorizontal: 8,
+        marginBottom: 8,
+        borderRadius: 16,
     },
     sidebarItemActive: {
-        backgroundColor: APP_COLORS.saffronLight,
+        backgroundColor: 'rgba(255, 229, 217, 0.5)',
     },
     sidebarText: {
         fontSize: 10,
         color: APP_COLORS.gray,
         marginTop: 4,
         textAlign: "center",
-        fontWeight: "500",
+        fontWeight: "600",
     },
     sidebarTextActive: {
         color: APP_COLORS.saffron,
         fontWeight: "700",
     },
     sidebarIndicator: {
-        position: "absolute",
-        left: 0,
-        top: 10,
-        bottom: 10,
-        width: 3,
-        backgroundColor: APP_COLORS.saffron,
-        borderTopRightRadius: 3,
-        borderBottomRightRadius: 3,
+        display: 'none',
     },
 
     // Main content
@@ -340,29 +350,39 @@ const styles = StyleSheet.create({
     },
 
     // Service Card
-    serviceCard: {
-        marginBottom: 12,
-        padding: 0,
-        overflow: "hidden",
+    serviceCardShadow: {
+        marginBottom: 16,
+        borderRadius: 24,
+        backgroundColor: '#FFFFFF', // Important for Android elevation
+        shadowColor: "#704214",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        elevation: 3,
     },
-    serviceRow: {
+    serviceCard: {
         flexDirection: "row",
+        borderRadius: 24,
+        borderWidth: 1,
+        borderColor: 'rgba(112, 66, 20, 0.05)',
+        backgroundColor: '#FFFFFF',
+        overflow: "hidden", // Perfectly clips the image corners
     },
     serviceImage: {
-        width: 100,
-        height: 120,
-        borderTopLeftRadius: 16,
-        borderBottomLeftRadius: 16,
+        width: 110,
+        height: 130,
+        // Border radii removed: let the parent's overflow: "hidden" handle clipping!
     },
     serviceInfo: {
         flex: 1,
-        padding: 12,
+        padding: 16,
         justifyContent: "space-between",
     },
     serviceName: {
-        fontSize: 15,
+        fontSize: 18,
         fontWeight: "700",
-        color: APP_COLORS.headingText,
+        fontFamily: "serif",
+        color: "#704214",
         marginBottom: 4,
     },
     serviceMetaRow: {
@@ -391,9 +411,9 @@ const styles = StyleSheet.create({
         marginTop: 4,
     },
     servicePrice: {
-        fontSize: 17,
+        fontSize: 18,
         fontWeight: "800",
-        color: APP_COLORS.headingText,
+        color: APP_COLORS.saffron,
     },
 
     // Empty state
@@ -404,12 +424,13 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     emptyTitle: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: "700",
-        color: APP_COLORS.bodyText,
+        color: "#704214",
+        fontFamily: "serif",
     },
     emptySubtitle: {
-        fontSize: 13,
+        fontSize: 14,
         color: APP_COLORS.gray,
     },
 });

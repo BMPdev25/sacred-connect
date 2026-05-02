@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -293,16 +294,21 @@ export default function BookingDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient
+        colors={["#E8630A", "#C4501A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      >
         <TouchableOpacity
           style={styles.backIcon}
           onPress={() => router.push("/devotee/BookingsTab")}
         >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
         <View style={styles.placeholder} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -633,31 +639,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 12,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
     marginRight: 8,
   },
   statusText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 14,
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
   bookingId: {
-    fontSize: 12,
+    fontSize: 11,
     color: APP_COLORS.gray,
     fontWeight: "500",
   },
   ceremonyCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   ceremonyImage: {
     width: 60,
@@ -685,10 +704,14 @@ const styles = StyleSheet.create({
   scheduleCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   scheduleItem: {
     flexDirection: "row",
@@ -703,10 +726,14 @@ const styles = StyleSheet.create({
   devoteeCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   devoteeImage: {
     width: 50,
@@ -737,10 +764,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   locationCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   locationInfo: {
     flexDirection: "row",
@@ -760,12 +791,12 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   directionsButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: "#E8630A",
+    borderRadius: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
     alignSelf: "flex-end",
-    marginTop: 8,
+    marginTop: 10,
   },
   directionsButtonText: {
     color: APP_COLORS.white,
@@ -773,10 +804,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   paymentCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   paymentRow: {
     flexDirection: "row",
@@ -822,14 +857,19 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   requestsCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   requestsText: {
     fontSize: 15,
-    color: APP_COLORS.black,
+    color: "#3D2B1F",
+    lineHeight: 22,
   },
   actionButtons: {
     flexDirection: "row",
@@ -838,28 +878,35 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   actionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 28,
+    backgroundColor: "#E8630A",
+    shadowColor: "#E8630A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   actionButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
+    color: "#fff",
+    fontWeight: "700",
     fontSize: 15,
+    fontFamily: "serif",
+    letterSpacing: 0.3,
   },
   confirmButton: {
     backgroundColor: APP_COLORS.success,
   },
   cancelButton: {
-    backgroundColor: APP_COLORS.error,
+    backgroundColor: "#C0392B",
   },
   completeButton: {
     backgroundColor: APP_COLORS.info,
   },
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: "#FFF8F2",
     width: Platform.OS === 'web' ? '100%' : undefined,
     maxWidth: Platform.OS === 'web' ? 700 : undefined,
     alignSelf: Platform.OS === 'web' ? 'center' : undefined,
@@ -895,43 +942,53 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    paddingTop: 50,
+    paddingVertical: 16,
+    paddingBottom: 18,
   },
   backIcon: {
-    padding: 5,
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
   headerTitle: {
-    color: APP_COLORS.white,
+    color: "#fff",
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontFamily: "serif",
+    letterSpacing: 0.3,
   },
   placeholder: {
-    width: 34,
+    width: 36,
   },
   content: {
     flex: 1,
     padding: 20,
+    backgroundColor: "#FFF8F2",
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "700",
+    fontFamily: "serif",
+    color: "#704214",
+    marginBottom: 8,
   },
   backToBookingsButton: {
-    padding: 12,
+    padding: 14,
     alignItems: "center",
+    marginTop: 4,
   },
   backToBookingsText: {
-    color: APP_COLORS.primary,
-    fontWeight: "bold",
+    color: "#E8630A",
+    fontWeight: "700",
+    fontSize: 15,
+    fontFamily: "serif",
   },
   countdownCard: {
     flexDirection: "row",
@@ -966,10 +1023,14 @@ const styles = StyleSheet.create({
   },
   // Samagri Styles
   samagriCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   samagriItem: {
     flexDirection: "row",
@@ -1005,10 +1066,14 @@ const styles = StyleSheet.create({
   },
   // Ritual Steps Styles
   stepsCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   stepItem: {
     flexDirection: "row",

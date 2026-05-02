@@ -105,7 +105,7 @@ const devoteeService = {
    */
   getBookings: async (status?: string): Promise<any> => {
     try {
-      const url = status ? `/api/bookings/my-bookings?status=${status}` : '/api/bookings/my-bookings';
+      const url = status && status !== 'all' ? `/api/bookings?status=${status}` : '/api/bookings';
       const response = await api.get(url);
       return response.data;
     } catch (error: any) {
@@ -113,15 +113,25 @@ const devoteeService = {
     }
   },
 
-  /**
-   * Get home screen banners
-   */
   getBanners: async (): Promise<any> => {
     try {
       const response = await api.get('/api/metadata/banners');
       return response.data;
     } catch (error: any) {
       console.error('getBanners error:', error);
+      return [];
+    }
+  },
+
+  /**
+   * Get upcoming festivals
+   */
+  getFestivals: async (): Promise<any> => {
+    try {
+      const response = await api.get('/api/metadata/festivals');
+      return response.data;
+    } catch (error: any) {
+      console.error('getFestivals error:', error);
       return [];
     }
   },

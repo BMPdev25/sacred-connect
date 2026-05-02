@@ -12,6 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from "react-redux";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth } from "../../config/firebase";
@@ -142,8 +143,13 @@ export default function LoginScreen() {
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
+    <LinearGradient
+      colors={['#FFE5D9', '#FFF5E6', APP_COLORS.background]}
+      locations={[0, 0.4, 1]}
+      style={styles.safeArea}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
@@ -336,13 +342,14 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
-  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  safeArea: { flex: 1 },
+  container: { flex: 1 },
   contentContainer: {
     padding: 20,
     paddingBottom: 40,
@@ -351,17 +358,19 @@ const styles = StyleSheet.create({
     width: Platform.OS === 'web' ? '100%' : undefined,
   },
   logoContainer: { alignItems: "center", marginTop: 32, marginBottom: 28 },
-  logoText: { fontSize: 34, fontWeight: "bold", color: APP_COLORS.primary, letterSpacing: 1 },
+  logoText: { fontSize: 34, fontWeight: "bold", color: "#704214", letterSpacing: 1, fontFamily: "serif" },
   subtitleText: { fontSize: 15, color: APP_COLORS.gray, marginTop: 6 },
   formContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 20,
-    padding: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    borderRadius: 24,
+    padding: 24,
+    elevation: 6,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(112, 66, 20, 0.05)',
   },
   sectionWrap: { marginBottom: 18 },
   label: { fontSize: 13, color: APP_COLORS.gray, marginBottom: 8, fontWeight: '600' },
@@ -415,14 +424,18 @@ const styles = StyleSheet.create({
   devText: { color: '#78350f', fontSize: 13, fontWeight: '600' },
   primaryBtn: {
     backgroundColor: APP_COLORS.primary,
-    height: 50,
-    borderRadius: 12,
+    height: 52,
+    borderRadius: 24,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 16,
-    elevation: 2,
+    marginTop: 20,
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: "bold" },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: "bold", fontFamily: "serif" },
   disabledBtn: { opacity: 0.65 },
   hint: { fontSize: 12, color: APP_COLORS.gray, marginTop: 4, lineHeight: 18 },
   resendBtn: { alignItems: 'center', marginTop: 14, paddingVertical: 4 },

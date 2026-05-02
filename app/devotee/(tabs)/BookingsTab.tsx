@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { useDispatch, useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { getBookings } from "../../../redux/slices/bookingSlice";
@@ -51,11 +52,19 @@ const BookingsScreen: React.FC = () => {
 
   // Filtering logic
   const upcomingBookings = (bookings || []).filter((b: any) => {
-    return (b.status === "confirmed" || b.status === "pending" || b.status === "requested" || b.status === "accepted");
+    return (
+      b.status === "confirmed" || 
+      b.status === "pending" || 
+      b.status === "requested" || 
+      b.status === "accepted" || 
+      b.status === "searching" || 
+      b.status === "in_progress" || 
+      b.status === "arrived"
+    );
   });
 
   const historyBookings = (bookings || []).filter((b: any) => {
-    return b.status === "completed" || b.status === "cancelled";
+    return b.status === "completed" || b.status === "cancelled" || b.status === "expired";
   });
 
   const displayBookings = activeTab === "upcoming" ? upcomingBookings : historyBookings;
@@ -72,8 +81,18 @@ const BookingsScreen: React.FC = () => {
         return { bg: "#FFF8E1", color: APP_COLORS.warning, label: "Payment Pending", icon: "time" as const };
       case "requested":
         return { bg: "#FFF3E0", color: "#F57C00", label: "Pending Acceptance", icon: "hourglass-outline" as const };
+      case "searching":
+        return { bg: "#F3E5F5", color: "#9C27B0", label: "Searching Priest", icon: "search-outline" as const };
+      case "arrived":
+        return { bg: "#E8F5E9", color: APP_COLORS.success, label: "Priest Arrived", icon: "location-outline" as const };
+      case "in_progress":
+        return { bg: "#E3F2FD", color: APP_COLORS.info, label: "In Progress", icon: "sync-outline" as const };
+      case "expired":
+        return { bg: "#FFEBEE", color: APP_COLORS.error, label: "Expired", icon: "close-circle" as const };
+      case "accepted":
+        return { bg: "#E8F5E9", color: APP_COLORS.success, label: "Accepted", icon: "checkmark-circle" as const };
       default:
-        return { bg: APP_COLORS.lightGray, color: APP_COLORS.gray, label: status, icon: "ellipse" as const };
+        return { bg: APP_COLORS.lightGray, color: APP_COLORS.gray, label: status || 'Unknown', icon: "ellipse" as const };
     }
   };
 
@@ -110,7 +129,7 @@ const BookingsScreen: React.FC = () => {
     const isUpcoming = activeTab === "upcoming";
 
     return (
-      <Card style={StyleSheet.flatten([styles.bookingCard, isUpcoming && styles.bookingCardUpcoming]) as any} onPress={() => handleBookingPress(item)}>
+      <View style={[styles.bookingCard, isUpcoming && styles.bookingCardUpcoming]}>
         {/* Status Ribbon */}
         <View style={styles.cardHeader}>
           <Text style={styles.ceremonyType}>{item.ceremonyType}</Text>
@@ -165,14 +184,20 @@ const BookingsScreen: React.FC = () => {
                 <Ionicons name="list-outline" size={18} color={APP_COLORS.saffron} />
                 <Text style={styles.iconButtonLabel}>Samagri</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton} onPress={() => Linking.openURL("tel:+911234567890")}>
+              <TouchableOpacity style={styles.iconButton} onPress={() => {
+                const phone = item?.priestId?.phone
+                  || item?.priestId?.userId?.phone
+                  || item?.priest?.phone;
+                if (phone) {
+                  Linking.openURL(`tel:${phone}`);
+                } else {
+                  Alert.alert("Unavailable", "Priest's phone number is not available yet.");
+                }
+              }}>
                 <Ionicons name="call-outline" size={18} color={APP_COLORS.success} />
                 <Text style={styles.iconButtonLabel}>Call</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton} onPress={() => { }}>
-                <Ionicons name="navigate-outline" size={18} color={APP_COLORS.info} />
-                <Text style={styles.iconButtonLabel}>Map</Text>
-              </TouchableOpacity>
+
             </View>
           )}
 
@@ -192,7 +217,7 @@ const BookingsScreen: React.FC = () => {
             </View>
           )}
         </View>
-      </Card>
+      </View>
     );
   };
 
@@ -210,12 +235,14 @@ const BookingsScreen: React.FC = () => {
       <StatusBar style="dark" />
 
       {/* Header */}
-      <View style={styles.header}>
+      <LinearGradient
+        colors={["#FFE5D9", "#FFF5E6"]}
+        style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+      >
         <Text style={styles.headerTitle}>My Bookings</Text>
-        <TouchableOpacity onPress={onRefresh} disabled={refreshing}>
-          <Ionicons name="refresh" size={22} color={APP_COLORS.saffron} />
-        </TouchableOpacity>
-      </View>
+      </LinearGradient>
 
       {/* Segmented Control */}
       <View style={styles.segmentedControl}>
@@ -291,47 +318,49 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: APP_COLORS.surface,
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingVertical: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.divider,
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: APP_COLORS.headingText,
+    fontSize: 28,
+    fontFamily: "serif",
+    fontWeight: "bold",
+    color: APP_COLORS.tertiary,
   },
 
   // Segmented Control
   segmentedControl: {
     flexDirection: "row",
     marginHorizontal: 16,
-    marginTop: 12,
-    backgroundColor: APP_COLORS.lightGray,
-    borderRadius: 16,
+    marginTop: 16,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     padding: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F8F8F8'
   },
   segment: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 12,
+    borderRadius: 20,
     alignItems: "center",
   },
   segmentActive: {
-    backgroundColor: APP_COLORS.surface,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#FFF5E6',
   },
   segmentText: {
     fontSize: 14,
     fontWeight: "600",
+    fontFamily: "serif",
     color: APP_COLORS.gray,
   },
   segmentTextActive: {
@@ -341,22 +370,34 @@ const styles = StyleSheet.create({
 
   // Booking Card
   bookingCard: {
-    marginBottom: 14,
+    marginBottom: 16,
+    padding: 16,
+    borderRadius: 24,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#F8F8F8',
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   bookingCardUpcoming: {
-    borderLeftWidth: 3,
+    borderLeftWidth: 4,
     borderLeftColor: APP_COLORS.saffron,
+    overflow: "hidden", // Helps when applying a thick left border with high radius
   },
   cardHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 12,
   },
   ceremonyType: {
-    fontSize: 17,
-    fontWeight: "700",
-    color: APP_COLORS.headingText,
+    fontSize: 18,
+    fontWeight: "bold",
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     flex: 1,
   },
   statusBadge: {
@@ -446,9 +487,10 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: APP_COLORS.bodyText,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     marginTop: 8,
   },
   emptySubtitle: {

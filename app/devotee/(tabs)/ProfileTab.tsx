@@ -25,9 +25,11 @@ import { logout, updateUserProfile } from "../../../redux/slices/authSlice";
 import { updateNotificationPreferences } from "../../../redux/slices/userSlice";
 import { AppDispatch, RootState } from "../../../redux/store";
 import Card from "../../../components/Card";
-import api from "../../../api";
+import api, { API_BASE_URL } from "../../../api";
+import { auth } from "../../../config/firebase";
 import ErrorMessage from "../../../components/ErrorMessage";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import { LinearGradient } from "expo-linear-gradient";
 
 // ─── Component ────────────────────────────────────────────────────────────
 const ProfileScreen: React.FC = () => {
@@ -98,6 +100,12 @@ const ProfileScreen: React.FC = () => {
           });
         }
 
+        if (data.notifications && data.notifications.push) {
+          setNotifyUpcoming(data.notifications.push.bookingUpdates ?? true);
+          setNotifyConfirmations(data.notifications.push.reminders ?? true);
+          setNotifyPromotions(data.notifications.push.promotions ?? false);
+        }
+
         // Populate Personal Details
         setPersonalDetails({
           name: data.name || "",
@@ -158,7 +166,7 @@ const ProfileScreen: React.FC = () => {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -177,37 +185,61 @@ const ProfileScreen: React.FC = () => {
     try {
       setIsUploadingPhoto(true);
 
-      const formData = new FormData();
-      // @ts-ignore - React Native FormData expects specific object structure
-      formData.append('profilePicture', {
-        uri: asset.uri,
-        name: asset.fileName || 'profile.jpg',
-        type: asset.mimeType || 'image/jpeg',
+      const token = await auth.currentUser?.getIdToken();
+
+      const responseData = await new Promise<any>((resolve, reject) => {
+        const formData = new FormData();
+        // @ts-ignore — React Native FormData accepts this object shape for files
+        formData.append('profilePicture', {
+          uri: asset.uri,
+          name: asset.fileName || `profile_${Date.now()}.jpg`,
+          type: asset.mimeType || 'image/jpeg',
+        });
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', `${API_BASE_URL}/api/users/profile/picture`);
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.setRequestHeader('Accept', 'application/json');
+
+        xhr.onload = () => {
+          try {
+            const parsed = JSON.parse(xhr.responseText);
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve(parsed);
+            } else {
+              reject(new Error(parsed.message || `Upload failed with status: ${xhr.status}`));
+            }
+          } catch {
+            reject(new Error(`Server returned an invalid response (Status: ${xhr.status}).`));
+          }
+        };
+
+        xhr.onerror = () => reject(new Error('Network error — check your connection and server URL.'));
+        xhr.ontimeout = () => reject(new Error('Request timed out. Please try again.'));
+        xhr.timeout = 30000;
+
+        xhr.send(formData);
       });
 
-      const response = await api.post('/api/users/profile/picture', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (response.data && response.data.success) {
+      if (responseData.success) {
         // Update local state
         setProfileData((prev: any) => ({
           ...prev,
-          profilePicture: response.data.data.profilePicture
+          profilePicture: responseData.data.profilePicture,
         }));
 
         // Update Redux state so header avatar updates immediately
         dispatch(updateUserProfile({
-          profilePicture: response.data.data.profilePicture
+          profilePicture: responseData.data.profilePicture,
         }));
 
-        Alert.alert("Success", "Profile picture updated successfully");
+        Alert.alert('Success', 'Profile picture updated successfully');
+      } else {
+        throw new Error(responseData.message || 'Upload failed.');
       }
     } catch (error: any) {
-      console.error("Upload error:", error);
-      Alert.alert("Upload Failed", error.response?.data?.message || "Failed to upload profile picture");
+      console.error('Upload error:', error);
+      Alert.alert('Error', error.message || 'Failed to upload profile picture. Please try again.');
     } finally {
       setIsUploadingPhoto(false);
     }
@@ -334,21 +366,24 @@ const ProfileScreen: React.FC = () => {
 
 
         {/* ── Profile Header ──────────────────────────── */}
-        <View style={styles.profileHeader}>
+        <LinearGradient
+          colors={["#FFE5D9", "#FFF5E6"]}
+          style={styles.profileHeader}
+        >
           <View style={styles.avatarContainer}>
             {isUploadingPhoto ? (
               <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center', backgroundColor: APP_COLORS.lightGray }]}>
                 <ActivityIndicator color={APP_COLORS.saffron} />
               </View>
-            ) : (
+            ) : userProfilePic ? (
               <Image
-                source={
-                  userProfilePic
-                    ? { uri: userProfilePic }
-                    : require("../../../assets/images/default-profile.png")
-                }
+                source={{ uri: userProfilePic }}
                 style={styles.avatar}
               />
+            ) : (
+              <View style={[styles.avatar, { backgroundColor: '#FFD4B8', justifyContent: 'center', alignItems: 'center' }]}>
+                <Ionicons name="person" size={56} color="#E8630A" />
+              </View>
             )}
             <TouchableOpacity
               style={styles.editAvatarBtn}
@@ -367,7 +402,7 @@ const ProfileScreen: React.FC = () => {
               </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
         {/* ── Personal Details ────────────────────────── */}
         <View style={styles.sectionContainer}>
@@ -427,9 +462,9 @@ const ProfileScreen: React.FC = () => {
           </Card>
         </View>
 
-        {/* ── My Family ───────────────────────────────── */}
+        {/* ── My Spiritual Profile ───────────────────── */}
         <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>🏠 My Family</Text>
+          <Text style={styles.sectionTitle}>🔯 My Spiritual Profile</Text>
           <Card style={styles.familyCard}>
             <View style={styles.familyRow}>
               <View style={styles.familyItem}>
@@ -716,16 +751,15 @@ const styles = StyleSheet.create({
   // Profile Header
   profileHeader: {
     alignItems: "center",
-    backgroundColor: APP_COLORS.surface,
     paddingVertical: 28,
     paddingBottom: 24,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 5,
   },
   avatarContainer: {
     position: "relative",
@@ -752,9 +786,10 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.surface,
   },
   userName: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "800",
-    color: APP_COLORS.headingText,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
   },
   nameRatingContainer: {
     flexDirection: 'row',
@@ -802,9 +837,10 @@ const styles = StyleSheet.create({
     marginTop: 22,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
-    color: APP_COLORS.headingText,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     marginBottom: 10,
     marginLeft: 2,
   },
@@ -949,9 +985,10 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
-    color: APP_COLORS.headingText,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   inputGroup: {
     marginBottom: 16,

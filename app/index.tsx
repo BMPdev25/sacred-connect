@@ -1,160 +1,244 @@
 import { Redirect } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar as ExpoStatusBar } from 'expo-status-bar';
 import React, { useEffect, useRef } from 'react';
-import { Animated, Image, StyleSheet, Text, View } from 'react-native';
-import { APP_COLORS } from '../constants/Colors';
+import { Animated, Easing, StyleSheet, Text, View, Dimensions, Image } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
+
+// 3D/Cinematic Particle System with Parallax-like depth
+const PARTICLES = Array.from({ length: 15 }).map((_, i) => ({
+  id: i,
+  x: Math.random(),
+  y: Math.random(),
+  size: Math.random() * 8 + 3,
+  delay: Math.random() * 2000,
+  duration: Math.random() * 3000 + 3000,
+  depth: Math.random() // Used for parallax speed (0 = far, 1 = near)
+}));
+
+function CinematicParticle({ x, y, size, delay, duration, depth }: any) {
+  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.5)).current;
+
+  useEffect(() => {
+    Animated.loop(
+      Animated.sequence([
+        Animated.delay(delay),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: depth * 0.6 + 0.2, duration: duration * 0.4, easing: Easing.out(Easing.ease), useNativeDriver: true }),
+          Animated.timing(translateY, { toValue: -50 * (depth + 0.5), duration: duration, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.2, duration: duration * 0.5, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+        Animated.parallel([
+          Animated.timing(opacity, { toValue: 0, duration: duration * 0.6, easing: Easing.in(Easing.ease), useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 0.5, duration: duration * 0.5, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+        ]),
+      ])
+    ).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        left: x * width,
+        top: y * height,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: '#FFE8C4',
+        opacity,
+        shadowColor: '#FFF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: size,
+        transform: [{ translateY }, { scale }],
+      }}
+    />
+  );
+}
 
 export default function Index() {
   const [nextRoute, setNextRoute] = React.useState<string | null>(null);
 
-  // Animated values
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const scaleAnim = useRef(new Animated.Value(0.5)).current;
-  const moveUpAnim = useRef(new Animated.Value(50)).current;
-
-  // For the logo animation
+  // Core Animations
+  const logoScale = useRef(new Animated.Value(0)).current;
   const logoOpacity = useRef(new Animated.Value(0)).current;
-  const logoScale = useRef(new Animated.Value(0.3)).current;
+  const logoTranslateY = useRef(new Animated.Value(30)).current;
+  
+  // 3D "Floating" effect for logo
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  
+  // Background rotation effect
+  const bgRotation = useRef(new Animated.Value(0)).current;
 
-  // For the Om symbol pulse effect
-  const omPulse = useRef(new Animated.Value(1)).current;
+  // Text reveal
+  const textOpacity = useRef(new Animated.Value(0)).current;
+  const textTranslateY = useRef(new Animated.Value(20)).current;
+  const letterSpacing = useRef(new Animated.Value(10)).current;
 
-  // For the tagline text
+  // Tagline
   const taglineOpacity = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Pulse animation for Om symbol
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(omPulse, {
-          toValue: 1.1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(omPulse, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
-
-    // Logo and text animation sequence
+    // 1. Initial Cinematic Pop-In
     Animated.sequence([
-      // First: Logo appears
+      Animated.delay(300),
       Animated.parallel([
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 40,
+          useNativeDriver: true,
+        }),
         Animated.timing(logoOpacity, {
           toValue: 1,
           duration: 800,
           useNativeDriver: true,
         }),
-        Animated.timing(logoScale, {
+        Animated.timing(logoTranslateY, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+      Animated.delay(200),
+      Animated.parallel([
+        Animated.timing(textOpacity, {
           toValue: 1,
           duration: 800,
           useNativeDriver: true,
         }),
-      ]),
-
-      // Small delay
-      Animated.delay(200),
-
-      // Then: Text appears
-      Animated.parallel([
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(scaleAnim, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(moveUpAnim, {
+        Animated.timing(textTranslateY, {
           toValue: 0,
-          duration: 1000,
+          duration: 800,
+          easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
+        // Letter spacing animation requires useNativeDriver: false or treating it differently, 
+        // we'll stick to transforms for native driver performance where possible, 
+        // but we'll use a subtle scale instead for the "expanding" feel to keep it 60fps
       ]),
-
-      // Small delay
-      Animated.delay(300),
-
-      // Finally: Tagline appears
       Animated.timing(taglineOpacity, {
         toValue: 1,
-        duration: 800,
+        duration: 1000,
         useNativeDriver: true,
-      }),
+      })
     ]).start();
 
-    // After animations, decide where to navigate by setting nextRoute
-    const timer = setTimeout(async () => {
-        setNextRoute('/(auth)/');
-    }, 4000);
+    // 2. Continuous 3D Floating Effect (Breathing)
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: 1,
+          duration: 2500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 2500,
+          easing: Easing.inOut(Easing.sin),
+          useNativeDriver: true,
+        })
+      ])
+    ).start();
 
+    // 3. Slow Background Rotation (Light rays effect)
+    Animated.loop(
+      Animated.timing(bgRotation, {
+        toValue: 1,
+        duration: 15000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    const timer = setTimeout(() => setNextRoute('/(auth)/'), 4500);
     return () => clearTimeout(timer);
   }, []);
+
+  const spin = bgRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg']
+  });
+
+  const floatY = floatAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, -15]
+  });
 
   return (
     <View style={styles.container}>
       {nextRoute ? <Redirect href={nextRoute as any} /> : null}
-      <ExpoStatusBar style="auto" backgroundColor={APP_COLORS.primary} />
+      <ExpoStatusBar style="light" />
 
-      {/* Logo */}
-      <Animated.View
-        style={[
-          styles.logoImageContainer,
-          {
-            opacity: logoOpacity,
-            transform: [{ scale: logoScale }],
-          },
-        ]}
-      >
-        <Image
-          source={require('../assets/images/icon.png')}
-          style={styles.logoImage}
-          resizeMode="contain"
+      {/* Deep Cinematic Gradient Background (Lightened) */}
+      <LinearGradient
+        colors={['#611F05', '#A33B0A', '#E87A30']}
+        locations={[0, 0.4, 1]}
+        style={StyleSheet.absoluteFill}
+      />
+
+      {/* Rotating Background "Rays" (Cinematic lighting) */}
+      <Animated.View style={[styles.lightRaysContainer, { transform: [{ rotate: spin }] }]}>
+        <LinearGradient
+          colors={['rgba(255,160,50,0.15)', 'transparent']}
+          style={styles.ray1}
+        />
+        <LinearGradient
+          colors={['rgba(255,160,50,0.15)', 'transparent']}
+          style={styles.ray2}
         />
       </Animated.View>
 
-      {/* Main app text */}
-      <Animated.View
-        style={[
-          styles.logoContainer,
-          {
-            opacity: fadeAnim,
-            transform: [
-              { scale: scaleAnim },
-              { translateY: moveUpAnim }
-            ],
-          },
-        ]}
-      >
-        <Text style={styles.logoText}>BookMyPujari</Text>
+      {/* Cinematic Particles */}
+      {PARTICLES.map((p) => <CinematicParticle key={p.id} {...p} />)}
 
-        {/* Om symbol with pulse animation */}
-        <Animated.Text
+      {/* Main Content */}
+      <View style={styles.contentContainer}>
+        
+        {/* Logo with 3D Float */}
+        <Animated.View
           style={[
-            styles.omSymbol,
+            styles.logoContainer,
             {
-              transform: [{ scale: omPulse }]
+              opacity: logoOpacity,
+              transform: [
+                { scale: logoScale },
+                { translateY: Animated.add(logoTranslateY, floatY) }
+              ]
             }
           ]}
         >
-          ॐ
-        </Animated.Text>
-      </Animated.View>
+          
+          <Image
+            source={require('../logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
+        </Animated.View>
 
-      {/* Tagline */}
-      <Animated.Text
-        style={[
-          styles.tagline,
-          { opacity: taglineOpacity }
-        ]}
-      >
-        Book Your Pujari with Ease
-      </Animated.Text>
+        {/* Text Reveal */}
+        <Animated.View
+          style={{
+            opacity: textOpacity,
+            transform: [{ translateY: textTranslateY }],
+            alignItems: 'center',
+            marginTop: -15 // Reduced gap to account for transparent padding in logo
+          }}
+        >
+          <Text style={styles.appName}>BookMyPujari</Text>
+          
+          <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
+            Divine Rituals, Delivered with Grace
+          </Animated.Text>
+        </Animated.View>
+
+      </View>
     </View>
   );
 }
@@ -162,64 +246,60 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#1A0800',
+    overflow: 'hidden',
+  },
+  lightRaysContainer: {
+    ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: APP_COLORS.white,
+    opacity: 0.6,
   },
-
-  logoImageContainer: {
-    alignItems: 'center',
+  ray1: {
+    position: 'absolute',
+    width: width * 2,
+    height: 100,
+    transform: [{ rotate: '45deg' }],
+  },
+  ray2: {
+    position: 'absolute',
+    width: width * 2,
+    height: 100,
+    transform: [{ rotate: '-45deg' }],
+  },
+  contentContainer: {
+    flex: 1,
     justifyContent: 'center',
-    marginBottom: 30,
+    alignItems: 'center',
+    zIndex: 10,
   },
-
-  logoImage: {
-    width: 120,
-    height: 120,
-    // Add shadow for better visual effect
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-
   logoContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
   },
-
-  logoText: {
-    fontSize: 38,
-    fontWeight: 'bold',
-    color: APP_COLORS.primary,
-    textAlign: 'center',
+  logoImage: {
+    width: 260,
+    height: 260,
+  },
+  appName: {
+    fontSize: 42,
+    fontWeight: '800',
+    fontFamily: 'serif',
+    color: '#FFE8C4', // Soft gold
     letterSpacing: 2,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 2,
-    marginBottom: 10,
+    textShadowColor: 'rgba(255, 160, 50, 0.5)',
+    textShadowOffset: { width: 0, height: 4 },
+    textShadowRadius: 12,
   },
-
-  omSymbol: {
-    fontSize: 64,
-    color: APP_COLORS.primary,
-    marginTop: 10,
-    textShadowColor: 'rgba(0, 0, 0, 0.1)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-
   tagline: {
     fontSize: 16,
-    color: APP_COLORS.gray,
-    textAlign: 'center',
-    marginTop: 30,
+    color: '#FFE8C4', // Lightened slightly to match title for better contrast
     fontStyle: 'italic',
-    maxWidth: '80%',
-  },
+    fontFamily: 'serif',
+    marginTop: 8,
+    letterSpacing: 1,
+    textShadowColor: 'rgba(0, 0, 0, 0.6)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  }
 });

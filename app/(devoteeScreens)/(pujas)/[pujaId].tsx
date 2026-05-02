@@ -127,9 +127,14 @@ export default function PujaDetailScreen() {
         options={{
           headerShown: true,
           title: puja.name,
-          headerTintColor: APP_COLORS.black,
+          headerTintColor: APP_COLORS.tertiary,
           headerStyle: { backgroundColor: APP_COLORS.white },
-          headerShadowVisible: true,
+          headerTitleStyle: {
+            fontFamily: "serif",
+            fontSize: 20,
+            color: APP_COLORS.tertiary,
+          },
+          headerShadowVisible: false,
         }}
       />
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -311,21 +316,22 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   detailsContainer: {
-    padding: 16,
+    padding: 20,
     backgroundColor: APP_COLORS.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    marginTop: -20, // Overlap image slightly
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -28, // Overlap image slightly
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowRadius: 12,
+    elevation: 8,
   },
   title: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: "bold",
-    color: APP_COLORS.black,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     marginBottom: 8,
   },
   metaRow: {
@@ -339,11 +345,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   sectionHeader: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: APP_COLORS.black,
-    marginTop: 20,
-    marginBottom: 8,
+    fontSize: 20,
+    fontWeight: "bold",
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
+    marginTop: 24,
+    marginBottom: 10,
   },
   description: {
     fontSize: 14,
@@ -416,9 +423,10 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   instantTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
-    color: APP_COLORS.black,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     marginBottom: 4,
   },
   instantDesc: {
@@ -463,9 +471,10 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   price: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "bold",
-    color: APP_COLORS.primary,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
   },
   scheduleBtn: {
     backgroundColor: APP_COLORS.saffron,
@@ -508,8 +517,9 @@ const styles = StyleSheet.create({
   },
   stepTitle: {
     fontSize: 16,
-    fontWeight: "600",
-    color: APP_COLORS.black,
+    fontWeight: "bold",
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
     flex: 1,
   },
   stepDuration: {
@@ -543,7 +553,8 @@ const styles = StyleSheet.create({
   durationValue: {
     fontSize: 16,
     fontWeight: "bold",
-    color: APP_COLORS.primary,
+    fontFamily: "serif",
+    color: APP_COLORS.tertiary,
   },
   // Samagri Styles
   samagriContainer: {
@@ -559,9 +570,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   samagriName: {
-    fontSize: 14,
-    color: APP_COLORS.black,
-    fontWeight: "500",
+    fontSize: 15,
+    color: APP_COLORS.tertiary,
+    fontFamily: "serif",
+    fontWeight: "600",
   },
   samagriOptional: {
     fontSize: 12,

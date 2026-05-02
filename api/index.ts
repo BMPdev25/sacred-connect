@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
-  if (Platform.OS === 'web') return 'http://localhost:5000';
   return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
 };
 

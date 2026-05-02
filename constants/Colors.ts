@@ -19,31 +19,33 @@ const Colors = {
 };
 
 export const APP_COLORS = {
-  // Core Design System — "Modern Spiritual"
-  saffron: '#FF9933',
-  primary: '#FF9933',
-  background: '#F8F9FA',
+  // Core Design System — Stitch UI
+  primary: '#FF9933', // Orange
+  secondary: '#9D6D43', // Light Brown
+  tertiary: '#704214', // Dark Brown (for Headings)
+  neutral: '#FDFBF7', // Background
+  saffron: '#FF9933', // Alias
+  background: '#FDFBF7',
   surface: '#FFFFFF',
-  headingText: '#800000',
-  bodyText: '#333333',
+  headingText: '#704214',
+  bodyText: '#9D6D43',
 
   // Backward-compatible aliases
-  secondary: Colors.light.tabIconDefault,
   white: '#FFFFFF',
   black: '#1A1A1A',
-  lightGray: '#EDEFF2',
-  gray: '#6b6b6b',
-  error: '#cc0000',
+  lightGray: '#E5DFD7',
+  gray: '#9D6D43', // Use secondary for gray areas
+  error: '#B22222', // Deeper red based on Stitch palette
   info: '#3178c6',
-  success: '#28a745',
-  warning: '#ffc107',
-  text: Colors.light.text,
-
+  success: '#2E8B57', // Forest green
+  warning: '#FF9933',
+  text: '#704214',
+  
   // Additional tokens
-  cardShadow: 'rgba(0,0,0,0.06)',
-  divider: '#E8E8E8',
-  saffronLight: '#FFF3E0',
-  maroon: '#800000',
+  cardShadow: 'rgba(112,66,20,0.08)', // Tinted shadow
+  divider: '#E5DFD7',
+  saffronLight: '#FF993320',
+  maroon: '#704214', // Map backward maroon to tertiary
 };
 
 export default Colors;

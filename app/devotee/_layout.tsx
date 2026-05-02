@@ -108,7 +108,7 @@ const DevoteeTabs = () => {
         name="(tabs)/HomeTab"
         options={{
           title: "Home",
-          tabBarLabel: "Home",
+          tabBarLabel: "HOME",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size || 22} color={color} />
           ),
@@ -117,10 +117,10 @@ const DevoteeTabs = () => {
       <Tabs.Screen
         name="(tabs)/ExploreTab"
         options={{
-          title: "Explore",
-          tabBarLabel: "Explore",
+          title: "Wallet",
+          tabBarLabel: "WALLET",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass" size={size || 22} color={color} />
+            <Ionicons name="wallet" size={size || 22} color={color} />
           ),
         }}
       />
@@ -128,7 +128,7 @@ const DevoteeTabs = () => {
         name="(tabs)/BookingsTab"
         options={{
           title: "Bookings",
-          tabBarLabel: "Bookings",
+          tabBarLabel: "BOOKINGS",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size || 22} color={color} />
           ),
@@ -138,7 +138,7 @@ const DevoteeTabs = () => {
         name="(tabs)/ProfileTab"
         options={{
           title: "Profile",
-          tabBarLabel: "Profile",
+          tabBarLabel: "PROFILE",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size || 22} color={color} />
           ),

@@ -106,6 +106,7 @@ sacred-connect/
 ### Running the App
 Start the development server:
 ```bash
+# Start Expo development server
 npx expo start
 ```
 - Press `a` for Android Emulator

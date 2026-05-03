@@ -15,6 +15,7 @@ import { APP_COLORS } from "../../../constants/Colors";
 import ceremonyService from "../../../services/ceremonyService";
 import priestService from "../../../services/priestService"; // Import priestService
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function AddServiceScreen() {
     const router = useRouter();
@@ -146,13 +147,13 @@ export default function AddServiceScreen() {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <View style={styles.header}>
+            <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Add New Service</Text>
                 <View style={{ width: 24 }} />
-            </View>
+            </LinearGradient>
 
             <View style={styles.p16}>
                 <TextInput
@@ -196,7 +197,7 @@ export default function AddServiceScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     center: {
         flex: 1,
@@ -209,21 +210,21 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: APP_COLORS.white,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
     },
     backButton: {
         padding: 4,
     },
     headerTitle: {
         fontSize: 18,
+        fontFamily: 'serif',
         fontWeight: 'bold',
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     p16: {
         padding: 16,
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.neutral,
     },
     searchBar: {
         backgroundColor: '#F0F0F0',
@@ -237,21 +238,21 @@ const styles = StyleSheet.create({
         paddingBottom: 100,
     },
     card: {
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         padding: 16,
-        borderRadius: 12,
+        borderRadius: 16,
         marginBottom: 12,
         borderWidth: 1,
-        borderColor: 'transparent',
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 2,
-        elevation: 2,
+        borderColor: APP_COLORS.divider,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+        elevation: 3,
     },
     selectedCard: {
         borderColor: APP_COLORS.primary,
-        backgroundColor: '#FFF5E6', // Light orange tint
+        backgroundColor: APP_COLORS.saffronLight, // Light orange tint
     },
     cardHeader: {
         flexDirection: 'row',
@@ -261,8 +262,9 @@ const styles = StyleSheet.create({
     },
     cardTitle: {
         fontSize: 16,
+        fontFamily: 'serif',
         fontWeight: '600',
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     selectedText: {
         color: APP_COLORS.primary,
@@ -280,14 +282,14 @@ const styles = StyleSheet.create({
     },
     footer: {
         padding: 16,
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         borderTopWidth: 1,
-        borderTopColor: APP_COLORS.lightGray,
+        borderTopColor: APP_COLORS.divider,
     },
     saveButton: {
         backgroundColor: APP_COLORS.primary,
         height: 50,
-        borderRadius: 25,
+        borderRadius: 100,
         justifyContent: 'center',
         alignItems: 'center',
     },

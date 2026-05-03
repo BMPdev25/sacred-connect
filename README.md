@@ -1,65 +1,156 @@
-# Sacred Connect (Frontend)
+# BookMyPujari - Mobile Application
 
-Welcome to the **Sacred Connect** mobile application frontend. This project is built with Expo and React Native, designed to connect devotees with priests for religious ceremonies.
+[![React Native](https://img.shields.io/badge/React_Native-0.81-61DAFB?logo=react&logoColor=white)](https://reactnative.dev/)
+[![Expo](https://img.shields.io/badge/Expo-54-000020?logo=expo&logoColor=white)](https://expo.dev/)
+[![Redux](https://img.shields.io/badge/Redux-Toolkit-764ABC?logo=redux&logoColor=white)](https://redux-toolkit.js.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+
+Sacred Connect is a modern, high-performance mobile application built with React Native and Expo. It serves as a digital bridge between devotees and priests, enabling seamless booking of religious ceremonies, real-time communication, and secure payments.
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ Architecture Overview
 
-### 1. Install Dependencies
-```bash
-npm install
+The application follows a modular architecture designed for scalability and maintainability. It leverages **Expo Router** for file-based navigation, **Redux Toolkit** for predictable state management, and **React Query** for efficient server-state synchronization.
+
+### System Architecture Diagram
+
+```mermaid
+graph TD
+    subgraph "Presentation Layer (React Native)"
+        A[Screens / Layouts] --> B[Shared Components]
+        A --> C[Hooks / Context]
+    end
+
+    subgraph "State Management"
+        D[Redux Toolkit] -- Global UI State --> A
+        E[React Query] -- Server Data Cache --> A
+    end
+
+    subgraph "Service Layer"
+        F[API Services / Axios] --> G[WebSocket / Socket.io]
+        H[Firebase Auth] --> F
+    end
+
+    subgraph "Backend Infrastructure"
+        I[BMP Server - Node.js]
+        J[Firebase Cloud Messaging]
+    end
+
+    F -- REST API --> I
+    G -- Real-time Updates --> I
+    A -- Push Notifications --> J
+    I -- Push Notifications --> J
 ```
 
-### 2. Run the App
+### Key Architectural Decisions
+- **File-based Routing**: Using `expo-router` to manage navigation via the file system (`/app` directory).
+- **Service-Oriented Logic**: All API calls and external integrations are abstracted into the `/services` and `/api` directories.
+- **Atomic Components**: UI is built using reusable components in `/components`, ensuring a consistent design system.
+- **Real-time Sync**: Integration with `socket.io-client` for live booking updates and chat features.
+
+---
+
+## 🚀 Tech Stack
+
+- **Framework**: [Expo](https://expo.dev/) (SDK 54) / React Native
+- **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/)
+- **State Management**: [Redux Toolkit](https://redux-toolkit.js.org/) & [React Query](https://tanstack.com/query/latest)
+- **Backend Integration**: [Firebase](https://firebase.google.com/) (Auth & Notifications)
+- **Styling**: React Native StyleSheet & `expo-linear-gradient`
+- **Real-time**: [Socket.io-client](https://socket.io/)
+- **Payments**: [Razorpay](https://razorpay.com/)
+- **Testing**: [Maestro](https://maestro.mobile.dev/) (E2E), [Jest](https://jestjs.io/) (Unit)
+
+---
+
+## 📂 Project Structure
+
+```text
+sacred-connect/
+├── api/                # Axios instance and API endpoints
+├── app/                # Expo Router file-based screens (Main navigation)
+│   ├── (auth)/         # Authentication flow (Login, Register)
+│   ├── (tabs)/         # Bottom tab navigation screens
+│   └── ...             # Dynamic routes and stacks
+├── assets/             # Images, fonts, and static resources
+├── components/         # Reusable UI components (Atomic design)
+├── context/            # React Context providers (Auth, Theme)
+├── hooks/              # Custom React hooks
+├── redux/              # Redux slices and store configuration
+├── services/           # External service integrations (Firebase, WebSocket)
+├── types/              # TypeScript interfaces and types
+└── utils/              # Helper functions and constants
+```
+
+---
+
+## 🛠️ Getting Started
+
+### Prerequisites
+- Node.js (v18+)
+- Watchman (for macOS)
+- Expo Go app on your phone or an Android/iOS emulator
+
+### Installation
+1. Clone the repository
+2. Navigate to the frontend directory:
+   ```bash
+   cd sacred-connect
+   ```
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+
+### Running the App
+Start the development server:
 ```bash
 # Start Expo development server
 npx expo start
 ```
-*   **Android**: Press `a` (requires Emulator or connected device)
-*   **iOS**: Press `i` (requires Xcode Simulator or connected device)
-*   **Web**: Press `w`
+- Press `a` for Android Emulator
+- Press `i` for iOS Simulator
+- Press `w` for Web
+- Scan the QR code with **Expo Go** to run on a physical device.
 
 ---
 
-## 📖 Documentation
-
-The project documentation has been consolidated for better readability:
-
-*   **[Developer Guide](./docs/guides/DEVELOPMENT.md)**: Standard workflows (Dev → Test → Fix) and troubleshooting common errors.
-*   **[UI/UX Architecture](./docs/ui-ux/UI_UX_MAP.md)**: Complete maps for both **Devotee** and **Priest** user journeys.
-*   **[Testing Guide](./docs/testing/README.md)**: Instructions for running Jest unit tests and manual verification procedures.
-
----
-
-## 🛠️ Tech Stack & Features
-
-*   **Core**: React Native (Expo), TypeScript, Redux Toolkit.
-*   **Authentication**: Firebase Native Auth with automatic sync to MongoDB.
-*   **Key Features**:
-    *   **Unified Search**: Smart detection for Email/Phone login.
-    *   **Priest Onboarding**: Multi-select language picker and profile completion tracking.
-    *   **Service Management**: Dynamic pricing and ceremony requirement settings.
-    *   **Real-time Alerts**: Push notifications for bookings and payments.
-
----
-
-## 🧪 Test Credentials
+## 🔐 Test Credentials
 
 Use these accounts to test the application flows.
 
-### Priests
-*   **Priest 1**: `priest1@example.com` / `password123`
-*   **Priest 2**: `priest2@example.com` / `password123`
-
-### Devotees
-*   **Devotee 1**: `devotee1@example.com` / `password123`
-*   **Devotee 3**: `demo@example.com` / `Anish@123`
+| Role               | Email                     | Password      |
+|:-------------------|:--------------------------|:--------------|
+| **Priest (North)** | `priest1@example.com`     | `password123` |
+| **Priest**         | `sharmaji@mailinator.com` | `Anish@123`   |
+| **Priest (South)** | `priest2@example.com`     | `password123` |
+| **Devotee**        | `devotee1@example.com`    | `password123` |
+| **Demo User**      | `demo@example.com`        | `Anish@123`   |
 
 ---
 
-## ✅ Recent Updates
-*   **Architecture**: Consolidated all documentation into a structured `docs/` folder.
-*   **UI/UX**: Enhanced booking cards with distance/travel time and added skeleton loaders.
-*   **Onboarding**: Implemented progressive onboarding for priests with "Go Online" validation.
-*   **Testing**: Added unit tests for identifier detection and UI components.
+## 🧪 Testing
+
+We use **Maestro** for end-to-end mobile automation.
+
+- Run full suite: `npm test`
+- Run specific flows:
+  - `npm run test:mobile:success` - Successful booking
+  - `npm run test:mobile:payment` - Payment flow
+  - `npm run test:mobile:rating` - User feedback flow
+
+Refer to [TESTING.md](./TESTING.md) for more details.
+
+---
+
+## 📚 Documentation
+
+- [Priest Onboarding Guide](./docs/PRIEST_README.md) - Detailed flow for priest registration
+- [Component Documentation](./docs/README.md) - Overview of UI components
+- [Testing Guide](./TESTING.md) - Mobile and Web testing strategies
+
+---
+
+## 📄 License
+Internal Project - All Rights Reserved.

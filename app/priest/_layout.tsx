@@ -39,13 +39,22 @@ const NotificationOverlay = () => {
 
   const handleNotificationPress = (notification: any) => {
     closeNotifications();
-    if (notification.type === 'booking' && notification.data) {
-      router.push({
-        pathname: "/priest/PujaRequestDetails",
-        params: { bookingId: notification.data?._id || notification.data?.bookingId }
-      });
+    if (notification.type === 'booking') {
+      // Try every possible location the bookingId could be stored
+      const bookingId =
+        notification.data?._id ||
+        notification.data?.bookingId ||
+        notification.relatedId ||
+        notification.data?.relatedId;
+
+      if (bookingId) {
+        router.push({
+          pathname: "/priest/(priestScreens)/PujaRequestDetails",
+          params: { bookingId },
+        } as any);
+      }
     } else if (notification.type === 'earnings') {
-      router.push("/priest/EarningsTab");
+      router.push("/priest/(tabs)/EarningsTab" as any);
     }
   };
 
@@ -107,6 +116,7 @@ const PriestTabs = () => {
         name="(tabs)/CalendarTab"
         options={{
           title: "Calendar",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size || 20} color={color} />
           ),
@@ -126,6 +136,7 @@ const PriestTabs = () => {
         name="(tabs)/EarningsTab"
         options={{
           title: "Earnings",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cash-outline" size={size || 20} color={color} />
           ),
@@ -135,6 +146,7 @@ const PriestTabs = () => {
         name="(tabs)/ProfileTab"
         options={{
           title: "Menu",
+          headerShown: false,
           headerRight: () => null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="menu-outline" size={size || 20} color={color} />
@@ -161,6 +173,7 @@ const PriestTabs = () => {
         options={{
           href: null,
           title: "Requests",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="checkbox-outline" size={size || 20} color={color} />
           ),
@@ -261,10 +274,24 @@ import priestService from "../../services/priestService";
 import IncomingRequestModal from "../../components/IncomingRequestModal";
 import { Alert } from "react-native";
 
+import { useAppSelector } from "../../redux/hooks";
+
 export default function PriestLayout() {
+  const { userInfo } = useAppSelector((state) => state.auth);
   const { socket } = useSocket();
   const [incomingRequest, setIncomingRequest] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!userInfo) {
+      router.replace("/login" as any);
+    } else if (userInfo.userType !== 'priest') {
+      // Force redirect to correct layout if role doesn't match
+      router.replace("/devotee/HomeTab" as any);
+    }
+  }, [userInfo]);
+
+  if (!userInfo) return null;
 
   React.useEffect(() => {
     if (socket) {

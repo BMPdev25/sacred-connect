@@ -1361,135 +1361,126 @@ const ProfileSetup = () => {
   );
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+      <StatusBar style="dark" />
+      <LinearGradient colors={['#FFFFFF', '#FDFBF7']} style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 20 }]}>
+        <View style={styles.headerRow}>
+          {isEditing && (
+            <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+              <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
+            </TouchableOpacity>
+          )}
+          <Text style={styles.headerTitle}>{isEditing ? "Edit Profile" : "Complete Your Profile"}</Text>
+          {isEditing && <View style={{ width: 34 }} />}
+        </View>
+      </LinearGradient>
+
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={HEADER_TOP_PADDING + 24}
+        keyboardVerticalOffset={24}
       >
-        <View style={{ flex: 1 }}>
-          <View
-            style={[
-              styles.header,
-              {
-                paddingTop: HEADER_TOP_PADDING,
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 2 },
-                shadowOpacity: 0.08,
-                shadowRadius: 4,
-                elevation: 4,
-              },
-            ]}
-          >
-            <Text style={styles.headerTitle}>{isEditing ? "Edit Profile" : "Complete Your Profile"}</Text>
-          </View>
-
-          {!isSingleSectionMode && (
-            <View style={styles.progress}>
-              {[1, 2, 3, 4, 5, 6].map((step) => (
-                <View
-                  key={step}
-                  style={[
-                    styles.progressStep,
-                    currentStep === step && styles.activeProgressStep,
-                    currentStep > step && styles.completedProgressStep,
-                  ]}
-                >
-                  {currentStep > step ? (
-                    <Ionicons
-                      name="checkmark"
-                      size={16}
-                      color={APP_COLORS.white}
-                    />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.progressStepText,
-                        currentStep === step && styles.activeProgressStepText,
-                      ]}
-                    >
-                      {step}
-                    </Text>
-                  )}
-                </View>
-              ))}
+        {!isSingleSectionMode && (
+          <View style={styles.progress}>
+            {[1, 2, 3, 4, 5, 6].map((step) => (
               <View
+                key={step}
                 style={[
-                  styles.progressLine,
-                  { width: `${(currentStep - 1) * 20}%` },
+                  styles.progressStep,
+                  currentStep === step && styles.activeProgressStep,
+                  currentStep > step && styles.completedProgressStep,
                 ]}
-              />
-            </View>
-          )}
-
-          <View style={{ flex: 1 }}>
-            {currentStep === 1 && renderStep1()}
-            {currentStep === 2 && renderStep2()}
-            {currentStep === 3 && renderStep3()}
-            {currentStep === 4 && renderStep4()}
-            {currentStep === 5 && renderStep5()}
-            {currentStep === 6 && renderStep6()}
+              >
+                {currentStep > step ? (
+                  <Ionicons
+                    name="checkmark"
+                    size={16}
+                    color={APP_COLORS.white}
+                  />
+                ) : (
+                  <Text
+                    style={[
+                      styles.progressStepText,
+                      currentStep === step && styles.activeProgressStepText,
+                    ]}
+                  >
+                    {step}
+                  </Text>
+                )}
+              </View>
+            ))}
+            <View
+              style={[
+                styles.progressLine,
+                { width: `${(currentStep - 1) * 20}%` },
+              ]}
+            />
           </View>
+        )}
 
-          {renderCustomStepsModal()}
+        <View style={{ flex: 1 }}>
+          {currentStep === 1 && renderStep1()}
+          {currentStep === 2 && renderStep2()}
+          {currentStep === 3 && renderStep3()}
+          {currentStep === 4 && renderStep4()}
+          {currentStep === 5 && renderStep5()}
+          {currentStep === 6 && renderStep6()}
+        </View>
 
-          <View style={styles.footer}>
-            {isSingleSectionMode ? (
-              <>
+        {renderCustomStepsModal()}
+
+        <View style={styles.footer}>
+          {isSingleSectionMode ? (
+            <>
+              <TouchableOpacity
+                style={[styles.button, styles.backButton]}
+                onPress={() => router.back()}
+                disabled={isSubmitting}
+              >
+                <Text style={styles.backButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.nextButton]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color={APP_COLORS.white} />
+                ) : (
+                  <Text style={styles.nextButtonText}>Save Changes</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              {currentStep > 1 && (
                 <TouchableOpacity
                   style={[styles.button, styles.backButton]}
-                  onPress={() => router.back()}
-                  disabled={isSubmitting}
+                  onPress={() => setCurrentStep(currentStep - 1)}
                 >
-                  <Text style={styles.backButtonText}>Cancel</Text>
+                  <Text style={styles.backButtonText}>Back</Text>
                 </TouchableOpacity>
+              )}
 
-                <TouchableOpacity
-                  style={[styles.button, styles.nextButton]}
-                  onPress={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  <Text style={styles.nextButtonText}>
-                    {isSubmitting ? "Saving..." : "Save Changes"}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            ) : (
-              <>
-                {currentStep > 1 && (
-                  <TouchableOpacity
-                    style={[styles.button, styles.backButton]}
-                    onPress={prevStep}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.backButtonText}>Back</Text>
-                  </TouchableOpacity>
-                )}
-
-                {currentStep < 6 ? (
-                  <TouchableOpacity
-                    style={[styles.button, styles.nextButton]}
-                    onPress={nextStep}
-                  >
-                    <Text style={styles.nextButtonText}>Next</Text>
-                  </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.nextButton]}
+                onPress={currentStep === 6 ? handleSubmit : () => setCurrentStep(currentStep + 1)}
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator color={APP_COLORS.white} />
                 ) : (
-                  <TouchableOpacity
-                    style={[styles.button, styles.nextButton]}
-                    onPress={handleSubmit}
-                    disabled={isSubmitting}
-                  >
-                    <Text style={styles.nextButtonText}>
-                      {isSubmitting ? "Submitting..." : "Complete"}
-                    </Text>
-                  </TouchableOpacity>
+                  <Text style={styles.nextButtonText}>
+                    {currentStep === 6 ? "Complete" : "Next"}
+                  </Text>
                 )}
-              </>
-            )}
+              </TouchableOpacity>
+            </>
+          )}
           </View>
-        </View>
       </KeyboardAvoidingView>
-    </SafeAreaView >
+    </View>
   );
 };
 
@@ -1722,20 +1713,24 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 10,
   },
-  actionButton: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    justifyContent: "center",
+  header: {
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.divider,
+  },
+  headerRow: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
   },
-  actionButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "600",
-    fontSize: 13,
+  backBtn: { position: 'absolute', left: 20, padding: 5 },
+  headerTitle: { 
+    color: APP_COLORS.tertiary, 
+    fontSize: 20, 
+    fontWeight: "bold",
+    fontFamily: 'serif',
+    textAlign: 'center'
   },
-
   // Manual Location Fallback
   manualLocationWrapper: {
     marginTop: 16,
@@ -1803,6 +1798,8 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: APP_COLORS.white,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    fontSize: 16,
   },
   // New Profile Picture Styles
   profilePicContainer: {
@@ -1882,8 +1879,10 @@ const styles = StyleSheet.create({
     borderBottomColor: APP_COLORS.lightGray,
   },
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
+    color: APP_COLORS.tertiary,
+    fontFamily: 'serif',
   },
   modalScroll: {
     padding: 20,

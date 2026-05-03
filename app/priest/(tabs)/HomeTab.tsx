@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState, AppDispatch } from "../../../redux/store";
@@ -25,7 +26,6 @@ import ProfileCompletionBanner from "../../../components/ProfileCompletionBanner
 import { SkeletonCard } from "../../../components/SkeletonCard";
 import { HomeStatusToggle } from "../../../components/HomeStatusToggle";
 import RatingStars from "../../../components/RatingStars";
-import RatingModal from "../../../components/RatingModal";
 
 
 const HomeScreen: React.FC = () => {
@@ -41,8 +41,6 @@ const HomeScreen: React.FC = () => {
   const [currentAvailability, setCurrentAvailability] = useState<any>(null);
   const [recentReviews, setRecentReviews] = useState<any[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
-  const [rateModalVisible, setRateModalVisible] = useState(false);
-  const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
   const [completionRate, setCompletionRate] = useState<number>(100);
   const [ceremonyCount, setCeremonyCount] = useState<number>(0);
   const [verificationStatus, setVerificationStatus] = useState<string>('incomplete');
@@ -72,7 +70,12 @@ const HomeScreen: React.FC = () => {
 
       if (bookingsRes.status === 'fulfilled') {
         const data = bookingsRes.value;
-        const bookings = Array.isArray(data) ? data : data?.data || [];
+        const bookings = Array.isArray(data) ? data : (Array.isArray(data?.all) ? data.all : (Array.isArray(data?.data) ? data.data : (data?.data?.all || [])));
+        console.log('[HomeTab] raw bookings data type:', typeof data, Array.isArray(data));
+        console.log('[HomeTab] bookings count:', bookings.length);
+        if (bookings.length > 0) {
+          console.log('[HomeTab] first booking status:', bookings[0]?.status, 'id:', bookings[0]?._id);
+        }
         setAllBookings(bookings);
       }
 
@@ -95,7 +98,11 @@ const HomeScreen: React.FC = () => {
       }
 
       if (actionsRes.status === 'fulfilled') {
-        setPendingActions(actionsRes.value);
+        // Priests do not rate devotees in this flow. Filter out rate actions.
+        const filteredActions = Array.isArray(actionsRes.value)
+          ? actionsRes.value.filter((a: any) => a.actionType !== 'rate')
+          : [];
+        setPendingActions(filteredActions);
       }
 
       // Check for any failures and alert if manual refresh
@@ -121,14 +128,11 @@ const HomeScreen: React.FC = () => {
     }, [loadData])
   );
 
-  // Poll for updates every 30s if there are active bookings
+  // Poll for updates every 30s to catch new requests
   useEffect(() => {
-    const hasActive = allBookings.some(b => !['completed', 'cancelled'].includes(b.status));
-    if (!hasActive) return;
-
     const id = setInterval(() => loadData(true), 30000);
     return () => clearInterval(id);
-  }, [allBookings, loadData]);
+  }, [loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -136,13 +140,15 @@ const HomeScreen: React.FC = () => {
   }, [loadData]);
 
   const pendingRequests = useMemo(() => {
-    return allBookings.filter(b => b.status === 'pending');
+    return allBookings.filter(b => b.status === 'pending' || b.status === 'requested');
   }, [allBookings]);
 
   const upNextBooking = useMemo(() => {
-    return allBookings
-      .filter(b => b.status === 'confirmed' && new Date(b.date) >= new Date(new Date().setHours(0, 0, 0, 0)))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())[0];
+    const upcomingBookings = allBookings
+      .filter(b => b.status === 'confirmed')
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    
+    return upcomingBookings.length > 0 ? upcomingBookings[0] : null;
   }, [allBookings]);
 
   const handleAccept = async (bookingId: string) => {
@@ -187,41 +193,9 @@ const HomeScreen: React.FC = () => {
     }
   };
 
-  const openRateModal = (booking: any) => {
-    setSelectedBookingForRating(booking);
-    setRateModalVisible(true);
-  };
-
-  const handleSubmitRating = async (rating: number, comment: string, tags: string[]) => {
-    if (!selectedBookingForRating) return;
-
-    try {
-      // Submit review
-      await priestService.submitReview({
-        bookingId: selectedBookingForRating._id,
-        reviewerId: userInfo?._id,
-        revieweeId: selectedBookingForRating.devoteeId?._id,
-        rating,
-        comment,
-        tags,
-        role: 'priest_to_devotee'
-      });
-
-      Alert.alert("Success", "Review submitted!");
-      // Remove from pending actions
-      setPendingActions(prev => prev.filter(a => a._id !== selectedBookingForRating._id));
-    } catch (error: any) {
-      console.error("Submit review error:", error);
-      Alert.alert("Error", error.message || "Failed to submit review");
-    } finally {
-      setRateModalVisible(false);
-      setSelectedBookingForRating(null);
-    }
-  };
-
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
         style={styles.container}
@@ -230,73 +204,75 @@ const HomeScreen: React.FC = () => {
         }
       >
         <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
-          <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}>
-            <View style={styles.headerRow}>
-              <View style={styles.headerContent}>
-                <Text style={styles.welcomeText}>Welcome back,</Text>
-                <Text style={styles.headerTitle}>{userInfo?.name || "Priest"}</Text>
+          <LinearGradient
+            colors={["#FFFFFF", "#FDFBF7"]}
+            style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 12 }]}
+          >
+            <View style={styles.headerContent}>
+              <View>
+                <Text style={styles.headerTitle}>BookMyPujari</Text>
+                <Text style={styles.headerSubtitle}>Namaste 🙏, {userInfo?.name?.split(' ')[0] || 'Pandit ji'}</Text>
               </View>
-
               <View style={styles.headerActions}>
                 <TouchableOpacity
-                  style={styles.notificationBell}
+                  style={styles.notificationBtn}
                   onPress={toggleNotifications}
                 >
                   <Ionicons
                     name={showNotifications ? "notifications" : "notifications-outline"}
-                    size={28}
-                    color={APP_COLORS.white}
+                    size={24}
+                    color={APP_COLORS.tertiary}
                   />
                   {unreadCount > 0 && <View style={styles.notificationBadge} />}
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* Profile Completion */}
           {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
             <ProfileCompletionBanner data={profileCompletion} />
           )}
 
-          {/* Verification Banner */}
-          {!loading && verificationStatus === 'pending' && (
-            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.info + "12", borderLeftColor: APP_COLORS.info }]}>
-              <Ionicons name="time-outline" size={24} color={APP_COLORS.info} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.info }]}>Application Under Review</Text>
-                <Text style={styles.bannerText}>Your documents are being verified by our team. You can still set up your schedule while you wait!</Text>
-              </View>
-            </View>
-          )}
-
-          {!loading && verificationStatus === 'rejected' && (
-            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
-              <Ionicons name="close-circle-outline" size={24} color={APP_COLORS.error} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
-                <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
-                <TouchableOpacity 
-                  style={styles.bannerBtn}
+           {/* Verification Status Card */}
+          {!loading && verificationStatus !== 'approved' && (
+            <View style={styles.statusSection}>
+              {verificationStatus === 'pending' ? (
+                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.saffronLight, borderLeftColor: APP_COLORS.primary }]}>
+                  <Ionicons name="time" size={24} color={APP_COLORS.primary} style={{ marginTop: 2 }} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.primary }]}>Application Under Review</Text>
+                    <Text style={styles.bannerText}>Our team is currently verifying your profile and documents. You'll be notified once you're approved to start receiving bookings.</Text>
+                  </View>
+                </View>
+              ) : verificationStatus === 'rejected' ? (
+                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
+                  <Ionicons name="close-circle" size={24} color={APP_COLORS.error} style={{ marginTop: 2 }} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
+                    <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
+                    <TouchableOpacity 
+                      style={[styles.bannerBtn, { backgroundColor: APP_COLORS.error }]}
+                      onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
+                    >
+                      <Text style={styles.bannerBtnText}>Update Documents</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : verificationStatus === 'incomplete' ? (
+                <TouchableOpacity
+                  style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
                   onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
                 >
-                  <Text style={styles.bannerBtnText}>Update Documents</Text>
+                  <Ionicons name="shield-half-outline" size={24} color={APP_COLORS.warning} style={{ marginTop: 2 }} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Complete Your Profile</Text>
+                    <Text style={styles.bannerText}>Finish onboarding to start receiving bookings and build your presence on BookMyPujari.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
                 </TouchableOpacity>
-              </View>
+              ) : null}
             </View>
-          )}
-
-          {!loading && verificationStatus === 'incomplete' && (
-            <TouchableOpacity
-              style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
-              onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
-            >
-              <Ionicons name="shield-outline" size={24} color={APP_COLORS.warning} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Incomplete Profile</Text>
-                <Text style={styles.bannerText}>Finish onboarding to start receiving bookings.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
-            </TouchableOpacity>
           )}
 
           {/* Reliability Warning Banner */}
@@ -332,156 +308,52 @@ const HomeScreen: React.FC = () => {
           ) : (
             <View style={styles.content}>
 
-              {/* Status Toggle */}
-              <HomeStatusToggle
-                currentStatus={currentAvailability?.status || 'offline'}
-                autoToggle={currentAvailability?.autoToggle ?? true}
-                isVerified={verificationStatus === 'approved'}
-                completionPercentage={profileCompletion?.completionPercentage || 0}
-                onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
-                style={{ marginBottom: 20 }}
-                disabled={verificationStatus !== 'approved'}
-                disabledMessage={verificationStatus === 'pending' ? "Profile Under Review" : (verificationStatus === 'rejected' ? "Verification Rejected" : "Incomplete Profile")}
-              />
-
-              {/* Pending Actions Carousel */}
-              {pendingActions.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Pending Actions</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {pendingActions.map((action, index) => (
-                      <View key={index} style={styles.actionCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                          <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info + '20' : APP_COLORS.warning + '20' }]}>
-                            <Ionicons
-                              name={action.actionType === 'mark_complete' ? 'checkmark-circle-outline' : 'star-outline'}
-                              size={24}
-                              color={action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning}
-                            />
-                          </View>
-                          <View style={{ marginLeft: 12, flex: 1 }}>
-                            <Text style={styles.actionTitle}>{action.title}</Text>
-                            <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
-                          </View>
-                        </View>
-
-                        <TouchableOpacity
-                          style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning }]}
-                          onPress={() => action.actionType === 'mark_complete' ? handleMarkComplete(action._id) : openRateModal(action)}
-                        >
-                          <Text style={styles.actionBtnText}>
-                            {action.actionType === 'mark_complete' ? 'Mark Complete' : 'Rate Now'}
-                          </Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
+              {/* Status Toggle - Only show when approved to avoid redundancy with banners above */}
+              {verificationStatus === 'approved' && (
+                <HomeStatusToggle
+                  currentStatus={currentAvailability?.status || 'offline'}
+                  autoToggle={currentAvailability?.autoToggle ?? true}
+                  isVerified={verificationStatus === 'approved'}
+                  completionPercentage={profileCompletion?.completionPercentage || 0}
+                  onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
+                  style={{ marginBottom: 20 }}
+                  disabled={verificationStatus !== 'approved'}
+                />
               )}
 
-              {/* 1. Dashboard Grid - Earnings & Puja Stats */}
-              <View style={styles.dashboardGrid}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statLabel}>This Month</Text>
-                  <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statLabel}>Balance</Text>
-                  <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
-                </View>
-              </View>
-              <View style={styles.dashboardGrid}>
-                <View style={styles.statCard}>
-                  <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.success} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>Pujas Completed</Text>
-                  <Text style={[styles.statValue, { color: APP_COLORS.success }]}>{earnings?.pujasCompleted ?? 0}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>Pujas Pending</Text>
-                  <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
-                </View>
-              </View>
-
-              {/* 2. Up Next */}
-              {upNextBooking && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Up Next</Text>
-                  <View style={styles.upNextCard}>
-                    <View style={styles.upNextHeader}>
-                      <Text style={styles.ceremonyTitle}>{upNextBooking.ceremonyType || upNextBooking.ceremony}</Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>CONFIRMED</Text>
-                      </View>
+              {/* 1. Puja Requests Banner - Prominent at top */}
+              {pendingRequests.length > 0 && (
+                <TouchableOpacity
+                  style={styles.pendingBanner}
+                  activeOpacity={0.85}
+                  onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}
+                >
+                  <View style={styles.pendingBannerLeft}>
+                    <View style={styles.pendingCountCircle}>
+                      <Text style={styles.pendingCountText}>{pendingRequests.length}</Text>
                     </View>
-
-                    <View style={styles.detailRow}>
-                      <Ionicons name="person-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText}>{upNextBooking.devoteeId?.name || "Client"}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText}>
-                        {new Date(upNextBooking.date).toLocaleDateString()} • {upNextBooking.startTime || upNextBooking.time}
+                    <View style={{ marginLeft: 12 }}>
+                      <Text style={styles.pendingBannerTitle}>
+                        {pendingRequests.length === 1 ? '1 New Booking Request' : `${pendingRequests.length} New Booking Requests`}
                       </Text>
+                      <Text style={styles.pendingBannerSub}>Tap to review and respond</Text>
                     </View>
-                    <View style={styles.detailRow}>
-                      <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText} numberOfLines={1}>
-                        {upNextBooking.location?.address || "Location details"}
-                      </Text>
-                    </View>
-
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => openMaps(upNextBooking.location)}
-                    >
-                      <Ionicons name="navigate-outline" size={18} color={APP_COLORS.white} />
-                      <Text style={styles.actionButtonText}>Navigate</Text>
-                    </TouchableOpacity>
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={20} color={APP_COLORS.white} />
+                </TouchableOpacity>
               )}
 
-              {/* 3. Recent Love */}
+              {/* 2. Puja Requests Carousel */}
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recent Love</Text>
-                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
-                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
+                  <Text style={styles.sectionTitle}>
+                    Puja Requests{pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}
+                  </Text>
+                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
+                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
                   </TouchableOpacity>
                 </View>
-                {recentReviews.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {recentReviews.slice(0, 4).map((review, index) => (
-                      <View key={index} style={styles.reviewCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                          <View style={styles.reviewerAvatar}>
-                            <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
-                          </View>
-                          <View style={{ marginLeft: 8 }}>
-                            <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
-                            <RatingStars rating={review.rating} size={14} readOnly />
-                          </View>
-                        </View>
-                        <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
-                )}
-              </View>
-
-              {/* 4. Pending Requests */}
-              {pendingRequests.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Puja Requests ({pendingRequests.length})</Text>
-                    <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
-                      <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
-                    </TouchableOpacity>
-                  </View>
+                {pendingRequests.length > 0 ? (
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
                     {pendingRequests.map((req, index) => (
                       <TouchableOpacity
@@ -514,97 +386,218 @@ const HomeScreen: React.FC = () => {
                       </TouchableOpacity>
                     ))}
                   </ScrollView>
+                ) : (
+                  <View style={styles.noRequestsCard}>
+                    <Ionicons name="calendar-outline" size={32} color={APP_COLORS.lightGray} />
+                    <Text style={styles.noRequestsText}>No pending requests</Text>
+                    <Text style={styles.noRequestsSub}>New booking requests will appear here</Text>
+                  </View>
+                )}
+              </View>
+
+              {/* 3. Pending Actions Carousel */}
+              {pendingActions.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Pending Actions</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {pendingActions.map((action, index) => (
+                      <View key={index} style={styles.actionCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+                          <View style={[styles.actionIcon, { backgroundColor: APP_COLORS.primary + '20' }]}>
+                            <Ionicons name={'checkmark-circle-outline'} size={24} color={APP_COLORS.primary} />
+                          </View>
+                          <View style={{ marginLeft: 12, flex: 1 }}>
+                            <Text style={styles.actionTitle}>{action.title}</Text>
+                            <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
+                          </View>
+                        </View>
+                        <TouchableOpacity
+                          style={[styles.actionBtn, { backgroundColor: APP_COLORS.primary }]}
+                          onPress={() => handleMarkComplete(action._id)}
+                        >
+                          <Text style={styles.actionBtnText}>Mark Complete</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </ScrollView>
                 </View>
               )}
 
-              {!upNextBooking && pendingRequests.length === 0 && (
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={48} color={APP_COLORS.lightGray} />
-                  <Text style={styles.emptyStateText}>No upcoming activity</Text>
+              {/* 4. Dashboard Grid - Earnings & Puja Stats */}
+              <View style={styles.dashboardGrid}>
+                <View style={styles.statCard}>
+                  <Ionicons name="calendar-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>This Month</Text>
+                  <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Ionicons name="wallet-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>Balance</Text>
+                  <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
+                </View>
+              </View>
+              <View style={styles.dashboardGrid}>
+                <View style={styles.statCard}>
+                  <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>Pujas Completed</Text>
+                  <Text style={[styles.statValue, { color: APP_COLORS.primary }]}>{earnings?.pujasCompleted ?? 0}</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
+                  <Text style={styles.statLabel}>Pujas Pending</Text>
+                  <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
+                </View>
+              </View>
+
+              {/* 5. Up Next */}
+              {upNextBooking && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Up Next</Text>
+                  <View style={styles.upNextCard}>
+                    <View style={styles.upNextHeader}>
+                      <Text style={styles.ceremonyTitle}>{upNextBooking.ceremonyType || upNextBooking.ceremony}</Text>
+                      <View style={styles.badge}>
+                        <Text style={styles.badgeText}>CONFIRMED</Text>
+                      </View>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Ionicons name="person-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText}>{upNextBooking.devoteeId?.name || "Client"}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText}>
+                        {new Date(upNextBooking.date).toLocaleDateString()} • {upNextBooking.startTime || upNextBooking.time}
+                      </Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
+                      <Text style={styles.detailText} numberOfLines={1}>
+                        {upNextBooking.location?.address || "Location details"}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.actionButton}
+                      onPress={() => openMaps(upNextBooking.location)}
+                    >
+                      <Ionicons name="navigate-outline" size={18} color={APP_COLORS.white} />
+                      <Text style={styles.actionButtonText}>Navigate</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
+
+              {/* 6. Recent Reviews */}
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Recent Reviews</Text>
+                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
+                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
+                  </TouchableOpacity>
+                </View>
+                {recentReviews.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
+                    {recentReviews.slice(0, 4).map((review, index) => (
+                      <View key={index} style={styles.reviewCard}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                          <View style={styles.reviewerAvatar}>
+                            <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
+                          </View>
+                          <View style={{ marginLeft: 8 }}>
+                            <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
+                            <RatingStars rating={review.rating} size={14} readOnly />
+                          </View>
+                        </View>
+                        <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                ) : (
+                  <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
+                )}
+              </View>
 
             </View>
           )}
         </View>
       </ScrollView>
-
-      {/* Rating Modal */}
-      <RatingModal
-        isVisible={rateModalVisible}
-        onClose={() => setRateModalVisible(false)}
-        onSubmit={handleSubmitRating}
-        role="priest"
-        bookingDetails={selectedBookingForRating ? {
-          ceremonyType: selectedBookingForRating.ceremonyType,
-          date: selectedBookingForRating.date,
-          clientName: selectedBookingForRating.devoteeId?.name
-        } : undefined}
-      />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  container: { flex: 1, backgroundColor: APP_COLORS.neutral },
   header: {
-    backgroundColor: APP_COLORS.primary,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    shadowColor: APP_COLORS.tertiary,
+    shadowOpacity: 0.06,
+    elevation: 3,
   },
-  headerRow: {
+  headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     alignItems: 'center'
   },
-  headerContent: {},
-  welcomeText: {
-    color: APP_COLORS.white,
-    opacity: 0.8,
-    fontSize: 14,
-  },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 24,
+    color: APP_COLORS.tertiary,
+    fontSize: 28,
+    fontFamily: 'serif',
     fontWeight: "bold",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: APP_COLORS.secondary,
+    fontFamily: 'serif',
+    opacity: 0.8,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center'
   },
-  notificationBell: {
-    position: 'relative'
+  notificationBtn: {
+    position: 'relative',
+    padding: 8,
   },
   notificationBadge: {
     position: "absolute",
-    top: 0,
-    right: 0,
+    top: 8,
+    right: 8,
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: APP_COLORS.error,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: APP_COLORS.white,
   },
   content: {
     padding: 20,
+    paddingTop: 8,
   },
   dashboardGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   statCard: {
     flex: 1,
     backgroundColor: APP_COLORS.white,
     padding: 16,
     borderRadius: 16,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
+    minHeight: 104,
+    justifyContent: 'space-between',
   },
   statLabel: {
     fontSize: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     marginBottom: 4,
   },
   statValue: {
@@ -624,19 +617,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 12,
   },
   upNextCard: {
     backgroundColor: APP_COLORS.white,
     borderRadius: 16,
     padding: 20,
-    elevation: 4,
-    shadowColor: APP_COLORS.primary,
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   upNextHeader: {
     flexDirection: 'row',
@@ -647,19 +642,20 @@ const styles = StyleSheet.create({
   ceremonyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     flex: 1,
   },
   badge: {
-    backgroundColor: APP_COLORS.success + '20',
-    paddingHorizontal: 8,
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 100,
   },
   badgeText: {
-    color: APP_COLORS.success,
+    color: APP_COLORS.primary,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   detailRow: {
     flexDirection: 'row',
@@ -669,7 +665,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
   },
   actionButton: {
     backgroundColor: APP_COLORS.primary,
@@ -677,32 +673,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 28,
+    borderRadius: 100,
     marginTop: 16,
     gap: 8,
   },
   actionButtonText: {
     color: APP_COLORS.white,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
   horizontalScroll: {
     marginHorizontal: -20,
     paddingHorizontal: 20,
   },
+  actionCard: {
+    backgroundColor: APP_COLORS.white,
+    width: 280,
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.primary
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: APP_COLORS.tertiary,
+    fontFamily: 'serif',
+    marginBottom: 2
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: APP_COLORS.secondary
+  },
+  actionBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  actionBtnText: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14
+  },
   requestCard: {
     backgroundColor: APP_COLORS.white,
     width: 200,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     marginRight: 10,
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: APP_COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: APP_COLORS.warning,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   reqCardTop: {
     flexDirection: 'row',
@@ -711,25 +754,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   reqPendingBadge: {
-    backgroundColor: APP_COLORS.warning + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 100,
   },
   reqPendingText: {
     fontSize: 9,
-    fontWeight: 'bold',
-    color: APP_COLORS.warning,
+    fontWeight: '600',
+    color: APP_COLORS.primary,
   },
   reqPrice: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: APP_COLORS.success,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   reqTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontWeight: '600',
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 4,
   },
   reqDetailRow: {
@@ -740,12 +785,12 @@ const styles = StyleSheet.create({
   },
   reqClient: {
     fontSize: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     flex: 1,
   },
   reqDate: {
     fontSize: 11,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
   },
   reqTapHint: {
     alignItems: 'flex-end',
@@ -757,8 +802,74 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     marginTop: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     fontSize: 16,
+    fontFamily: 'serif',
+  },
+  pendingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: APP_COLORS.primary,
+    borderRadius: 14,
+    paddingTop: 10,
+    paddingBottom: 20,
+    paddingHorizontal: 14,
+    marginBottom: 20,
+    elevation: 4,
+    shadowColor: APP_COLORS.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+  },
+  pendingBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  pendingCountCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pendingCountText: {
+    color: APP_COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  pendingBannerTitle: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  pendingBannerSub: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  noRequestsCard: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 14,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
+    borderStyle: 'dashed',
+  },
+  noRequestsText: {
+    color: APP_COLORS.secondary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  noRequestsSub: {
+    color: APP_COLORS.gray,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: 'center',
   },
   reviewCard: {
     backgroundColor: APP_COLORS.white,
@@ -766,7 +877,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginRight: 12,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   reviewerAvatar: {
     width: 32,
@@ -784,66 +901,32 @@ const styles = StyleSheet.create({
   reviewerName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
   },
   reviewComment: {
-    lineHeight: 20
+    lineHeight: 20,
+    color: APP_COLORS.secondary,
+    fontSize: 13,
+    fontStyle: 'italic',
   },
-  actionCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 280,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
-    marginBottom: 2
-  },
-  actionDesc: {
-    fontSize: 12,
-    color: APP_COLORS.gray
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8
-  },
-  actionBtnText: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14
+  statusSection: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+    marginTop: 16,
   },
   statusBanner: {
     flexDirection: "row",
-    alignItems: "center",
-    marginHorizontal: 20,
-    marginBottom: 12,
-    padding: 16,
+    alignItems: "flex-start",
+    padding: 20,
     borderRadius: 16,
-    borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
+    borderLeftWidth: 6,
+    backgroundColor: APP_COLORS.white,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 4,
+    marginVertical: 4,
   },
   bannerContent: {
     flex: 1,
@@ -851,26 +934,26 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 2,
+    fontWeight: 'bold',
+    fontFamily: 'serif',
+    marginBottom: 4,
   },
   bannerText: {
     fontSize: 13,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     lineHeight: 18,
   },
   bannerBtn: {
-    marginTop: 10,
-    backgroundColor: APP_COLORS.error,
+    marginTop: 12,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   bannerBtnText: {
     color: APP_COLORS.white,
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });
 

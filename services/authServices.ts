@@ -12,26 +12,50 @@ const authService = {
    */
   login: async (identifier: string, password: string): Promise<any> => {
     try {
-      // 1. Authenticate locally with Firebase
-      // Note: Identifier is usually email. If you allow phone login via password, it might need Firebase custom auth, 
-      // but typically we use email for password login in Firebase Native.
-      const userCredential = await signInWithEmailAndPassword(auth, identifier, password);
+      // Firebase only supports email for password login.
+      // If the user enters a phone number, throw a clear error immediately.
+      const isPhone = /^[0-9+\-\s]{7,15}$/.test(identifier.trim());
+      if (isPhone) {
+        throw "Please enter your email address (not phone number) to login with password.";
+      }
+
+      // 1. Authenticate with Firebase
+      const userCredential = await signInWithEmailAndPassword(auth, identifier.trim(), password);
       
       // 2. API interceptor will now automatically include the new Firebase Token.
-      // Call backend to sync profile
-      const response = await api.post("/api/auth/sync", { 
-         // Send basic info if needed, though backend will look up existing by UID
-         identifier 
-      });
+      const response = await api.post("/api/auth/sync", { identifier });
 
       await saveToken("userInfo", JSON.stringify(response.data));
       return response.data;
     } catch (error: any) {
-      // Handle Firebase specific Errors cleanly
-      if (error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
-         throw "Invalid credentials. Please check your email and password.";
+      // If we already threw a string above, re-throw it
+      if (typeof error === 'string') throw error;
+
+      // Firebase specific errors
+      const code = error.code || '';
+      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
+        throw "Invalid email or password. Please try again.";
       }
-      throw error?.response?.data?.message || "Login failed. Please try again.";
+      if (code === 'auth/invalid-email') {
+        throw "Please enter a valid email address.";
+      }
+      if (code === 'auth/user-disabled') {
+        throw "This account has been disabled. Please contact support.";
+      }
+      if (code === 'auth/too-many-requests') {
+        throw "Too many failed attempts. Please wait a few minutes and try again.";
+      }
+      if (code === 'auth/network-request-failed') {
+        throw "Network error. Please check your internet connection.";
+      }
+
+      // Backend API errors (from /api/auth/sync)
+      const serverMsg = error?.response?.data?.message;
+      if (serverMsg) throw serverMsg;
+
+      // Last resort: surface the actual Firebase/network error for debugging
+      console.error("Unhandled login error:", error.code, error.message);
+      throw error.message || "Login failed. Please try again.";
     }
   },
 

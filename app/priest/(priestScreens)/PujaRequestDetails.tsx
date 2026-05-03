@@ -6,15 +6,22 @@ import {
     Alert,
     Linking,
     Platform,
+    Image,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
+    Animated,
+    Dimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import priestService from "../../../services/priestService";
+import { getImageUri } from "../../../utils/imageUtils";
+
+const { width } = Dimensions.get('window');
 
 const PujaRequestDetails = () => {
     const params = useLocalSearchParams<{ bookingId: string }>();
@@ -23,6 +30,22 @@ const PujaRequestDetails = () => {
     const [error, setError] = useState<string | null>(null);
     const [submitting, setSubmitting] = useState(false);
     const [countdown, setCountdown] = useState<string | null>(null);
+    const [toast, setToast] = useState<{ message: string; success: boolean } | null>(null);
+    const toastAnim = React.useRef(new Animated.Value(0)).current;
+    const toastTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showToast = (message: string, success: boolean) => {
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setToast({ message, success });
+        toastAnim.setValue(0);
+        Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, friction: 8 }).start();
+        toastTimer.current = setTimeout(() => {
+            Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => {
+                setToast(null);
+                if (success) router.back();
+            });
+        }, 2000);
+    };
 
     useEffect(() => {
         if (!params.bookingId) {
@@ -75,12 +98,25 @@ const PujaRequestDetails = () => {
 
     const openMaps = () => {
         if (!booking?.location) return;
-        const query = booking.location.coordinates
-            ? `${booking.location.coordinates[1]},${booking.location.coordinates[0]}`
-            : booking.location.address;
+
+        const loc = booking.location;
+        const lat = loc.coordinates?.[1];
+        const lng = loc.coordinates?.[0];
+        const hasCoords = typeof lat === 'number' && typeof lng === 'number' && (lat !== 0 || lng !== 0);
+
+        // Build the best possible search query
+        const query = hasCoords
+            ? `${lat},${lng}`
+            : [loc.address, loc.city, loc.state, loc.pincode]
+                .filter(Boolean)
+                .join(', ');
+
+        if (!query) return;
+
+        const encoded = encodeURIComponent(query);
         const url = Platform.select({
-            ios: `maps:0,0?q=${query}`,
-            android: `geo:0,0?q=${query}`,
+            ios: `maps:0,0?q=${encoded}`,
+            android: `geo:0,0?q=${encoded}`,
         });
         if (url) Linking.openURL(url);
     };
@@ -107,18 +143,14 @@ const PujaRequestDetails = () => {
                                 status,
                                 notes
                             );
-                            Alert.alert(
-                                "Success",
+                            showToast(
                                 isAccept
-                                    ? "Booking accepted! The devotee has been notified."
-                                    : "Booking rejected. The devotee has been notified.",
-                                [{ text: "OK", onPress: () => router.back() }]
+                                    ? "✓ Booking accepted successfully"
+                                    : "Booking rejected",
+                                true
                             );
                         } catch (err: any) {
-                            Alert.alert(
-                                "Error",
-                                err?.message || "Failed to update booking"
-                            );
+                            showToast(err?.message || "Failed to update booking", false);
                         } finally {
                             setSubmitting(false);
                         }
@@ -208,13 +240,13 @@ const PujaRequestDetails = () => {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
+                <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
-                </View>
+                </LinearGradient>
                 <View style={styles.centerContent}>
                     <ActivityIndicator size="large" color={APP_COLORS.primary} />
                     <Text style={styles.loadingText}>Loading request details...</Text>
@@ -227,13 +259,13 @@ const PujaRequestDetails = () => {
     if (error || !booking) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
+                <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
-                </View>
+                </LinearGradient>
                 <View style={styles.centerContent}>
                     <Ionicons name="alert-circle-outline" size={48} color={APP_COLORS.error} />
                     <Text style={styles.errorText}>{error || "Booking not found"}</Text>
@@ -245,7 +277,10 @@ const PujaRequestDetails = () => {
         );
     }
 
-    const devotee = booking.devoteeId;
+    const devotee = typeof booking.devoteeId === 'object' ? booking.devoteeId : null;
+    const ceremonyName = booking.ceremonyDetails?.name || booking.ceremonyType || (typeof booking.ceremony === 'string' ? booking.ceremony : booking.ceremony?.name) || "Puja";
+    const ceremonyImage = booking.ceremonyDetails?.image || booking.ceremony?.image || booking.ceremony?.images?.[0]?.url;
+
     const isPending = booking.status === "pending";
     const isConfirmed = booking.status === "confirmed";
     const isArrived = booking.status === "arrived";
@@ -261,13 +296,13 @@ const PujaRequestDetails = () => {
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
+            <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Booking Details</Text>
                 <View style={styles.headerPlaceholder} />
-            </View>
+            </LinearGradient>
 
             <ScrollView
                 style={styles.scrollContent}
@@ -280,65 +315,49 @@ const PujaRequestDetails = () => {
                             styles.statusBadge,
                             {
                                 backgroundColor:
-                                    booking.status === "pending"
-                                        ? APP_COLORS.warning + "20"
-                                        : booking.status === "confirmed"
-                                            ? APP_COLORS.success + "20"
-                                            : APP_COLORS.error + "20",
+                                    booking.status === "pending" || booking.status === "requested"
+                                        ? APP_COLORS.warning + "15"
+                                        : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress" || booking.status === "completed")
+                                            ? APP_COLORS.success + "15"
+                                            : APP_COLORS.error + "15",
                                 borderColor:
-                                    booking.status === "pending"
-                                        ? APP_COLORS.warning
-                                        : booking.status === "confirmed"
-                                            ? APP_COLORS.success
-                                            : APP_COLORS.error,
+                                    booking.status === "pending" || booking.status === "requested"
+                                        ? APP_COLORS.warning + "40"
+                                        : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress" || booking.status === "completed")
+                                            ? APP_COLORS.success + "40"
+                                            : APP_COLORS.error + "40",
                             },
                         ]}
                     >
-                        <Ionicons
-                            name={
-                                booking.status === "pending"
-                                    ? "hourglass-outline"
-                                    : booking.status === "confirmed"
-                                        ? "checkmark-circle-outline"
-                                        : booking.status === "arrived"
-                                            ? "location-outline"
-                                            : booking.status === "in_progress"
-                                                ? "flame-outline"
-                                                : booking.status === "completed"
-                                                    ? "checkmark-done-circle-outline"
-                                                    : "close-circle-outline"
-                            }
-                            size={16}
-                            color={
-                                booking.status === "pending"
-                                    ? APP_COLORS.warning
-                                    : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
-                                        ? APP_COLORS.success
-                                        : booking.status === "completed"
-                                            ? APP_COLORS.info
+                        <View style={[
+                            styles.statusDot, 
+                            { 
+                                backgroundColor: 
+                                    booking.status === "pending" || booking.status === "requested"
+                                        ? APP_COLORS.warning
+                                        : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress" || booking.status === "completed")
+                                            ? APP_COLORS.success
                                             : APP_COLORS.error
                             }
-                        />
+                        ]} />
                         <Text
                             style={[
                                 styles.statusText,
                                 {
                                     color:
-                                        booking.status === "pending"
+                                        booking.status === "pending" || booking.status === "requested"
                                             ? APP_COLORS.warning
-                                            : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
+                                            : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress" || booking.status === "completed")
                                                 ? APP_COLORS.success
-                                                : booking.status === "completed"
-                                                    ? APP_COLORS.info
-                                                    : APP_COLORS.error,
+                                                : APP_COLORS.error,
                                 },
                             ]}
                         >
-                            {booking.status.replace("_", " ").charAt(0).toUpperCase() + booking.status.replace("_", " ").slice(1)}
+                            {booking.status === 'requested' ? 'Pending Acceptance' : booking.status.replace("_", " ").charAt(0).toUpperCase() + booking.status.replace("_", " ").slice(1)}
                         </Text>
                     </View>
                     <Text style={styles.requestedOn}>
-                        Requested {new Date(booking.createdAt).toLocaleDateString("en-IN")}
+                        ID: #{booking._id?.slice(-6).toUpperCase()}
                     </Text>
                 </View>
 
@@ -355,23 +374,48 @@ const PujaRequestDetails = () => {
 
                 {/* Ceremony Details */}
                 <View style={styles.card}>
-                    <View style={styles.cardHeader}>
-                        <Ionicons name="flame-outline" size={20} color={APP_COLORS.primary} />
-                        <Text style={styles.cardTitle}>Ceremony Details</Text>
+                    <View style={styles.ceremonyHeader}>
+                        <Image 
+                            source={{ uri: getImageUri(ceremonyImage) }} 
+                            style={styles.ceremonyImg}
+                        />
+                        <View style={styles.ceremonyInfoMain}>
+                            <Text style={styles.ceremonyNameTitle}>{ceremonyName}</Text>
+                            <Text style={styles.ceremonySubText}>
+                                {booking.ceremonyDetails?.category || "Traditional Ritual"}
+                            </Text>
+                            <View style={styles.durationBadge}>
+                                <Ionicons name="time-outline" size={12} color={APP_COLORS.primary} />
+                                <Text style={styles.durationText}>
+                                    {booking.ceremonyDetails?.duration?.typical || 60} mins
+                                </Text>
+                            </View>
+                        </View>
                     </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Ceremony Type</Text>
-                        <Text style={styles.detailValue}>{booking.ceremonyType}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Date</Text>
-                        <Text style={styles.detailValue}>{formatDate(booking.date)}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Time</Text>
-                        <Text style={styles.detailValue}>
-                            {booking.startTime} — {booking.endTime}
-                        </Text>
+                    
+                    <View style={styles.divider} />
+                    
+                    <View style={styles.scheduleRow}>
+                        <View style={styles.scheduleItem}>
+                            <View style={styles.iconCircle}>
+                                <Ionicons name="calendar" size={16} color={APP_COLORS.primary} />
+                            </View>
+                            <View>
+                                <Text style={styles.scheduleLabel}>Date</Text>
+                                <Text style={styles.scheduleValue}>{formatDate(booking.date)}</Text>
+                            </View>
+                        </View>
+                        <View style={styles.scheduleItem}>
+                            <View style={styles.iconCircle}>
+                                <Ionicons name="time" size={16} color={APP_COLORS.primary} />
+                            </View>
+                            <View>
+                                <Text style={styles.scheduleLabel}>Time</Text>
+                                <Text style={styles.scheduleValue}>
+                                    {booking.startTime} - {booking.endTime}
+                                </Text>
+                            </View>
+                        </View>
                     </View>
                 </View>
 
@@ -379,59 +423,68 @@ const PujaRequestDetails = () => {
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Ionicons name="person-outline" size={20} color={APP_COLORS.primary} />
-                        <Text style={styles.cardTitle}>Devotee Information</Text>
+                        <Text style={styles.cardTitle}>Devotee Details</Text>
                     </View>
                     <View style={styles.devoteeRow}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>
-                                {devotee?.name?.charAt(0) || "D"}
-                            </Text>
-                        </View>
+                        {devotee?.profilePicture ? (
+                            <Image 
+                                source={{ uri: getImageUri(devotee.profilePicture) }} 
+                                style={styles.avatarImg} 
+                            />
+                        ) : (
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>
+                                    {devotee?.name?.charAt(0) || "D"}
+                                </Text>
+                            </View>
+                        )}
                         <View style={{ flex: 1, marginLeft: 12 }}>
                             <Text style={styles.devoteeName}>{devotee?.name || "Devotee"}</Text>
-                            {devotee?.phone && (
-                                <TouchableOpacity
-                                    style={styles.contactRow}
-                                    onPress={() => Linking.openURL(`tel:${devotee.phone}`)}
-                                >
-                                    <Ionicons name="call-outline" size={14} color={APP_COLORS.info} />
-                                    <Text style={styles.contactText}>{devotee.phone}</Text>
-                                </TouchableOpacity>
-                            )}
-                            {devotee?.email && (
-                                <View style={styles.contactRow}>
-                                    <Ionicons name="mail-outline" size={14} color={APP_COLORS.gray} />
-                                    <Text style={styles.contactText}>{devotee.email}</Text>
-                                </View>
-                            )}
+                            <Text style={styles.devoteeSubtitle}>Regular Practitioner</Text>
+                        </View>
+                        <View style={styles.actionIcons}>
+                            <TouchableOpacity
+                                style={[styles.actionIconBtn, { backgroundColor: APP_COLORS.success + '15' }]}
+                                onPress={() => Linking.openURL(`tel:${devotee?.phone}`)}
+                                disabled={!devotee?.phone}
+                            >
+                                <Ionicons name="call" size={20} color={APP_COLORS.success} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.actionIconBtn, { backgroundColor: APP_COLORS.info + '15' }]}
+                                onPress={() => Linking.openURL(`sms:${devotee?.phone}`)}
+                                disabled={!devotee?.phone}
+                            >
+                                <Ionicons name="chatbubble-ellipses" size={20} color={APP_COLORS.info} />
+                            </TouchableOpacity>
                         </View>
                     </View>
                 </View>
 
-                {/* Location */}
+                {/* Location & Payment Card */}
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
                         <Ionicons name="location-outline" size={20} color={APP_COLORS.primary} />
-                        <Text style={styles.cardTitle}>Location</Text>
+                        <Text style={styles.cardTitle}>Location & Price</Text>
                     </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Address</Text>
-                        <Text style={[styles.detailValue, { flex: 1, textAlign: "right" }]}>
-                            {booking.location?.address || "—"}
+                    <View style={styles.locationContent}>
+                        <Text style={styles.addressText}>
+                            {booking.location?.address || booking.location?.landmark || "Address details not available"}
                         </Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>City</Text>
-                        <Text style={styles.detailValue}>
-                            {booking.location?.city || "—"}
-                        </Text>
-                    </View>
-                    {booking.location?.address && (
-                        <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
-                            <Ionicons name="navigate-outline" size={16} color={APP_COLORS.primary} />
-                            <Text style={styles.mapBtnText}>Open in Maps</Text>
+                        <View style={styles.priceRow}>
+                            <Text style={styles.detailLabel}>Estimated Fee</Text>
+                            <Text style={styles.priceText}>
+                                ₹{booking.basePrice || booking.totalAmount || "-"}
+                            </Text>
+                        </View>
+                        <TouchableOpacity 
+                            style={styles.mapBtn}
+                            onPress={openMaps}
+                        >
+                            <Ionicons name="map-outline" size={18} color={APP_COLORS.primary} />
+                            <Text style={styles.mapBtnText}>Navigate in Maps</Text>
                         </TouchableOpacity>
-                    )}
+                    </View>
                 </View>
 
                 {/* Payment Details */}
@@ -670,17 +723,16 @@ const PujaRequestDetails = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: APP_COLORS.white,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
         elevation: 2,
     },
     backBtn: {
@@ -691,8 +743,9 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 18,
+        fontFamily: "serif",
         fontWeight: "bold",
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     headerPlaceholder: { width: 40 },
     centerContent: {
@@ -771,15 +824,17 @@ const styles = StyleSheet.create({
         color: APP_COLORS.gray,
     },
     card: {
-        backgroundColor: APP_COLORS.white,
-        borderRadius: 14,
+        backgroundColor: APP_COLORS.surface,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 14,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
     cardHeader: {
         flexDirection: "row",
@@ -787,13 +842,185 @@ const styles = StyleSheet.create({
         marginBottom: 14,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
         gap: 8,
     },
     cardTitle: {
         fontSize: 16,
+        fontFamily: "serif",
         fontWeight: "bold",
+        color: APP_COLORS.tertiary,
+    },
+    // Enhanced Ceremony Styles
+    ceremonyHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    ceremonyImg: {
+        width: 80,
+        height: 80,
+        borderRadius: 12,
+        backgroundColor: APP_COLORS.neutral,
+    },
+    ceremonyInfoMain: {
+        flex: 1,
+        marginLeft: 16,
+    },
+    ceremonyNameTitle: {
+        fontSize: 18,
+        fontFamily: "serif",
+        fontWeight: 'bold',
+        color: APP_COLORS.tertiary,
+        marginBottom: 4,
+    },
+    ceremonySubText: {
+        fontSize: 13,
+        color: APP_COLORS.gray,
+        marginBottom: 8,
+    },
+    durationBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: APP_COLORS.primary + '10',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+        alignSelf: 'flex-start',
+        gap: 4,
+    },
+    durationText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: APP_COLORS.primary,
+    },
+    divider: {
+        height: 1,
+        backgroundColor: APP_COLORS.divider,
+        marginVertical: 12,
+    },
+    scheduleRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+    },
+    scheduleItem: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    iconCircle: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        backgroundColor: APP_COLORS.primary + '10',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    scheduleLabel: {
+        fontSize: 11,
+        color: APP_COLORS.gray,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
+    },
+    scheduleValue: {
+        fontSize: 14,
+        fontWeight: '600',
         color: APP_COLORS.black,
+    },
+    // Status styles
+    statusDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+    // Devotee styles
+    avatarImg: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: APP_COLORS.neutral,
+    },
+    devoteeSubtitle: {
+        fontSize: 12,
+        color: APP_COLORS.gray,
+    },
+    actionIcons: {
+        flexDirection: 'row',
+        gap: 10,
+    },
+    actionIconBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    // Location Styles
+    locationContent: {
+        marginTop: 8,
+    },
+    addressText: {
+        fontSize: 14,
+        color: APP_COLORS.black,
+        lineHeight: 20,
+    },
+    landmarkText: {
+        fontSize: 13,
+        color: APP_COLORS.gray,
+        marginTop: 4,
+        fontStyle: 'italic',
+    },
+    mapBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: APP_COLORS.primary + '10',
+        paddingVertical: 10,
+        borderRadius: 8,
+        marginTop: 16,
+        gap: 8,
+        borderWidth: 1,
+        borderColor: APP_COLORS.primary + '20',
+    },
+    mapBtnText: {
+        color: APP_COLORS.primary,
+        fontWeight: '600',
+        fontSize: 14,
+    },
+    // Materials Styles
+    materialsList: {
+        marginTop: 8,
+    },
+    materialItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 6,
+        gap: 10,
+    },
+    bullet: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: APP_COLORS.primary,
+    },
+    materialText: {
+        fontSize: 14,
+        color: APP_COLORS.tertiary,
+    },
+    priceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 12,
+        paddingTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: APP_COLORS.divider,
+    },
+    priceText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: APP_COLORS.success,
     },
     detailRow: {
         flexDirection: "row",
@@ -858,17 +1085,6 @@ const styles = StyleSheet.create({
     contactText: {
         fontSize: 13,
         color: APP_COLORS.gray,
-    },
-    mapBtn: {
-        flexDirection: "row",
-        alignItems: "center",
-        marginTop: 4,
-        gap: 6,
-    },
-    mapBtnText: {
-        color: APP_COLORS.primary,
-        fontWeight: "600",
-        fontSize: 14,
     },
     notesText: {
         fontSize: 14,
@@ -946,15 +1162,15 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         borderTopWidth: 1,
-        borderTopColor: APP_COLORS.lightGray,
+        borderTopColor: APP_COLORS.divider,
         gap: 12,
         elevation: 8,
-        shadowColor: "#000",
+        shadowColor: APP_COLORS.cardShadow,
         shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 1,
+        shadowRadius: 8,
     },
     decisionBtn: {
         flex: 1,
@@ -962,11 +1178,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: 100,
         gap: 8,
     },
     rejectBtn: {
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         borderWidth: 2,
         borderColor: APP_COLORS.error,
     },
@@ -985,6 +1201,30 @@ const styles = StyleSheet.create({
         color: APP_COLORS.white,
         fontWeight: "bold",
         fontSize: 16,
+    },
+    toast: {
+        position: 'absolute',
+        bottom: 40,
+        left: 24,
+        right: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        borderRadius: 12,
+        gap: 10,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+        zIndex: 9999,
+    },
+    toastText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
     },
 });
 

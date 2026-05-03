@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import React, { useState, useEffect } from "react";
 import {
@@ -82,6 +83,8 @@ export default function BookingDetailsScreen() {
   const params = useLocalSearchParams();
   const { bookingId: queryBookingId, booking: stringifiedBooking } = params;
 
+  console.log('[BookingDetails] params:', { queryBookingId, hasStringifiedBooking: !!stringifiedBooking });
+
   // 1. Initial booking from params
   const [booking, setBooking] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -90,6 +93,14 @@ export default function BookingDetailsScreen() {
     if (stringifiedBooking && typeof stringifiedBooking === 'string') {
       try {
         const parsed = JSON.parse(stringifiedBooking);
+        console.log('[BookingDetails] Parsed from params:', { 
+          id: parsed._id, 
+          status: parsed.status, 
+          ceremonyType: parsed.ceremonyType,
+          hasCeremonyDetails: !!parsed.ceremonyDetails,
+          hasLocation: !!parsed.location,
+          date: parsed.date
+        });
         setBooking(parsed);
       } catch (err) {
         console.error("Failed to parse booking param", err);
@@ -99,7 +110,7 @@ export default function BookingDetailsScreen() {
     }
   }, [stringifiedBooking]);
 
-  // 2. Fetch booking
+  // 2. Fetch booking from API (enriched with ceremonyDetails)
   const { 
     data: fetchedBooking, 
     isLoading: isFetching,
@@ -108,7 +119,18 @@ export default function BookingDetailsScreen() {
   } = useQuery({
     queryKey: ['booking', queryBookingId],
     queryFn: async () => {
+      console.log('[BookingDetails] Fetching from API for id:', queryBookingId);
       const resp = await devoteeService.getBookingDetails(queryBookingId as string);
+      console.log('[BookingDetails] API response:', { 
+        id: resp?._id, 
+        status: resp?.status, 
+        ceremonyType: resp?.ceremonyType,
+        hasCeremonyDetails: !!resp?.ceremonyDetails,
+        ceremonyName: resp?.ceremonyDetails?.name,
+        hasLocation: !!resp?.location,
+        address: resp?.location?.address,
+        date: resp?.date
+      });
       return resp;
     },
     enabled: !!queryBookingId,
@@ -118,6 +140,13 @@ export default function BookingDetailsScreen() {
       return (status && !['completed', 'cancelled'].includes(status)) ? 10000 : false;
     }
   });
+
+  // Log errors
+  useEffect(() => {
+    if (fetchError) {
+      console.error('[BookingDetails] Fetch error:', fetchError);
+    }
+  }, [fetchError]);
 
   // Refetch when screen focused
   useFocusEffect(
@@ -129,6 +158,7 @@ export default function BookingDetailsScreen() {
   // 3. Update state when fetched
   useEffect(() => {
     if (fetchedBooking) {
+      console.log('[BookingDetails] Updating booking state from API response');
       setBooking(fetchedBooking);
     }
   }, [fetchedBooking]);
@@ -179,7 +209,7 @@ export default function BookingDetailsScreen() {
     if (booking?.status === "confirmed" && booking?.date && booking?.startTime) {
       schedulePujaReminder(
         booking._id || booking.id,
-        booking.ceremony?.name || booking.ceremonyType || "Puja",
+        booking.ceremonyDetails?.name || booking.ceremonyType || "Puja",
         booking.date,
         booking.startTime,
         120 // 2 hours before
@@ -269,23 +299,41 @@ export default function BookingDetailsScreen() {
 
   const insets = useSafeAreaInsets();
 
-  if (loading) {
+  // If we have a fetch error and no valid local booking data, show error
+  if (fetchError && !booking?.ceremonyType) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading booking details...</Text>
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={60} color={APP_COLORS.error} />
+        <Text style={styles.errorText}>
+          {typeof fetchError === 'string' ? fetchError : "Booking not found or has been deleted."}
+        </Text>
+        <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()}>
+          <Text style={styles.goBackText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  if (!booking) {
+  // Current booking logic
+  const currentBooking = fetchedBooking || booking;
+
+  // Show loading if fetching and we don't have basic local data
+  if (isFetching && !currentBooking?.ceremonyType) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        <Text style={styles.loadingText}>Loading booking details...</Text>
+      </View>
+    );
+  }
+
+  if (!currentBooking || (!currentBooking.ceremonyType && !currentBooking.ceremonyDetails)) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Booking not found</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push("/devotee/BookingsTab")}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
+        <Ionicons name="document-text-outline" size={60} color={APP_COLORS.gray} />
+        <Text style={styles.errorText}>Booking details not available.</Text>
+        <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()}>
+          <Text style={styles.goBackText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -293,16 +341,21 @@ export default function BookingDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+      <LinearGradient
+        colors={["#E8630A", "#C4501A"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={[styles.header, { paddingTop: insets.top + 8 }]}
+      >
         <TouchableOpacity
           style={styles.backIcon}
           onPress={() => router.push("/devotee/BookingsTab")}
         >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Booking Details</Text>
         <View style={styles.placeholder} />
-      </View>
+      </LinearGradient>
 
       <ScrollView
         style={styles.content}
@@ -330,24 +383,24 @@ export default function BookingDetailsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
           <View style={styles.ceremonyCard}>
-            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url || booking?.ceremonyType) && (
+            {(booking?.ceremonyDetails?.image || booking?.ceremonyType) && (
               <Image
                 source={{ 
-                  uri: getImageUri(booking.ceremony?.image || booking.ceremony?.images?.[0] || booking.ceremony) 
+                  uri: getImageUri(booking.ceremonyDetails?.image) 
                 }}
                 style={styles.ceremonyImage}
               />
             )}
             <View style={styles.ceremonyInfo}>
               <Text style={styles.ceremonyName}>
-                {booking?.ceremony?.name || booking?.ceremonyType || "-"}
+                {booking?.ceremonyDetails?.name || booking?.ceremonyType || "-"}
               </Text>
               <Text style={styles.ceremonyType}>
-                {booking?.ceremonyDetails?.category || booking?.ceremony?.type || "Ceremony"}
+                {booking?.ceremonyDetails?.category || "Ceremony"}
               </Text>
-              {(booking?.ceremonyDetails?.duration || booking?.ceremony?.duration) && (
+              {booking?.ceremonyDetails?.duration && (
                 <Text style={styles.ceremonyDuration}>
-                  Duration: {booking.ceremonyDetails?.duration?.typical || booking.ceremony?.duration} min
+                  Duration: {booking.ceremonyDetails?.duration?.typical || 60} min
                 </Text>
               )}
             </View>
@@ -355,83 +408,71 @@ export default function BookingDetailsScreen() {
         </View>
 
         {/* Samagri (Materials) List */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.materials && booking.ceremonyDetails.materials.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="leaf-outline" size={18} color={APP_COLORS.primary} /> Samagri (Materials Required)
             </Text>
             <View style={styles.samagriCard}>
-              {booking.ceremonyDetails.materials && booking.ceremonyDetails.materials.length > 0 ? (
-                booking.ceremonyDetails.materials.map((item: any, index: number) => (
-                  <View key={index} style={styles.samagriItem}>
-                    <View style={styles.samagriDot} />
-                    <View style={styles.samagriContent}>
-                      <Text style={styles.samagriName}>
-                        {item.name}
-                        {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
-                      </Text>
-                      <Text style={styles.samagriMeta}>
-                        Qty: {item.quantity}
-                        {item.providedBy ? ` · By ${item.providedBy}` : ''}
-                      </Text>
-                    </View>
+              {booking.ceremonyDetails.materials.map((item: any, index: number) => (
+                <View key={index} style={styles.samagriItem}>
+                  <View style={styles.samagriDot} />
+                  <View style={styles.samagriContent}>
+                    <Text style={styles.samagriName}>
+                      {item.name}
+                      {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
+                    </Text>
+                    <Text style={styles.samagriMeta}>
+                      Qty: {item.quantity}
+                      {item.providedBy ? ` · By ${item.providedBy}` : ''}
+                    </Text>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noInfoText}>No specific materials list available for this ceremony.</Text>
-              )}
+                </View>
+              ))}
             </View>
           </View>
         )}
 
         {/* Ritual Steps */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="list-outline" size={18} color={APP_COLORS.primary} /> Ritual Steps
             </Text>
             <View style={styles.stepsCard}>
-              {booking.ceremonyDetails.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 ? (
-                booking.ceremonyDetails.ritualSteps
-                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
-                  .map((step: any, index: number) => (
-                    <View key={index} style={styles.stepItem}>
-                      <View style={styles.stepCircle}>
-                        <Text style={styles.stepNum}>{step.stepNumber}</Text>
-                      </View>
-                      <View style={styles.stepInfo}>
-                        <Text style={styles.stepTitle}>{step.title}</Text>
-                        <Text style={styles.stepDesc}>{step.description}</Text>
-                        {step.durationEstimate && (
-                          <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
-                        )}
-                      </View>
+              {booking.ceremonyDetails.ritualSteps
+                .sort((a: any, b: any) => (a.stepNumber || 0) - (b.stepNumber || 0))
+                .map((step: any, index: number) => (
+                  <View key={index} style={styles.stepItem}>
+                    <View style={styles.stepCircle}>
+                      <Text style={styles.stepNum}>{step.stepNumber || index + 1}</Text>
                     </View>
-                  ))
-              ) : (
-                <Text style={styles.noInfoText}>Standard ritual steps haven't been added yet.</Text>
-              )}
+                    <View style={styles.stepInfo}>
+                      <Text style={styles.stepTitle}>{step.title}</Text>
+                      <Text style={styles.stepDesc}>{step.description}</Text>
+                      {step.durationEstimate && (
+                        <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
             </View>
           </View>
         )}
 
         {/* Special Instructions */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="alert-circle-outline" size={18} color={APP_COLORS.warning} /> Special Instructions
             </Text>
             <View style={styles.instructionsCard}>
-              {booking.ceremonyDetails.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 ? (
-                booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
-                  <View key={index} style={styles.instrItem}>
-                    <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
-                    <Text style={styles.instrText}>{instr}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.noInfoText}>No special instructions for this ceremony.</Text>
-              )}
+              {booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
+                <View key={index} style={styles.instrItem}>
+                  <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
+                  <Text style={styles.instrText}>{instr}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -633,31 +674,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 12,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statusBadge: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 16,
+    borderRadius: 20,
     marginRight: 8,
   },
   statusText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 14,
+    color: "#fff",
+    fontWeight: "700",
+    fontSize: 13,
+    letterSpacing: 0.3,
   },
   bookingId: {
-    fontSize: 12,
+    fontSize: 11,
     color: APP_COLORS.gray,
     fontWeight: "500",
   },
   ceremonyCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   ceremonyImage: {
     width: 60,
@@ -685,10 +739,14 @@ const styles = StyleSheet.create({
   scheduleCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   scheduleItem: {
     flexDirection: "row",
@@ -703,10 +761,14 @@ const styles = StyleSheet.create({
   devoteeCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   devoteeImage: {
     width: 50,
@@ -737,10 +799,14 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   locationCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   locationInfo: {
     flexDirection: "row",
@@ -760,12 +826,12 @@ const styles = StyleSheet.create({
     color: APP_COLORS.gray,
   },
   directionsButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: "#E8630A",
+    borderRadius: 20,
+    paddingVertical: 9,
+    paddingHorizontal: 18,
     alignSelf: "flex-end",
-    marginTop: 8,
+    marginTop: 10,
   },
   directionsButtonText: {
     color: APP_COLORS.white,
@@ -773,10 +839,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   paymentCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 16,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
   },
   paymentRow: {
     flexDirection: "row",
@@ -822,14 +892,19 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   requestsCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   requestsText: {
     fontSize: 15,
-    color: APP_COLORS.black,
+    color: "#3D2B1F",
+    lineHeight: 22,
   },
   actionButtons: {
     flexDirection: "row",
@@ -838,28 +913,35 @@ const styles = StyleSheet.create({
     marginVertical: 16,
   },
   actionButton: {
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    borderRadius: 28,
+    backgroundColor: "#E8630A",
+    shadowColor: "#E8630A",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
   actionButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
+    color: "#fff",
+    fontWeight: "700",
     fontSize: 15,
+    fontFamily: "serif",
+    letterSpacing: 0.3,
   },
   confirmButton: {
     backgroundColor: APP_COLORS.success,
   },
   cancelButton: {
-    backgroundColor: APP_COLORS.error,
+    backgroundColor: "#C0392B",
   },
   completeButton: {
     backgroundColor: APP_COLORS.info,
   },
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: "#FFF8F2",
     width: Platform.OS === 'web' ? '100%' : undefined,
     maxWidth: Platform.OS === 'web' ? 700 : undefined,
     alignSelf: Platform.OS === 'web' ? 'center' : undefined,
@@ -895,43 +977,53 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    paddingTop: 50,
+    paddingVertical: 16,
+    paddingBottom: 18,
   },
   backIcon: {
-    padding: 5,
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
   },
   headerTitle: {
-    color: APP_COLORS.white,
+    color: "#fff",
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
+    fontFamily: "serif",
+    letterSpacing: 0.3,
   },
   placeholder: {
-    width: 34,
+    width: 36,
   },
   content: {
     flex: 1,
     padding: 20,
+    backgroundColor: "#FFF8F2",
   },
   section: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
+    fontSize: 17,
+    fontWeight: "700",
+    fontFamily: "serif",
+    color: "#704214",
+    marginBottom: 8,
   },
   backToBookingsButton: {
-    padding: 12,
+    padding: 14,
     alignItems: "center",
+    marginTop: 4,
   },
   backToBookingsText: {
-    color: APP_COLORS.primary,
-    fontWeight: "bold",
+    color: "#E8630A",
+    fontWeight: "700",
+    fontSize: 15,
+    fontFamily: "serif",
   },
   countdownCard: {
     flexDirection: "row",
@@ -966,10 +1058,14 @@ const styles = StyleSheet.create({
   },
   // Samagri Styles
   samagriCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   samagriItem: {
     flexDirection: "row",
@@ -1005,10 +1101,14 @@ const styles = StyleSheet.create({
   },
   // Ritual Steps Styles
   stepsCard: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 8,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 14,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    elevation: 2,
   },
   stepItem: {
     flexDirection: "row",

@@ -51,8 +51,11 @@ const NotificationOverlay = () => {
     closeNotifications();
     if (notification.type === "booking" && notification.data) {
       router.push({
-        pathname: "/BookingDetails",
-        params: { booking: JSON.stringify(notification.data) },
+        pathname: "/(devoteeScreens)/(bookings)/BookingDetails",
+        params: { 
+          bookingId: notification.data?._id || notification.data?.bookingId,
+          booking: JSON.stringify(notification.data) 
+        },
       });
     }
   };
@@ -108,7 +111,7 @@ const DevoteeTabs = () => {
         name="(tabs)/HomeTab"
         options={{
           title: "Home",
-          tabBarLabel: "Home",
+          tabBarLabel: "HOME",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="home" size={size || 22} color={color} />
           ),
@@ -118,9 +121,9 @@ const DevoteeTabs = () => {
         name="(tabs)/ExploreTab"
         options={{
           title: "Explore",
-          tabBarLabel: "Explore",
+          tabBarLabel: "EXPLORE",
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="compass" size={size || 22} color={color} />
+            <Ionicons name="apps" size={size || 22} color={color} />
           ),
         }}
       />
@@ -128,7 +131,7 @@ const DevoteeTabs = () => {
         name="(tabs)/BookingsTab"
         options={{
           title: "Bookings",
-          tabBarLabel: "Bookings",
+          tabBarLabel: "BOOKINGS",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar" size={size || 22} color={color} />
           ),
@@ -138,18 +141,35 @@ const DevoteeTabs = () => {
         name="(tabs)/ProfileTab"
         options={{
           title: "Profile",
-          tabBarLabel: "Profile",
+          tabBarLabel: "PROFILE",
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="person" size={size || 22} color={color} />
           ),
         }}
       />
+      {/* Hide these screens from the tab bar — they are stack screens */}
+      <Tabs.Screen name="FestivalsCalendar" options={{ href: null }} />
     </Tabs>
   );
 };
 
 // ─── Root Layout (wraps tabs + notification overlay) ──────────────────────
+import { useAppSelector } from "../../redux/hooks";
+
 export default function DevoteeLayout() {
+  const { userInfo } = useAppSelector((state) => state.auth);
+
+  React.useEffect(() => {
+    if (!userInfo) {
+      router.replace("/login" as any);
+    } else if (userInfo.userType !== 'devotee') {
+      // Force redirect to correct layout if role doesn't match
+      router.replace("/priest/HomeTab" as any);
+    }
+  }, [userInfo]);
+
+  if (!userInfo) return null;
+
   return (
     <NotificationProvider>
       <DevoteeTabs />

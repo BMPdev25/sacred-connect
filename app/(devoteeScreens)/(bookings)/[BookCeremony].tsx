@@ -14,15 +14,18 @@ import {
   View,
   Modal,
   ActivityIndicator,
+  Image,
 } from "react-native";
 // react-native-calendars may not include types in this repo; silence TS for the import
 // @ts-ignore
 import { Calendar } from "react-native-calendars";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
 import ErrorMessage from "../../../components/ErrorMessage";
 import LoadingSpinner from "../../../components/LoadingSpinner";
+import { getImageUri } from "../../../utils/imageUtils";
 
 const PLATFORM_FEE_PERCENT = 0.05; // 5% fee
 
@@ -362,26 +365,44 @@ const BookCeremony: React.FC = () => {
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 24}
       >
-        <View style={styles.header}>
+        <LinearGradient
+          colors={["#FFE5D9", "#FFF5E6"]}
+          style={styles.header}
+        >
           <TouchableOpacity
             style={styles.backButton}
             onPress={() => router.back()}
           >
-            <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+            <Ionicons name="arrow-back" size={24} color="#704214" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Book Ceremony</Text>
           <View style={styles.placeholder} />
-        </View>
+        </LinearGradient>
 
         <ScrollView style={styles.contentContainer}>
           <View style={styles.priestInfoContainer}>
             <Text style={styles.sectionTitle}>Selected Priest</Text>
-            <Text style={styles.priestName}>{priest.name}</Text>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={16} color="#FFD700" />
-              <Text style={styles.ratingText}>
-                {priest.ratings?.average || 0} ({priest.ratings?.count || 0} reviews)
-              </Text>
+            <View style={styles.priestProfileRow}>
+              {priest.profilePicture ? (
+                <Image
+                  source={{ uri: getImageUri(priest.profilePicture) }}
+                  style={styles.priestImage}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.priestImage, styles.priestImagePlaceholder]}>
+                  <Ionicons name="person" size={24} color={APP_COLORS.white} />
+                </View>
+              )}
+              <View style={styles.priestDetails}>
+                <Text style={styles.priestName}>{priest.name}</Text>
+                <View style={styles.ratingContainer}>
+                  <Ionicons name="star" size={16} color="#FFD700" />
+                  <Text style={styles.ratingText}>
+                    {priest.ratings?.average || 0} ({priest.ratings?.count || 0} reviews)
+                  </Text>
+                </View>
+              </View>
             </View>
           </View>
           <View style={styles.formSection}>
@@ -719,23 +740,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    backgroundColor: APP_COLORS.white,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
+    paddingTop: Platform.OS === 'ios' ? 50 : 20,
     borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    borderBottomColor: 'rgba(112, 66, 20, 0.05)',
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 20,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
+    fontFamily: "serif",
+    color: "#704214",
   },
   placeholder: {
     width: 40,
@@ -746,13 +771,41 @@ const styles = StyleSheet.create({
   },
   priestInfoContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 16,
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(112, 66, 20, 0.05)',
+  },
+  priestProfileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  priestImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    marginRight: 16,
+  },
+  priestImagePlaceholder: {
+    backgroundColor: APP_COLORS.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  priestDetails: {
+    flex: 1,
   },
   priestName: {
     fontSize: 18,
     fontWeight: "bold",
+    fontFamily: "serif",
+    color: "#704214",
     marginBottom: 4,
   },
   ratingContainer: {
@@ -762,17 +815,27 @@ const styles = StyleSheet.create({
   ratingText: {
     fontSize: 14,
     marginLeft: 4,
+    color: APP_COLORS.gray,
   },
   formSection: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 16,
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(112, 66, 20, 0.05)',
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "bold",
+    fontFamily: "serif",
     marginBottom: 12,
+    color: "#704214",
   },
   sectionSubtitle: {
     fontSize: 12,
@@ -784,13 +847,13 @@ const styles = StyleSheet.create({
   },
   ceremonyCard: {
     backgroundColor: APP_COLORS.background,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 16,
+    padding: 16,
     marginRight: 12,
     minWidth: 120,
     alignItems: "center",
     borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
+    borderColor: 'rgba(112, 66, 20, 0.1)',
   },
   selectedCeremonyCard: {
     backgroundColor: APP_COLORS.primary,
@@ -798,8 +861,9 @@ const styles = StyleSheet.create({
   },
   ceremonyName: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
     marginBottom: 4,
+    color: "#704214",
   },
   selectedCeremonyName: {
     color: APP_COLORS.white,
@@ -807,13 +871,13 @@ const styles = StyleSheet.create({
   ceremonyPrice: {
     fontSize: 16,
     fontWeight: "bold",
-    color: APP_COLORS.primary,
+    color: APP_COLORS.saffron,
   },
   selectedCeremonyPrice: {
     color: APP_COLORS.white,
   },
   calendar: {
-    borderRadius: 10,
+    borderRadius: 16,
     overflow: "hidden",
     marginTop: 8,
   },
@@ -822,11 +886,11 @@ const styles = StyleSheet.create({
   },
   timeSlotCard: {
     backgroundColor: APP_COLORS.background,
-    borderRadius: 8,
+    borderRadius: 16,
     padding: 12,
     marginRight: 12,
     borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
+    borderColor: 'rgba(112, 66, 20, 0.1)',
   },
   selectedTimeSlotCard: {
     backgroundColor: APP_COLORS.primary,
@@ -834,7 +898,8 @@ const styles = StyleSheet.create({
   },
   timeSlotText: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    color: "#704214",
   },
   selectedTimeSlotText: {
     color: APP_COLORS.white,
@@ -849,11 +914,11 @@ const styles = StyleSheet.create({
   },
   input: {
     backgroundColor: APP_COLORS.background,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: APP_COLORS.gray,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderColor: 'rgba(112, 66, 20, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     fontSize: 16,
     color: APP_COLORS.black,
   },
@@ -863,9 +928,16 @@ const styles = StyleSheet.create({
   },
   priceSummaryContainer: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: 24,
+    padding: 20,
     marginBottom: 16,
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(112, 66, 20, 0.05)',
   },
   priceRow: {
     flexDirection: "row",
@@ -898,20 +970,26 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.white,
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: APP_COLORS.lightGray,
+    borderTopColor: 'rgba(112, 66, 20, 0.05)',
   },
   continueButton: {
     backgroundColor: APP_COLORS.primary,
     paddingVertical: 14,
-    borderRadius: 8,
+    borderRadius: 24,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
   },
   continueButtonText: {
     color: APP_COLORS.white,
     fontSize: 16,
     fontWeight: "bold",
+    fontFamily: "serif",
     marginRight: 8,
   },
   focusCeremonyContainer: {
@@ -923,9 +1001,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 16,
     borderWidth: 1,
-    borderColor: APP_COLORS.primary,
-    borderRadius: 8,
-    backgroundColor: APP_COLORS.primary + '08',
+    borderColor: 'rgba(112, 66, 20, 0.1)',
+    borderRadius: 16,
+    backgroundColor: APP_COLORS.white,
   },
   noAddressContainer: {
     alignItems: 'center',

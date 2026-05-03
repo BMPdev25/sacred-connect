@@ -123,14 +123,17 @@ export default function AvailabilitySetup() {
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Set Availability</Text>
-                <View style={{ width: 34 }} />
-            </View>
+        <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+            <StatusBar style="dark" />
+            <LinearGradient colors={['#FFFFFF', '#FDFBF7']} style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 20 }]}>
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Set Availability</Text>
+                    <View style={{ width: 34 }} />
+                </View>
+            </LinearGradient>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
                 <Text style={styles.subtitle}>
@@ -209,7 +212,7 @@ export default function AvailabilitySetup() {
                     <Text style={styles.skipBtnText}>Skip for now</Text>
                 </TouchableOpacity>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -217,17 +220,29 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: APP_COLORS.background },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
     header: {
-        backgroundColor: APP_COLORS.primary,
+        borderBottomWidth: 1,
+        borderBottomColor: APP_COLORS.divider,
+    },
+    headerRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingVertical: 15,
     },
     backBtn: { padding: 5 },
-    headerTitle: { color: APP_COLORS.white, fontSize: 20, fontWeight: "bold" },
+    headerTitle: { 
+        color: APP_COLORS.tertiary, 
+        fontSize: 20, 
+        fontWeight: "bold",
+        fontFamily: 'serif' 
+    },
     content: { flex: 1, padding: 20 },
-    subtitle: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 24, lineHeight: 20 },
+    subtitle: { 
+        fontSize: 14, 
+        color: APP_COLORS.secondary, 
+        marginBottom: 24, 
+        lineHeight: 20 
+    },
     
     dayCard: {
         backgroundColor: APP_COLORS.white,
@@ -242,7 +257,12 @@ const styles = StyleSheet.create({
     },
     dayHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
     dayInfo: {},
-    dayName: { fontSize: 16, fontWeight: "bold", color: APP_COLORS.black },
+    dayName: { 
+        fontSize: 16, 
+        fontWeight: "bold", 
+        color: APP_COLORS.tertiary,
+        fontFamily: 'serif'
+    },
     statusText: { fontSize: 12, marginTop: 2 },
     
     timeSection: {
@@ -285,7 +305,7 @@ const styles = StyleSheet.create({
         marginTop: 20,
         gap: 8,
     },
-    saveBtnText: { color: "white", fontSize: 16, fontWeight: "bold" },
+    saveBtnText: { color: "white", fontSize: 16, fontWeight: "bold", fontFamily: 'serif' },
     skipBtn: {
         alignItems: "center",
         padding: 16,

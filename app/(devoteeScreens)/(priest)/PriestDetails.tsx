@@ -16,6 +16,7 @@ import {
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import devoteeService from "../../../services/devoteeService";
 
@@ -257,23 +258,21 @@ const PriestDetails: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
+      <LinearGradient
+        colors={['#FFFFFF', '#FDFBF7']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 0 }}
+        style={styles.header}
+      >
         <TouchableOpacity
           style={styles.backButton}
           onPress={() => router.back()}
         >
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Priest Details</Text>
-        <TouchableOpacity style={styles.shareButton}>
-          {/* Implement this later */}
-          <Ionicons
-            name="share-social-outline"
-            size={24}
-            color={APP_COLORS.white}
-          />
-        </TouchableOpacity>
-      </View>
+        <Text style={styles.headerTitle}>Priest Profile</Text>
+        <View style={{ width: 40 }} />
+      </LinearGradient>
 
       <ScrollView style={styles.contentContainer}>
         <View style={styles.profileSection}>
@@ -737,7 +736,7 @@ const PriestDetails: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.neutral || "#FDFBF7",
   },
   loadingContainer: {
     flex: 1,
@@ -745,52 +744,85 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
+    paddingTop: 20,
+    paddingBottom: 24,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+    zIndex: 10,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   backButton: {
     width: 40,
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
   },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  shareButton: {
-    width: 40,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
+    color: APP_COLORS.tertiary,
+    fontSize: 22,
+    fontFamily: 'serif',
+    fontWeight: "700",
   },
   contentContainer: {
     flex: 1,
+    marginTop: -16, // pull up behind header
   },
   profileSection: {
     backgroundColor: APP_COLORS.white,
-    padding: 16,
+    padding: 20,
+    paddingTop: 32,
     flexDirection: "row",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    borderBottomWidth: 0,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 3,
+    marginBottom: 8,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
   },
   profileImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     marginRight: 16,
+    borderWidth: 3,
+    borderColor: APP_COLORS.white,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 5,
   },
   profileInfo: {
     flex: 1,
   },
   priestName: {
     fontSize: 20,
+    fontFamily: 'serif',
     fontWeight: "bold",
+    color: APP_COLORS.tertiary,
     marginBottom: 4,
   },
   priestMeta: {
@@ -811,18 +843,20 @@ const styles = StyleSheet.create({
   statBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 12,
-    marginBottom: 4,
-    backgroundColor: '#f0f0f0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    marginRight: 8,
+    marginBottom: 6,
+    backgroundColor: 'rgba(255, 153, 51, 0.1)',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 153, 51, 0.2)',
   },
   statText: {
     fontSize: 12,
-    color: APP_COLORS.gray,
-    marginLeft: 4,
-    fontWeight: '600',
+    color: APP_COLORS.secondary,
+    marginLeft: 6,
+    fontWeight: '700',
   },
   ratingContainer: {
     flexDirection: "row",
@@ -861,40 +895,60 @@ const styles = StyleSheet.create({
   tabsContainer: {
     flexDirection: "row",
     backgroundColor: APP_COLORS.white,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tabButton: {
     flex: 1,
     alignItems: "center",
     paddingVertical: 12,
+    borderRadius: 12,
   },
   activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: APP_COLORS.primary,
+    backgroundColor: APP_COLORS.lightGray, // subtle active bg
   },
   tabButtonText: {
-    fontSize: 14,
+    fontSize: 13,
     color: APP_COLORS.gray,
+    fontWeight: "600",
   },
   activeTabButtonText: {
     color: APP_COLORS.primary,
-    fontWeight: "bold",
+    fontWeight: "800",
   },
   tabContent: {
     backgroundColor: APP_COLORS.white,
-    padding: 16,
+    padding: 20,
+    marginHorizontal: 16,
+    borderRadius: 16,
     minHeight: 300,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    marginBottom: 20,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 18,
+    fontFamily: 'serif',
     fontWeight: "bold",
+    color: APP_COLORS.tertiary,
     marginBottom: 12,
   },
   sectionHeading: {
-    fontSize: 18,
+    fontSize: 16,
+    fontFamily: 'serif',
     fontWeight: "bold",
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
     marginBottom: 8,
   },
   emptyText: {
@@ -910,7 +964,7 @@ const styles = StyleSheet.create({
   aboutText: {
     fontSize: 14,
     lineHeight: 22,
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
   },
   affiliationContainer: {
     flexDirection: "row",
@@ -919,23 +973,26 @@ const styles = StyleSheet.create({
   affiliationText: {
     marginLeft: 8,
     fontSize: 14,
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
   },
   languagesContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
   },
   languageBadge: {
-    backgroundColor: APP_COLORS.primary + "20",
+    backgroundColor: '#FFF5E6',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 16,
     marginRight: 8,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#F0E6D2',
   },
   languageText: {
-    fontSize: 14,
-    color: APP_COLORS.primary,
+    fontSize: 13,
+    color: '#D98934',
+    fontWeight: '600',
   },
   certificationRow: {
     flexDirection: "row",
@@ -1054,22 +1111,24 @@ const styles = StyleSheet.create({
   },
   priceValue: {
     fontSize: 18,
+    fontFamily: 'serif',
     fontWeight: "bold",
-    color: APP_COLORS.primary,
+    color: '#D98934',
   },
   bookButton: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 24,
+    backgroundColor: '#D98934',
+    paddingHorizontal: 32,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 100,
   },
   disabledBookButton: {
     backgroundColor: APP_COLORS.gray,
   },
   bookButtonText: {
     color: APP_COLORS.white,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
+    letterSpacing: 0.5,
   },
   modalOverlay: {
     flex: 1,
@@ -1086,7 +1145,9 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 20,
+    fontFamily: 'serif',
     fontWeight: "bold",
+    color: APP_COLORS.tertiary,
     marginBottom: 8,
   },
   modalStatRow: {

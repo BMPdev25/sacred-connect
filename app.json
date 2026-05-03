@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "sacred-connect",
-    "slug": "sacred-connect",
+    "name": "BookMyPujari",
+    "slug": "bookmypujari",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

@@ -1,12 +1,13 @@
-import React, { useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
+import React, { useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Animated } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { APP_COLORS } from '../../../constants/Colors';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
-import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 export default function RequestsTab() {
     const { userInfo } = useSelector((state: RootState) => state.auth);
@@ -14,17 +15,32 @@ export default function RequestsTab() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    // Toast
+    const [toast, setToast] = useState<{ message: string; success: boolean } | null>(null);
+    const toastAnim = useRef(new Animated.Value(0)).current;
+    const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const showToast = (message: string, success: boolean) => {
+        if (toastTimer.current) clearTimeout(toastTimer.current);
+        setToast({ message, success });
+        toastAnim.setValue(0);
+        Animated.spring(toastAnim, { toValue: 1, useNativeDriver: true, friction: 8 }).start();
+        toastTimer.current = setTimeout(() => {
+            Animated.timing(toastAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start(() => setToast(null));
+        }, 2500);
+    };
+
     const loadRequests = async () => {
         if (!userInfo?._id) return;
         try {
             setLoading(true);
-            // Assuming getBookings supports filtering by status
-            const data = await priestService.getBookings(userInfo._id, 'pending');
-            const arr = Array.isArray(data) ? data : data?.data || [];
-            setRequests(arr);
+            // Fetch all bookings then filter both 'pending' and 'requested' client-side
+            const data = await priestService.getBookings(userInfo._id);
+            const all = Array.isArray(data) ? data : (data?.all || data?.data || []);
+            const filtered = all.filter((b: any) => b.status === 'pending' || b.status === 'requested');
+            setRequests(filtered);
         } catch (error) {
             console.error('Error loading requests:', error);
-            // Removed Alert to avoid spamming on mount if offline
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -41,18 +57,14 @@ export default function RequestsTab() {
         try {
             const status = action === 'confirm' ? 'confirmed' : 'cancelled';
             const notes = action === 'reject' ? 'Priest is unavailable' : undefined;
-
             await priestService.updateBookingStatus(bookingId, status, notes);
-
-            Alert.alert(
-                action === 'confirm' ? 'Accepted' : 'Rejected',
-                `Booking ${action === 'confirm' ? 'accepted' : 'rejected'} successfully`
+            showToast(
+                action === 'confirm' ? '✓ Booking accepted successfully' : 'Booking rejected',
+                action === 'confirm'
             );
-
-            // Refresh list
             loadRequests();
         } catch (error) {
-            Alert.alert('Error', 'Failed to update booking status');
+            showToast('Failed to update booking status', false);
         }
     };
 
@@ -134,10 +146,8 @@ export default function RequestsTab() {
     }
 
     return (
-        <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title}>Booking Requests</Text>
-            </View>
+        <View style={styles.container}>
+            <StatusBar style="dark" />
             <FlatList
                 data={requests}
                 renderItem={renderItem}
@@ -155,44 +165,62 @@ export default function RequestsTab() {
                     </View>
                 }
             />
-        </SafeAreaView>
+
+            {/* Toast */}
+            {toast && (
+                <Animated.View
+                    style={[
+                        styles.toast,
+                        { backgroundColor: toast.success ? '#2E7D32' : '#B22222' },
+                        {
+                            transform: [{
+                                translateY: toastAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [80, 0],
+                                })
+                            }],
+                            opacity: toastAnim,
+                        }
+                    ]}
+                >
+                    <Ionicons
+                        name={toast.success ? 'checkmark-circle' : 'close-circle'}
+                        size={20}
+                        color="#fff"
+                    />
+                    <Text style={styles.toastText}>{toast.message}</Text>
+                </Animated.View>
+            )}
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     center: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    header: {
-        padding: 16,
-        backgroundColor: APP_COLORS.white,
-        borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: 'bold',
-        color: APP_COLORS.black,
-    },
     list: {
         padding: 16,
+        paddingTop: 8,
     },
     card: {
         backgroundColor: APP_COLORS.white,
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        elevation: 2,
-        shadowColor: '#000',
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 1,
         shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
     headerRow: {
         flexDirection: 'row',
@@ -221,7 +249,8 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 16,
         fontWeight: '600',
-        color: APP_COLORS.black,
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary,
     },
     timestamp: {
         fontSize: 12,
@@ -239,7 +268,7 @@ const styles = StyleSheet.create({
         color: APP_COLORS.success,
     },
     detailsContainer: {
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
         padding: 12,
         borderRadius: 8,
         marginBottom: 16,
@@ -247,7 +276,8 @@ const styles = StyleSheet.create({
     ceremonyTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: APP_COLORS.primary,
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary,
         marginBottom: 8,
     },
     detailRow: {
@@ -268,17 +298,17 @@ const styles = StyleSheet.create({
     button: {
         flex: 1,
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 100,
         alignItems: 'center',
         justifyContent: 'center',
     },
     acceptButton: {
-        backgroundColor: APP_COLORS.primary,
+        backgroundColor: '#D98934',
     },
     rejectButton: {
         backgroundColor: APP_COLORS.white,
-        borderWidth: 1,
-        borderColor: APP_COLORS.error,
+        borderWidth: 1.5,
+        borderColor: '#B22222',
     },
     acceptText: {
         color: APP_COLORS.white,
@@ -286,7 +316,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     rejectText: {
-        color: APP_COLORS.error,
+        color: '#B22222',
         fontWeight: 'bold',
         fontSize: 14,
     },
@@ -298,5 +328,28 @@ const styles = StyleSheet.create({
         marginTop: 12,
         color: APP_COLORS.gray,
         fontSize: 16,
-    }
+    },
+    toast: {
+        position: 'absolute',
+        bottom: 24,
+        left: 24,
+        right: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        borderRadius: 12,
+        gap: 10,
+        elevation: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 6,
+    },
+    toastText: {
+        color: '#fff',
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+    },
 });

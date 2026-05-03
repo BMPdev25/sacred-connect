@@ -14,6 +14,7 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useDispatch, useSelector } from "react-redux";
 import { Ionicons } from "@expo/vector-icons";
 import { AppDispatch, RootState } from "../../redux/store";
@@ -119,8 +120,13 @@ export default function SignUpScreen() {
   // --- RENDERS ---
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
+    <LinearGradient
+      colors={['#FFE5D9', '#FFF5E6', APP_COLORS.background]}
+      locations={[0, 0.4, 1]}
+      style={styles.safeArea}
+    >
+      <SafeAreaView style={{ flex: 1 }}>
+        <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
@@ -183,12 +189,13 @@ export default function SignUpScreen() {
 
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: APP_COLORS.background },
+  safeArea: { flex: 1 },
   content: {
     padding: 20,
     paddingBottom: 50,
@@ -197,10 +204,22 @@ const styles = StyleSheet.create({
     alignSelf: Platform.OS === 'web' ? 'center' : undefined,
   },
   backBtn: { marginBottom: 10 },
-  headerTitle: { fontSize: 26, fontWeight: "bold", color: APP_COLORS.primary, marginBottom: 4 },
+  headerTitle: { fontSize: 26, fontWeight: "bold", color: "#704214", marginBottom: 16, fontFamily: "serif" },
   stepIndicator: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 20 },
 
-  formSection: { marginBottom: 20 },
+  formSection: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
+    elevation: 6,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(112, 66, 20, 0.05)',
+  },
 
   // User Type
   typeContainer: { flexDirection: 'row', marginBottom: 20, backgroundColor: '#f0f0f0', borderRadius: 8, padding: 4 },
@@ -237,6 +256,18 @@ const styles = StyleSheet.create({
   checkIcon: { position: 'absolute', top: 8, right: 8 },
 
   // Main Button
-  mainBtn: { backgroundColor: APP_COLORS.primary, padding: 16, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  mainBtnText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
+  mainBtn: {
+    backgroundColor: APP_COLORS.primary,
+    height: 52,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+    elevation: 4,
+    shadowColor: "#704214",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  mainBtnText: { color: 'white', fontSize: 16, fontWeight: 'bold', fontFamily: "serif" }
 });

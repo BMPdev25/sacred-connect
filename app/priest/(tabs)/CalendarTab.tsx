@@ -136,7 +136,9 @@ export default function CalendarTab() {
             >
                 <View style={styles.headerContent}>
                     <Text style={styles.headerTitle}>Calendar</Text>
-                    <NotificationBell color={APP_COLORS.tertiary} />
+                    <TouchableOpacity onPress={() => router.push('/notifications' as any)}>
+                        <Ionicons name="notifications-outline" size={24} color={APP_COLORS.tertiary} />
+                    </TouchableOpacity>
                 </View>
             </LinearGradient>
 

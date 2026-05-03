@@ -43,7 +43,7 @@ export const updateBookingStatus = createAsyncThunk<Booking, { bookingId: string
   'booking/updateStatus',
   async ({ bookingId, status }, { rejectWithValue }) => {
     try {
-      const response = await api.put('/api/bookings/status', { bookingId, status });
+      const response = await api.put(`/api/bookings/${bookingId}/status`, { status });
       return response.data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update booking status');

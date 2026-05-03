@@ -100,11 +100,17 @@ const PriestSearch: React.FC = () => {
   };
 
   useEffect(() => {
-    const initLocationAndFetch = async () => {
+    // Fetch priests immediately without waiting for location
+    fetchPriests(initialSearchQuery, initialCeremony);
+
+    // Get location in parallel (won't block priest list from loading)
+    const getLocation = async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
-          const loc = await Location.getCurrentPositionAsync({});
+          const loc = await Location.getCurrentPositionAsync({
+            accuracy: Location.Accuracy.Balanced,
+          });
           setUserCoords({
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
@@ -112,13 +118,28 @@ const PriestSearch: React.FC = () => {
         }
       } catch (err) {
         console.warn("Failed to get location:", err);
-      } finally {
-        fetchPriests(initialSearchQuery, initialCeremony);
       }
     };
-
-    initLocationAndFetch();
+    getLocation();
   }, []);
+
+  // When location becomes available, recalculate distances on already-loaded priests
+  useEffect(() => {
+    if (userCoords && priests.length > 0) {
+      setPriests(prev => prev.map((p: any) => {
+        if (p.location?.coordinates) {
+          const distance = calculateDistance(
+            userCoords.latitude,
+            userCoords.longitude,
+            p.location.coordinates[1],
+            p.location.coordinates[0]
+          );
+          return { ...p, distance };
+        }
+        return p;
+      }));
+    }
+  }, [userCoords]);
 
   // Handle search submission
   const handleSearch = () => {

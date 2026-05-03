@@ -51,8 +51,11 @@ const NotificationOverlay = () => {
     closeNotifications();
     if (notification.type === "booking" && notification.data) {
       router.push({
-        pathname: "/BookingDetails",
-        params: { booking: JSON.stringify(notification.data) },
+        pathname: "/(devoteeScreens)/(bookings)/BookingDetails",
+        params: { 
+          bookingId: notification.data?._id || notification.data?.bookingId,
+          booking: JSON.stringify(notification.data) 
+        },
       });
     }
   };
@@ -151,7 +154,22 @@ const DevoteeTabs = () => {
 };
 
 // ─── Root Layout (wraps tabs + notification overlay) ──────────────────────
+import { useAppSelector } from "../../redux/hooks";
+
 export default function DevoteeLayout() {
+  const { userInfo } = useAppSelector((state) => state.auth);
+
+  React.useEffect(() => {
+    if (!userInfo) {
+      router.replace("/login" as any);
+    } else if (userInfo.userType !== 'devotee') {
+      // Force redirect to correct layout if role doesn't match
+      router.replace("/priest/HomeTab" as any);
+    }
+  }, [userInfo]);
+
+  if (!userInfo) return null;
+
   return (
     <NotificationProvider>
       <DevoteeTabs />

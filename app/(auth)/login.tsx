@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { useDispatch, useSelector } from "react-redux";
 import { signInWithCustomToken } from "firebase/auth";
 import { auth } from "../../config/firebase";
@@ -148,6 +149,7 @@ export default function LoginScreen() {
       locations={[0, 0.4, 1]}
       style={styles.safeArea}
     >
+      <StatusBar style="dark" backgroundColor="transparent" translucent />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView
         style={{ flex: 1 }}

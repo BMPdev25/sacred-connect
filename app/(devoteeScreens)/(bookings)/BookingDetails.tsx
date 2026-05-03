@@ -83,6 +83,8 @@ export default function BookingDetailsScreen() {
   const params = useLocalSearchParams();
   const { bookingId: queryBookingId, booking: stringifiedBooking } = params;
 
+  console.log('[BookingDetails] params:', { queryBookingId, hasStringifiedBooking: !!stringifiedBooking });
+
   // 1. Initial booking from params
   const [booking, setBooking] = useState<any>(null);
   const [isUpdating, setIsUpdating] = useState(false);
@@ -91,6 +93,14 @@ export default function BookingDetailsScreen() {
     if (stringifiedBooking && typeof stringifiedBooking === 'string') {
       try {
         const parsed = JSON.parse(stringifiedBooking);
+        console.log('[BookingDetails] Parsed from params:', { 
+          id: parsed._id, 
+          status: parsed.status, 
+          ceremonyType: parsed.ceremonyType,
+          hasCeremonyDetails: !!parsed.ceremonyDetails,
+          hasLocation: !!parsed.location,
+          date: parsed.date
+        });
         setBooking(parsed);
       } catch (err) {
         console.error("Failed to parse booking param", err);
@@ -100,7 +110,7 @@ export default function BookingDetailsScreen() {
     }
   }, [stringifiedBooking]);
 
-  // 2. Fetch booking
+  // 2. Fetch booking from API (enriched with ceremonyDetails)
   const { 
     data: fetchedBooking, 
     isLoading: isFetching,
@@ -109,7 +119,18 @@ export default function BookingDetailsScreen() {
   } = useQuery({
     queryKey: ['booking', queryBookingId],
     queryFn: async () => {
+      console.log('[BookingDetails] Fetching from API for id:', queryBookingId);
       const resp = await devoteeService.getBookingDetails(queryBookingId as string);
+      console.log('[BookingDetails] API response:', { 
+        id: resp?._id, 
+        status: resp?.status, 
+        ceremonyType: resp?.ceremonyType,
+        hasCeremonyDetails: !!resp?.ceremonyDetails,
+        ceremonyName: resp?.ceremonyDetails?.name,
+        hasLocation: !!resp?.location,
+        address: resp?.location?.address,
+        date: resp?.date
+      });
       return resp;
     },
     enabled: !!queryBookingId,
@@ -119,6 +140,13 @@ export default function BookingDetailsScreen() {
       return (status && !['completed', 'cancelled'].includes(status)) ? 10000 : false;
     }
   });
+
+  // Log errors
+  useEffect(() => {
+    if (fetchError) {
+      console.error('[BookingDetails] Fetch error:', fetchError);
+    }
+  }, [fetchError]);
 
   // Refetch when screen focused
   useFocusEffect(
@@ -130,6 +158,7 @@ export default function BookingDetailsScreen() {
   // 3. Update state when fetched
   useEffect(() => {
     if (fetchedBooking) {
+      console.log('[BookingDetails] Updating booking state from API response');
       setBooking(fetchedBooking);
     }
   }, [fetchedBooking]);
@@ -180,7 +209,7 @@ export default function BookingDetailsScreen() {
     if (booking?.status === "confirmed" && booking?.date && booking?.startTime) {
       schedulePujaReminder(
         booking._id || booking.id,
-        booking.ceremony?.name || booking.ceremonyType || "Puja",
+        booking.ceremonyDetails?.name || booking.ceremonyType || "Puja",
         booking.date,
         booking.startTime,
         120 // 2 hours before
@@ -270,23 +299,41 @@ export default function BookingDetailsScreen() {
 
   const insets = useSafeAreaInsets();
 
-  if (loading) {
+  // If we have a fetch error and no valid local booking data, show error
+  if (fetchError && !booking?.ceremonyType) {
     return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading booking details...</Text>
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle-outline" size={60} color={APP_COLORS.error} />
+        <Text style={styles.errorText}>
+          {typeof fetchError === 'string' ? fetchError : "Booking not found or has been deleted."}
+        </Text>
+        <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()}>
+          <Text style={styles.goBackText}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
-  if (!booking) {
+  // Current booking logic
+  const currentBooking = fetchedBooking || booking;
+
+  // Show loading if fetching and we don't have basic local data
+  if (isFetching && !currentBooking?.ceremonyType) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        <Text style={styles.loadingText}>Loading booking details...</Text>
+      </View>
+    );
+  }
+
+  if (!currentBooking || (!currentBooking.ceremonyType && !currentBooking.ceremonyDetails)) {
     return (
       <View style={styles.errorContainer}>
-        <Text style={styles.errorText}>Booking not found</Text>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.push("/devotee/BookingsTab")}
-        >
-          <Text style={styles.backButtonText}>Go Back</Text>
+        <Ionicons name="document-text-outline" size={60} color={APP_COLORS.gray} />
+        <Text style={styles.errorText}>Booking details not available.</Text>
+        <TouchableOpacity style={styles.goBackButton} onPress={() => router.back()}>
+          <Text style={styles.goBackText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -336,24 +383,24 @@ export default function BookingDetailsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ceremony Details</Text>
           <View style={styles.ceremonyCard}>
-            {(booking?.ceremony?.image || booking?.ceremony?.images?.[0]?.url || booking?.ceremonyType) && (
+            {(booking?.ceremonyDetails?.image || booking?.ceremonyType) && (
               <Image
                 source={{ 
-                  uri: getImageUri(booking.ceremony?.image || booking.ceremony?.images?.[0] || booking.ceremony) 
+                  uri: getImageUri(booking.ceremonyDetails?.image) 
                 }}
                 style={styles.ceremonyImage}
               />
             )}
             <View style={styles.ceremonyInfo}>
               <Text style={styles.ceremonyName}>
-                {booking?.ceremony?.name || booking?.ceremonyType || "-"}
+                {booking?.ceremonyDetails?.name || booking?.ceremonyType || "-"}
               </Text>
               <Text style={styles.ceremonyType}>
-                {booking?.ceremonyDetails?.category || booking?.ceremony?.type || "Ceremony"}
+                {booking?.ceremonyDetails?.category || "Ceremony"}
               </Text>
-              {(booking?.ceremonyDetails?.duration || booking?.ceremony?.duration) && (
+              {booking?.ceremonyDetails?.duration && (
                 <Text style={styles.ceremonyDuration}>
-                  Duration: {booking.ceremonyDetails?.duration?.typical || booking.ceremony?.duration} min
+                  Duration: {booking.ceremonyDetails?.duration?.typical || 60} min
                 </Text>
               )}
             </View>
@@ -361,83 +408,71 @@ export default function BookingDetailsScreen() {
         </View>
 
         {/* Samagri (Materials) List */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.materials && booking.ceremonyDetails.materials.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="leaf-outline" size={18} color={APP_COLORS.primary} /> Samagri (Materials Required)
             </Text>
             <View style={styles.samagriCard}>
-              {booking.ceremonyDetails.materials && booking.ceremonyDetails.materials.length > 0 ? (
-                booking.ceremonyDetails.materials.map((item: any, index: number) => (
-                  <View key={index} style={styles.samagriItem}>
-                    <View style={styles.samagriDot} />
-                    <View style={styles.samagriContent}>
-                      <Text style={styles.samagriName}>
-                        {item.name}
-                        {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
-                      </Text>
-                      <Text style={styles.samagriMeta}>
-                        Qty: {item.quantity}
-                        {item.providedBy ? ` · By ${item.providedBy}` : ''}
-                      </Text>
-                    </View>
+              {booking.ceremonyDetails.materials.map((item: any, index: number) => (
+                <View key={index} style={styles.samagriItem}>
+                  <View style={styles.samagriDot} />
+                  <View style={styles.samagriContent}>
+                    <Text style={styles.samagriName}>
+                      {item.name}
+                      {item.isOptional && <Text style={styles.optionalBadge}> (Optional)</Text>}
+                    </Text>
+                    <Text style={styles.samagriMeta}>
+                      Qty: {item.quantity}
+                      {item.providedBy ? ` · By ${item.providedBy}` : ''}
+                    </Text>
                   </View>
-                ))
-              ) : (
-                <Text style={styles.noInfoText}>No specific materials list available for this ceremony.</Text>
-              )}
+                </View>
+              ))}
             </View>
           </View>
         )}
 
         {/* Ritual Steps */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="list-outline" size={18} color={APP_COLORS.primary} /> Ritual Steps
             </Text>
             <View style={styles.stepsCard}>
-              {booking.ceremonyDetails.ritualSteps && booking.ceremonyDetails.ritualSteps.length > 0 ? (
-                booking.ceremonyDetails.ritualSteps
-                  .sort((a: any, b: any) => a.stepNumber - b.stepNumber)
-                  .map((step: any, index: number) => (
-                    <View key={index} style={styles.stepItem}>
-                      <View style={styles.stepCircle}>
-                        <Text style={styles.stepNum}>{step.stepNumber}</Text>
-                      </View>
-                      <View style={styles.stepInfo}>
-                        <Text style={styles.stepTitle}>{step.title}</Text>
-                        <Text style={styles.stepDesc}>{step.description}</Text>
-                        {step.durationEstimate && (
-                          <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
-                        )}
-                      </View>
+              {booking.ceremonyDetails.ritualSteps
+                .sort((a: any, b: any) => (a.stepNumber || 0) - (b.stepNumber || 0))
+                .map((step: any, index: number) => (
+                  <View key={index} style={styles.stepItem}>
+                    <View style={styles.stepCircle}>
+                      <Text style={styles.stepNum}>{step.stepNumber || index + 1}</Text>
                     </View>
-                  ))
-              ) : (
-                <Text style={styles.noInfoText}>Standard ritual steps haven't been added yet.</Text>
-              )}
+                    <View style={styles.stepInfo}>
+                      <Text style={styles.stepTitle}>{step.title}</Text>
+                      <Text style={styles.stepDesc}>{step.description}</Text>
+                      {step.durationEstimate && (
+                        <Text style={styles.stepDur}>~{step.durationEstimate} min</Text>
+                      )}
+                    </View>
+                  </View>
+                ))}
             </View>
           </View>
         )}
 
         {/* Special Instructions */}
-        {booking?.ceremonyDetails && (
+        {booking?.ceremonyDetails?.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>
               <Ionicons name="alert-circle-outline" size={18} color={APP_COLORS.warning} /> Special Instructions
             </Text>
             <View style={styles.instructionsCard}>
-              {booking.ceremonyDetails.specialInstructions && booking.ceremonyDetails.specialInstructions.length > 0 ? (
-                booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
-                  <View key={index} style={styles.instrItem}>
-                    <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
-                    <Text style={styles.instrText}>{instr}</Text>
-                  </View>
-                ))
-              ) : (
-                <Text style={styles.noInfoText}>No special instructions for this ceremony.</Text>
-              )}
+              {booking.ceremonyDetails.specialInstructions.map((instr: string, index: number) => (
+                <View key={index} style={styles.instrItem}>
+                  <Ionicons name="information-circle" size={16} color={APP_COLORS.warning} />
+                  <Text style={styles.instrText}>{instr}</Text>
+                </View>
+              ))}
             </View>
           </View>
         )}

@@ -96,7 +96,7 @@ const HelpScreen: React.FC = () => {
               <View style={styles.supportContent}>
                 <Text style={styles.supportTitle}>Email Support</Text>
                 <Text style={styles.supportText}>
-                  support@sacredconnect.com
+                  support@bookmypujari.com
                 </Text>
               </View>
             </TouchableOpacity>

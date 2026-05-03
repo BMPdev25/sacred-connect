@@ -170,7 +170,7 @@ const devoteeService = {
    */
   getBookingDetails: async (bookingId: string): Promise<any> => {
     try {
-      const response = await api.get(`/api/devotee/bookings/${bookingId}`);
+      const response = await api.get(`/api/bookings/${bookingId}`);
       return response.data.data || response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to fetch booking details. Please try again.';
@@ -184,7 +184,7 @@ const devoteeService = {
    */
   createBooking: async (bookingData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post('/api/devotee/bookings', bookingData);
+      const response = await api.post('/api/bookings', bookingData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to create booking. Please try again.';
@@ -197,7 +197,7 @@ const devoteeService = {
    */
   bookInstantCeremony: async (instantData: Record<string, any>): Promise<any> => {
     try {
-      const response = await api.post('/api/devotee/bookings/instant', instantData);
+      const response = await api.post('/api/bookings/instant', instantData);
       return response.data;
     } catch (error: any) {
       throw error?.response?.data?.message || 'Failed to initiate instant booking.';
@@ -361,8 +361,19 @@ const devoteeService = {
    */
   getMyRequests: async (): Promise<any> => {
     try {
-      const response = await api.get('/api/devotee/bookings');
-      const all = Array.isArray(response.data) ? response.data : response.data?.data || [];
+      const response = await api.get('/api/bookings');
+      
+      // Handle categorized response object: { data: { today: [], upcoming: [], all: [] } }
+      let all = [];
+      if (Array.isArray(response.data)) {
+        all = response.data;
+      } else if (response.data?.data) {
+        if (Array.isArray(response.data.data)) {
+          all = response.data.data;
+        } else if (Array.isArray(response.data.data.all)) {
+          all = response.data.data.all;
+        }
+      }
       
       const today = new Date();
       today.setHours(0, 0, 0, 0); // Start of today

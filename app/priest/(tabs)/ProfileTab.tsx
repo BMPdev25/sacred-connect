@@ -18,7 +18,9 @@ import {
   TouchableOpacity,
   View,
   RefreshControl,
-  TextInput
+  TextInput,
+  ToastAndroid,
+  Platform
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { LinearGradient } from "expo-linear-gradient";
@@ -39,6 +41,14 @@ interface PriestProfile {
   templesAffiliated?: any[];
   [key: string]: any;
 }
+
+const showSuccessToast = (message: string) => {
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(message, ToastAndroid.SHORT);
+  } else {
+    Alert.alert("Success", message);
+  }
+};
 
 const menuStyles = StyleSheet.create({
   menuSection: {
@@ -235,10 +245,8 @@ const ProfileScreen: React.FC = () => {
         {
           text: "Logout",
           onPress: async () => {
-            await removeToken("userToken");
-            await removeToken("userInfo");
             await dispatch(logout() as any);
-            try { router.replace("/login" as any); } catch (e) { router.push("/login" as any); }
+            router.replace("/login" as any);
           },
         },
       ],
@@ -324,7 +332,7 @@ const ProfileScreen: React.FC = () => {
         phone: personalDetails.phone 
       } } as any);
 
-      Alert.alert("Success", "Personal details updated");
+      showSuccessToast("Personal details updated");
       setIsPersonalModalVisible(false);
       getProfile(true);
     } catch (error: any) {
@@ -358,7 +366,7 @@ const ProfileScreen: React.FC = () => {
 
       await priestService.updateProfile(payload);
       
-      Alert.alert("Success", "Business address updated");
+      showSuccessToast("Business address updated");
       setIsAddressModalVisible(false);
       getProfile(true);
     } catch (error: any) {
@@ -379,7 +387,7 @@ const ProfileScreen: React.FC = () => {
     try {
       setIsSavingTemple(true);
       await priestService.updateProfile({ templesAffiliated: validTemples });
-      Alert.alert("Success", "Temple affiliation updated");
+      showSuccessToast("Temple affiliation updated");
       setIsTempleModalVisible(false);
       getProfile(true);
     } catch (error: any) {
@@ -419,7 +427,7 @@ const ProfileScreen: React.FC = () => {
       );
 
       setUploadingDoc(false);
-      Alert.alert("Success", "Document uploaded successfully!");
+      showSuccessToast("Document uploaded successfully!");
       getProfile();
     } catch (error: any) {
       setUploadingDoc(false);
@@ -634,7 +642,7 @@ const ProfileScreen: React.FC = () => {
             <MenuItem 
                 icon="help-circle-outline" 
                 label="Help Center" 
-                onPress={() => { Linking.openURL("mailto:support@sacredconnect.com") }} 
+                onPress={() => { Linking.openURL("mailto:bmpoffice24x7@gmail.com") }} 
             />
             <MenuItem 
                 icon="log-out-outline" 
@@ -669,7 +677,7 @@ const ProfileScreen: React.FC = () => {
               <Ionicons name="checkmark-circle" size={48} color={APP_COLORS.success} style={{ marginBottom: 12 }} />
               <Text style={{ fontSize: 18, fontWeight: 'bold', color: APP_COLORS.success }}>Account Verified</Text>
               <Text style={{ fontSize: 14, color: APP_COLORS.gray, textAlign: 'center', marginTop: 8 }}>
-                Your identity and religious certifications have been successfully verified by Sacred Connect.
+                Your identity and religious certifications have been successfully verified by BookMyPujari.
               </Text>
             </View>
           ) : (

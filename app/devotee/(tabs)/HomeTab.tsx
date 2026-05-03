@@ -46,6 +46,7 @@ const HomeScreen: React.FC = () => {
   const [isError, setIsError] = useState(false);
   const [recommendedPriests, setRecommendedPriests] = useState<any[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
+  const [upcomingBookings, setUpcomingBookings] = useState<any[]>([]);
   const [rateModalVisible, setRateModalVisible] = useState(false);
   const [selectedBookingForRating, setSelectedBookingForRating] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -61,12 +62,13 @@ const HomeScreen: React.FC = () => {
       setIsLoading(true);
       setIsError(false);
       
-      const [priestsRes, actionsRes, addressRes, bannersRes, festivalsRes] = await Promise.allSettled([
+      const [priestsRes, actionsRes, addressRes, bannersRes, festivalsRes, bookingsRes] = await Promise.allSettled([
         devoteeService.searchPriests({ limit: 10 }),
         devoteeService.getPendingActions(),
         devoteeService.getAddresses(),
         devoteeService.getBanners(),
-        devoteeService.getFestivals()
+        devoteeService.getFestivals(),
+        devoteeService.getMyRequests()
       ]);
 
       if (priestsRes.status === "fulfilled" && priestsRes.value?.priests?.length > 0) {
@@ -94,6 +96,10 @@ const HomeScreen: React.FC = () => {
         setPendingActions(actionsRes.value);
       }
 
+      if (bookingsRes.status === "fulfilled") {
+        setUpcomingBookings(bookingsRes.value);
+      }
+
       if (addressRes.status === "fulfilled" && Array.isArray(addressRes.value)) {
         const defaultAddr = addressRes.value.find(a => a.isDefault) || addressRes.value[0];
         if (defaultAddr?.city) {
@@ -111,7 +117,6 @@ const HomeScreen: React.FC = () => {
           .filter((f: any) => f.date >= today)
           .sort((a: any, b: any) => a.date.localeCompare(b.date));
         
-        // If we have real festivals, we'll use them as banners for the festival section
         if (upcoming.length > 0) {
           setBanners(upcoming.map((f: any) => ({
             ...f,
@@ -186,7 +191,7 @@ const HomeScreen: React.FC = () => {
   };
 
   const NotificationBellInline = () => {
-    const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
+    const { unreadCount, toggleNotifications } = useNotifications();
     return (
       <TouchableOpacity style={styles.bellButton} onPress={toggleNotifications}>
         <Ionicons
@@ -238,10 +243,10 @@ const HomeScreen: React.FC = () => {
             style={[styles.header, { paddingTop: insets.top + 16 }]}
           >
             <View>
-              <Text style={styles.greetingText}>Namaskaram 🙏</Text>
               <Text style={styles.appTitle}>
                 Book<Text style={{ color: APP_COLORS.primary }}>My</Text>Pujari
               </Text>
+              <Text style={styles.greetingText}>Namasthe🙏, {userInfo?.name || 'Devotee'}</Text>
             </View>
             <View style={styles.headerRightWrap}>
               <NotificationBellInline />
@@ -268,6 +273,38 @@ const HomeScreen: React.FC = () => {
             </View>
           </View>
 
+          {/* ── Pending Actions ────────────────────────────────── */}
+          {pendingActions.length > 0 && (
+            <View style={styles.sectionPadding}>
+              <Text style={styles.sectionTitle}>Pending Actions</Text>
+              <ScrollView 
+                horizontal 
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingTop: 12 }}
+              >
+                {pendingActions.map((action, index) => (
+                  <TouchableOpacity 
+                    key={index}
+                    style={styles.actionCard}
+                    onPress={() => {
+                      if (action.type === 'RATE_PRIEST') {
+                        openRateModal(action);
+                      }
+                    }}
+                  >
+                    <View style={styles.actionIcon}>
+                      <Ionicons name="star" size={24} color={APP_COLORS.saffron} />
+                    </View>
+                    <View>
+                      <Text style={styles.actionTitle}>{action.title}</Text>
+                      <Text style={styles.actionSub}>{action.message}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
 
 
           {/* ── Upcoming Festivals ──────────────────────────────────── */}
@@ -278,7 +315,6 @@ const HomeScreen: React.FC = () => {
                     <Text style={styles.viewAllText}>VIEW ALL</Text>
                 </TouchableOpacity>
             </View>
-            {/* Single banner → full-width centered View; multiple → horizontal scroll */}
             {banners.length > 1 ? (
               <ScrollView
                 horizontal
@@ -326,7 +362,6 @@ const HomeScreen: React.FC = () => {
                 })}
               </ScrollView>
             ) : (
-              /* 0 or 1 banner — render full-width, properly centered */
               <TouchableOpacity
                 style={styles.bannerFull}
                 activeOpacity={banners.length === 0 ? 1 : 0.85}
@@ -404,7 +439,6 @@ const HomeScreen: React.FC = () => {
                           activeOpacity={0.88}
                           onPress={() => router.push({ pathname: '/(devoteeScreens)/(priest)/PriestDetails', params: { priestId: priest._id } })}
                         >
-                          {/* Top: Avatar */}
                           <View style={styles.panditImageWrap}>
                             {profilePic ? (
                               <Image
@@ -424,15 +458,10 @@ const HomeScreen: React.FC = () => {
                               </View>
                             )}
                           </View>
-
-                          {/* Bottom: Info */}
                           <View style={styles.panditInfo}>
-                            {/* Name */}
                             <Text style={styles.panditName} numberOfLines={1}>
                               {priest.name || priest.fullName || 'Pandit'}
                             </Text>
-
-                            {/* Rating */}
                             <View style={styles.ratingPill}>
                               <Ionicons name="star" size={10} color="#D96321" />
                               <Text style={styles.ratingText}>{rating}</Text>
@@ -451,7 +480,6 @@ const HomeScreen: React.FC = () => {
                  <Text style={styles.sectionTitle}>Sacred Services</Text>
              </View>
             <View style={styles.serviceGrid}>
-                {/* Pujas */}
                 <TouchableOpacity style={styles.serviceBox} activeOpacity={0.8} onPress={() => router.push("/devotee/(tabs)/ExploreTab")}>
                     <View style={styles.serviceIconWrapWhite}>
                         <Ionicons name="flower" size={26} color={APP_COLORS.primary} />
@@ -460,7 +488,6 @@ const HomeScreen: React.FC = () => {
                     <Text style={styles.serviceSubtitle}>50+ OPTIONS</Text>
                 </TouchableOpacity>
 
-                {/* House Warming */}
                 <TouchableOpacity style={styles.serviceBox} activeOpacity={0.8} onPress={() => router.push({ pathname: "/devotee/(tabs)/ExploreTab", params: { search: "House Warming" } })}>
                     <View style={styles.serviceIconWrapWhite}>
                         <Ionicons name="home" size={26} color={APP_COLORS.primary} />
@@ -469,7 +496,6 @@ const HomeScreen: React.FC = () => {
                     <Text style={styles.serviceSubtitle}>NEW BEGINNINGS</Text>
                 </TouchableOpacity>
 
-                {/* Havan */}
                 <TouchableOpacity style={styles.serviceBox} activeOpacity={0.8} onPress={() => router.push({ pathname: "/devotee/(tabs)/ExploreTab", params: { search: "Havan" } })}>
                     <View style={styles.serviceIconWrapWhite}>
                         <Ionicons name="flame" size={26} color={APP_COLORS.primary} />
@@ -478,7 +504,6 @@ const HomeScreen: React.FC = () => {
                     <Text style={styles.serviceSubtitle}>RITUAL FIRE</Text>
                 </TouchableOpacity>
 
-                {/* Festivals → opens Calendar */}
                 <TouchableOpacity style={styles.serviceBox} activeOpacity={0.8} onPress={() => router.push("/devotee/FestivalsCalendar")}>
                     <View style={styles.serviceIconWrapWhite}>
                         <Ionicons name="calendar" size={26} color={APP_COLORS.primary} />
@@ -489,33 +514,41 @@ const HomeScreen: React.FC = () => {
             </View>
           </View>
         </View>
+        <RatingModal
+          isVisible={rateModalVisible}
+          onClose={() => setRateModalVisible(false)}
+          onSubmit={handleSubmitRating}
+          role="devotee"
+          bookingDetails={selectedBookingForRating ? {
+            ceremonyType: selectedBookingForRating.ceremonyType || selectedBookingForRating.ceremony,
+            date: selectedBookingForRating.date,
+            clientName: selectedBookingForRating.priestId?.name || 'Priest'
+          } : undefined}
+        />
       </ScrollView>
     </View>
   );
 };
 
-// ─── Styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.neutral,
   },
-  // Header
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 16,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
   },
-
   searchContainer: {
     flexDirection: 'row',
     paddingHorizontal: 20,
-    marginTop: -24, // Overlap the header
-    marginBottom: 16,
+    marginTop: 12,
+    marginBottom: 8,
     zIndex: 10,
   },
   searchInner: {
@@ -538,17 +571,11 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: '#000',
   },
-  searchPlaceholder: {
-    marginLeft: 10,
-    color: APP_COLORS.gray,
-    fontSize: 14,
-  },
-
   greetingText: {
     fontSize: 14,
     color: APP_COLORS.gray,
     fontWeight: '600',
-    marginBottom: 4,
+    marginTop: 2,
   },
   headerRightWrap: {
     backgroundColor: '#fff',
@@ -567,6 +594,7 @@ const styles = StyleSheet.create({
       fontFamily: 'serif',
       fontWeight: 'bold',
       color: APP_COLORS.tertiary,
+      marginBottom: 2,
   },
   bellButton: {
     position: "relative",
@@ -581,8 +609,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: APP_COLORS.error,
   },
-
-  // Sections
   sectionPadding: {
     paddingHorizontal: 20,
     marginTop: 20,
@@ -604,8 +630,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: '#A0522D',
   },
-
-  // Banners
   bannerWrapper: {
     width: SCREEN_WIDTH - 40,
     marginRight: 0,
@@ -674,8 +698,6 @@ const styles = StyleSheet.create({
   bannerArrow: {
       padding: 8,
   },
-
-  // Sacred Services Grid
   serviceGrid: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -695,15 +717,6 @@ const styles = StyleSheet.create({
       shadowOpacity: 0.04,
       shadowRadius: 6,
       elevation: 2,
-  },
-  serviceIconWrap: {
-      backgroundColor: '#D98934',
-      width: 50,
-      height: 50,
-      borderRadius: 12,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 16,
   },
   serviceIconWrapWhite: {
       backgroundColor: '#FFF5E6',
@@ -727,8 +740,6 @@ const styles = StyleSheet.create({
       color: APP_COLORS.gray,
       letterSpacing: 0.5,
   },
-
-  // Top Rated Pandits
   panditCard: {
       flexDirection: 'column',
       alignItems: 'center',
@@ -803,51 +814,103 @@ const styles = StyleSheet.create({
   availableText: {
       color: '#FFF',
       fontSize: 8,
-      fontWeight: '700',
+      fontWeight: 'bold',
   },
   panditInfo: {
       alignItems: 'center',
-      width: '100%',
   },
   panditName: {
-      fontSize: 15,
-      fontFamily: 'serif',
+      fontSize: 14,
       fontWeight: 'bold',
       color: APP_COLORS.tertiary,
-      lineHeight: 18,
-      textAlign: 'center',
       marginBottom: 6,
+      textAlign: 'center',
   },
   ratingPill: {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: '#FFF5E6',
       paddingHorizontal: 8,
-      paddingVertical: 4,
+      paddingVertical: 2,
       borderRadius: 10,
       gap: 4,
-      marginBottom: 8,
   },
   ratingText: {
-      fontSize: 10,
-      fontWeight: 'bold',
+      fontSize: 11,
+      fontWeight: '700',
       color: '#D96321',
   },
-  bookNowBtn: {
-      backgroundColor: '#D98934',
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      width: '100%',
-      borderRadius: 100,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 4,
+  actionCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#FFEFE0',
+    width: 280,
   },
-  bookNowText: {
-      color: '#FFF',
-      fontWeight: 'bold',
-      fontSize: 11,
-      letterSpacing: 0.5,
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#FFF5E6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: APP_COLORS.tertiary,
+  },
+  actionSub: {
+    fontSize: 12,
+    color: APP_COLORS.gray,
+  },
+  bookingMiniCard: {
+    backgroundColor: '#FFF',
+    borderRadius: 20,
+    padding: 16,
+    width: 240,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  bookingMiniTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  bookingMiniCeremony: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: APP_COLORS.tertiary,
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  bookingMiniBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bookingMiniDate: {
+    fontSize: 13,
+    color: APP_COLORS.gray,
+    fontWeight: '500',
   },
 });
 

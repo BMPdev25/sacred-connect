@@ -150,7 +150,7 @@ const Payment: React.FC = () => {
         currency: orderParams.currency || 'INR',
         key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_YOUR_KEY_HERE', 
         amount: orderParams.amount,
-        name: 'Sacred Connect',
+        name: 'BookMyPujari',
         order_id: orderParams.orderId || orderParams.id, 
         prefill: {
           email: userInfo?.email || '',

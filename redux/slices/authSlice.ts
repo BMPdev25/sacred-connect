@@ -240,8 +240,7 @@ export const logout = createAsyncThunk<void, void, { rejectValue: string }>(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      await removeToken("userToken");
-      await removeToken("userInfo");
+      await authService.logout();
       return;
     } catch (error: any) {
       console.error("Logout error:", error);

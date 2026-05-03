@@ -60,7 +60,7 @@ const BookingConfirmation: React.FC = () => {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `I've booked a ${booking.ceremonyType} ceremony with ${booking.priestName} through Sacred Connect on ${formatDate(booking.date)} at ${booking.startTime}.`,
+        message: `I've booked a ${booking.ceremonyType} ceremony with ${booking.priestName} through BookMyPujari on ${formatDate(booking.date)} at ${booking.startTime}.`,
       });
     } catch (error: unknown) {
       // error may be unknown; stringify safely

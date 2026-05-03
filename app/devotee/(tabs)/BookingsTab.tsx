@@ -22,6 +22,8 @@ import { AppDispatch, RootState } from "../../../redux/store";
 import { formatCurrency } from "../../../utils/formatUtlis";
 import Card from "../../../components/Card";
 import PrimaryButton from "../../../components/PrimaryButton";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
 
 
 
@@ -35,11 +37,26 @@ const BookingsScreen: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
   const [refreshing, setRefreshing] = useState(false);
 
+  // Initial load and auto-refresh on focus
+  useFocusEffect(
+    useCallback(() => {
+      if (userInfo) {
+        dispatch(getBookings());
+      }
+    }, [dispatch, userInfo])
+  );
+
   useEffect(() => {
-    if (userInfo) {
-      dispatch(getBookings());
+    if (bookings && bookings.length > 0) {
+      console.log('[BookingsTab] Bookings from Redux:', bookings.length, 'items');
+      console.log('[BookingsTab] First booking sample:', JSON.stringify({
+        _id: bookings[0]._id,
+        status: bookings[0].status,
+        date: bookings[0].date,
+        keys: Object.keys(bookings[0])
+      }));
     }
-  }, [dispatch, userInfo]);
+  }, [bookings]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -98,8 +115,16 @@ const BookingsScreen: React.FC = () => {
 
   const handleBookingPress = (booking: any) => {
     if (booking._id?.startsWith("mock")) return;
+    console.log('[BookingsTab] Pressing booking:', JSON.stringify({
+      _id: booking._id,
+      status: booking.status,
+      ceremonyType: booking.ceremonyType,
+      date: booking.date,
+      hasLocation: !!booking.location,
+      keys: Object.keys(booking)
+    }));
     router.push({ 
-      pathname: "/BookingDetails", 
+      pathname: "/(devoteeScreens)/(bookings)/BookingDetails", 
       params: { 
         booking: JSON.stringify(booking),
         bookingId: booking._id 

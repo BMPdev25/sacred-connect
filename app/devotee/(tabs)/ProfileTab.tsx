@@ -14,6 +14,7 @@ import {
   TextInput,
   ActivityIndicator,
   Platform,
+  ToastAndroid,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -32,6 +33,15 @@ import LoadingSpinner from "../../../components/LoadingSpinner";
 import { LinearGradient } from "expo-linear-gradient";
 
 // ─── Component ────────────────────────────────────────────────────────────
+
+const showSuccessToast = (message: string) => {
+  if (Platform.OS === 'android') {
+    ToastAndroid.show(message, ToastAndroid.SHORT);
+  } else {
+    Alert.alert("Success", message);
+  }
+};
+
 const ProfileScreen: React.FC = () => {
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
@@ -233,7 +243,7 @@ const ProfileScreen: React.FC = () => {
           profilePicture: responseData.data.profilePicture,
         }));
 
-        Alert.alert('Success', 'Profile picture updated successfully');
+        showSuccessToast('Profile picture updated successfully');
       } else {
         throw new Error(responseData.message || 'Upload failed.');
       }
@@ -277,7 +287,7 @@ const ProfileScreen: React.FC = () => {
           phone: response.data.data.phone
         }));
 
-        Alert.alert("Success", "Personal details updated successfully");
+        showSuccessToast("Personal details updated successfully");
         setIsPersonalModalVisible(false);
       }
     } catch (error: any) {
@@ -301,7 +311,7 @@ const ProfileScreen: React.FC = () => {
           ...prev,
           familyDetails: response.data.data.familyDetails
         }));
-        Alert.alert("Success", "Family details updated successfully");
+        showSuccessToast("Family details updated successfully");
         setIsFamilyModalVisible(false);
       }
     } catch (error: any) {

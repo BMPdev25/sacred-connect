@@ -161,7 +161,7 @@ export default function ServicesTab() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     header: {
         // Removed custom header
@@ -181,11 +181,13 @@ const styles = StyleSheet.create({
     card: {
         borderRadius: 16,
         marginBottom: 16,
-        elevation: 4,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 5,
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
         height: 180,
         overflow: 'hidden',
         backgroundColor: APP_COLORS.white,
@@ -220,6 +222,7 @@ const styles = StyleSheet.create({
     serviceName: {
         fontSize: 22,
         fontWeight: 'bold',
+        fontFamily: 'serif',
         color: APP_COLORS.white,
         flex: 1,
         textShadowColor: 'rgba(0, 0, 0, 0.75)',
@@ -254,10 +257,10 @@ const styles = StyleSheet.create({
     detailButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: APP_COLORS.primary,
+        backgroundColor: '#D98934',
         paddingHorizontal: 12,
         paddingVertical: 6,
-        borderRadius: 20,
+        borderRadius: 100,
     },
     detailButtonText: {
         color: APP_COLORS.white,
@@ -277,18 +280,18 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 24,
         right: 24,
-        backgroundColor: APP_COLORS.primary,
-        borderRadius: 30, // Pill shape or circle
+        backgroundColor: '#D98934',
+        borderRadius: 100, // Pill shape or circle
         height: 56,
         paddingHorizontal: 24,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        elevation: 6,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 3 },
-        shadowOpacity: 0.27,
-        shadowRadius: 4.65,
+        elevation: 4,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
     },
     fabText: {
         color: APP_COLORS.white,

@@ -119,12 +119,13 @@ npx expo start
 
 Use these accounts to test the application flows.
 
-| Role | Email | Password |
-| :--- | :--- | :--- |
-| **Priest (North)** | `priest1@example.com` | `password123` |
-| **Priest (South)** | `priest2@example.com` | `password123` |
-| **Devotee** | `devotee1@example.com` | `password123` |
-| **Demo User** | `demo@example.com` | `Anish@123` |
+| Role               | Email                     | Password      |
+|:-------------------|:--------------------------|:--------------|
+| **Priest (North)** | `priest1@example.com`     | `password123` |
+| **Priest**         | `sharmaji@mailinator.com` | `Anish@123`   |
+| **Priest (South)** | `priest2@example.com`     | `password123` |
+| **Devotee**        | `devotee1@example.com`    | `password123` |
+| **Demo User**      | `demo@example.com`        | `Anish@123`   |
 
 ---
 

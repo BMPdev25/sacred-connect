@@ -13,7 +13,6 @@ import {
   Linking,
   Modal,
   ScrollView,
-  StatusBar,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -21,6 +20,9 @@ import {
   RefreshControl,
   TextInput
 } from "react-native";
+import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useDispatch, useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { logout } from "../../../redux/slices/authSlice";
@@ -85,8 +87,9 @@ const menuStyles = StyleSheet.create({
   },
   menuItemLabel: {
     fontSize: 16,
-    color: APP_COLORS.black,
-    fontWeight: "500",
+    color: APP_COLORS.tertiary,
+    fontWeight: "600",
+    fontFamily: 'serif',
   },
   rightText: {
     fontSize: 14,
@@ -123,6 +126,7 @@ const HEADER_TOP_PADDING = (StatusBar.currentHeight ?? 24) + 20;
 
 const ProfileScreen: React.FC = () => {
   // ... existing hooks ...
+  const insets = useSafeAreaInsets();
   const dispatch = useDispatch();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const [profile, setProfile] = useState<PriestProfile | null>(null);
@@ -504,6 +508,7 @@ const ProfileScreen: React.FC = () => {
 
   return (
     <View style={styles.container}>
+      <StatusBar style="dark" />
       {/* Loading Modal for PDF Upload/Download */}
       <Modal
         transparent={true}
@@ -527,8 +532,13 @@ const ProfileScreen: React.FC = () => {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {/* ... Header ... */}
-          {/* ... Header ... */}
+          <LinearGradient 
+            colors={['#FFFFFF', '#FDFBF7']} 
+            style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}
+          >
+            <Text style={styles.headerTitle}>My Profile</Text>
+          </LinearGradient>
+
           <View style={styles.profileHeader}>
             <Image
               source={profile?.profilePicture ? { uri: profile.profilePicture } : require("../../../assets/images/default-profile.png")}
@@ -594,7 +604,7 @@ const ProfileScreen: React.FC = () => {
             <MenuItem 
                 icon="document-text-outline" 
                 label="Verification Documents" 
-                rightText={profile?.isVerified ? "Approved" : (profile?.verificationStatus === 'pending' ? "Under Review" : (profile?.verificationStatus === 'rejected' ? "Rejected" : "Incomplete"))}
+                rightText={profile?.isVerified ? "Verified" : (profile?.verificationStatus === 'pending' ? "Pending Approval" : (profile?.verificationStatus === 'rejected' ? "Action Required" : "Incomplete"))}
                 onPress={() => setIsDocsModalVisible(true)} 
                 isLast={true}
             />
@@ -680,7 +690,7 @@ const ProfileScreen: React.FC = () => {
               </View>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {profile?.verificationDocuments?.find((d: any) => d.type === "government_id") && (
-                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.info }]} onPress={() => handleViewDocument("government_id")}>
+                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.primary }]} onPress={() => handleViewDocument("government_id")}>
                     <Text style={styles.uploadButtonText}>View</Text>
                   </TouchableOpacity>
                 )}
@@ -710,7 +720,7 @@ const ProfileScreen: React.FC = () => {
               </View>
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 {profile?.verificationDocuments?.find((d: any) => d.type === "religious_certificate") && (
-                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.info }]} onPress={() => handleViewDocument("religious_certificate")}>
+                  <TouchableOpacity style={[styles.uploadButton, { backgroundColor: APP_COLORS.primary }]} onPress={() => handleViewDocument("religious_certificate")}>
                     <Text style={styles.uploadButtonText}>View</Text>
                   </TouchableOpacity>
                 )}
@@ -932,6 +942,8 @@ const localStyles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: "bold",
+    color: APP_COLORS.tertiary,
+    fontFamily: 'serif',
   },
   inputLabel: {
     fontSize: 14,
@@ -958,6 +970,7 @@ const localStyles = StyleSheet.create({
     color: APP_COLORS.white,
     fontWeight: "bold",
     fontSize: 16,
+    fontFamily: 'serif',
   },
 });
 
@@ -967,28 +980,19 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.background,
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-  },
-  headerShadow: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.lightGray,
-  },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: APP_COLORS.tertiary,
+    shadowOpacity: 0.06,
+    elevation: 3,
+    paddingHorizontal: 20,
   },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 22,
+    color: APP_COLORS.tertiary,
+    fontSize: 28,
+    fontFamily: 'serif',
     fontWeight: "bold",
+    marginLeft: 20,
   },
   profileHeader: {
     alignItems: "center",
@@ -1020,6 +1024,8 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 20,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 4,
   },
   userRole: {
@@ -1063,7 +1069,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     paddingHorizontal: 12,
     borderRadius: 16,
-    backgroundColor: "rgba(255, 107, 0, 0.2)",
+    backgroundColor: APP_COLORS.saffronLight,
   },
   editButtonText: {
     fontSize: 12,
@@ -1089,8 +1095,9 @@ const styles = StyleSheet.create({
   templeName: {
     fontSize: 16,
     fontWeight: "bold",
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
     marginBottom: 2,
+    fontFamily: 'serif',
   },
   infoValue: {
     fontSize: 16,

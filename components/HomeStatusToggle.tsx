@@ -104,16 +104,15 @@ export const HomeStatusToggle: React.FC<HomeStatusToggleProps> = ({
 
             {loading ? (
                 <ActivityIndicator size="small" color={isOnline ? APP_COLORS.white : APP_COLORS.gray} />
-            ) : (
+            ) : !disabled ? (
                 <Switch
-                    trackColor={{ false: '#e0e0e0', true: disabled ? '#ccc' : 'rgba(255,255,255,0.4)' }}
-                    thumbColor={isOnline ? (disabled ? '#f4f3f4' : APP_COLORS.white) : '#f4f3f4'}
+                    trackColor={{ false: '#e0e0e0', true: 'rgba(255,255,255,0.4)' }}
+                    thumbColor={isOnline ? APP_COLORS.white : '#f4f3f4'}
                     ios_backgroundColor="#3e3e3e"
                     onValueChange={handleToggle}
                     value={isOnline}
-                    disabled={disabled}
                 />
-            )}
+            ) : null}
         </View>
     );
 };
@@ -167,6 +166,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         marginBottom: 2,
+        fontFamily: 'serif',
     },
     disabledText: {
         color: '#999',
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
         color: APP_COLORS.white,
     },
     offlineText: {
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     statusSubtext: {
         fontSize: 13,

@@ -127,21 +127,28 @@ export default function DocumentUpload() {
     if (loading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={APP_COLORS.primary} />
+                <ActivityIndicator size="large" color={APP_COLORS.secondary} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
+        <View style={styles.container}>
+            <StatusBar style="dark" />
+            
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Upload Documents</Text>
-                <View style={{ width: 34 }} />
-            </View>
+            <LinearGradient
+                colors={['#FFFFFF', '#FDFBF7']}
+                style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 20 }]}
+            >
+                <View style={styles.headerRow}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Upload Documents</Text>
+                    <View style={{ width: 34 }} />
+                </View>
+            </LinearGradient>
 
             <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
                 <Text style={styles.subtitle}>
@@ -152,7 +159,7 @@ export default function DocumentUpload() {
                 <View style={styles.card}>
                     <View style={styles.cardHeader}>
                         <View style={styles.cardTitleRow}>
-                            <Ionicons name="id-card-outline" size={22} color={APP_COLORS.primary} />
+                            <Ionicons name="id-card-outline" size={22} color={APP_COLORS.secondary} />
                             <Text style={styles.cardTitle}>Aadhaar / Government ID</Text>
                             <Text style={styles.requiredTag}>Required</Text>
                         </View>
@@ -266,7 +273,7 @@ export default function DocumentUpload() {
                     <Text style={styles.skipBtnText}>Skip for now</Text>
                 </TouchableOpacity>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
@@ -274,16 +281,22 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: APP_COLORS.background },
     loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: APP_COLORS.background },
     header: {
-        backgroundColor: APP_COLORS.primary,
+        borderBottomWidth: 1,
+        borderBottomColor: APP_COLORS.divider,
+    },
+    headerRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 20,
-        paddingVertical: 15,
-        paddingTop: 50,
     },
     backBtn: { padding: 5 },
-    headerTitle: { color: APP_COLORS.white, fontSize: 20, fontWeight: "bold" },
+    headerTitle: { 
+        color: APP_COLORS.tertiary, 
+        fontSize: 20, 
+        fontWeight: "bold",
+        fontFamily: 'serif' 
+    },
     content: { flex: 1, padding: 20 },
     subtitle: { fontSize: 14, color: APP_COLORS.gray, marginBottom: 20, lineHeight: 20 },
 

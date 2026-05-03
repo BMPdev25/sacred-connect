@@ -107,6 +107,7 @@ const PriestTabs = () => {
         name="(tabs)/CalendarTab"
         options={{
           title: "Calendar",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="calendar-outline" size={size || 20} color={color} />
           ),
@@ -126,6 +127,7 @@ const PriestTabs = () => {
         name="(tabs)/EarningsTab"
         options={{
           title: "Earnings",
+          headerShown: false,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="cash-outline" size={size || 20} color={color} />
           ),
@@ -135,6 +137,7 @@ const PriestTabs = () => {
         name="(tabs)/ProfileTab"
         options={{
           title: "Menu",
+          headerShown: false,
           headerRight: () => null,
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="menu-outline" size={size || 20} color={color} />

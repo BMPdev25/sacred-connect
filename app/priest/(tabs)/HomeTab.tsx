@@ -15,6 +15,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { LinearGradient } from "expo-linear-gradient";
 import { useSelector, useDispatch } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
 import { RootState, AppDispatch } from "../../../redux/store";
@@ -221,7 +222,7 @@ const HomeScreen: React.FC = () => {
 
   return (
     <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <StatusBar style="light" backgroundColor={APP_COLORS.primary} />
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
         style={styles.container}
@@ -230,73 +231,75 @@ const HomeScreen: React.FC = () => {
         }
       >
         <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
-          <View style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}>
-            <View style={styles.headerRow}>
-              <View style={styles.headerContent}>
-                <Text style={styles.welcomeText}>Welcome back,</Text>
-                <Text style={styles.headerTitle}>{userInfo?.name || "Priest"}</Text>
+          <LinearGradient
+            colors={["#FFFFFF", "#FDFBF7"]}
+            style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}
+          >
+            <View style={styles.headerContent}>
+              <View>
+                <Text style={styles.headerTitle}>Sacred Connect</Text>
+                <Text style={styles.headerSubtitle}>Namaste, {userInfo?.name?.split(' ')[0] || 'Pandit ji'}</Text>
               </View>
-
               <View style={styles.headerActions}>
                 <TouchableOpacity
-                  style={styles.notificationBell}
+                  style={styles.notificationBtn}
                   onPress={toggleNotifications}
                 >
                   <Ionicons
                     name={showNotifications ? "notifications" : "notifications-outline"}
-                    size={28}
-                    color={APP_COLORS.white}
+                    size={24}
+                    color={APP_COLORS.tertiary}
                   />
                   {unreadCount > 0 && <View style={styles.notificationBadge} />}
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </LinearGradient>
 
           {/* Profile Completion */}
           {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
             <ProfileCompletionBanner data={profileCompletion} />
           )}
 
-          {/* Verification Banner */}
-          {!loading && verificationStatus === 'pending' && (
-            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.info + "12", borderLeftColor: APP_COLORS.info }]}>
-              <Ionicons name="time-outline" size={24} color={APP_COLORS.info} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.info }]}>Application Under Review</Text>
-                <Text style={styles.bannerText}>Your documents are being verified by our team. You can still set up your schedule while you wait!</Text>
-              </View>
-            </View>
-          )}
-
-          {!loading && verificationStatus === 'rejected' && (
-            <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
-              <Ionicons name="close-circle-outline" size={24} color={APP_COLORS.error} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
-                <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
-                <TouchableOpacity 
-                  style={styles.bannerBtn}
+          {/* Verification Status Card */}
+          {!loading && (
+            <View style={styles.statusSection}>
+              {verificationStatus === 'pending' ? (
+                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.saffronLight, borderLeftColor: APP_COLORS.primary }]}>
+                  <Ionicons name="time" size={24} color={APP_COLORS.primary} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.primary }]}>Application Under Review</Text>
+                    <Text style={styles.bannerText}>Our team is currently verifying your profile and documents. You'll be notified once you're approved to start receiving bookings.</Text>
+                  </View>
+                </View>
+              ) : verificationStatus === 'rejected' ? (
+                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
+                  <Ionicons name="close-circle" size={24} color={APP_COLORS.error} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
+                    <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
+                    <TouchableOpacity 
+                      style={[styles.bannerBtn, { backgroundColor: APP_COLORS.error }]}
+                      onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
+                    >
+                      <Text style={styles.bannerBtnText}>Update Documents</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : verificationStatus === 'incomplete' ? (
+                <TouchableOpacity
+                  style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
                   onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
                 >
-                  <Text style={styles.bannerBtnText}>Update Documents</Text>
+                  <Ionicons name="shield-half-outline" size={24} color={APP_COLORS.warning} />
+                  <View style={styles.bannerContent}>
+                    <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Complete Your Profile</Text>
+                    <Text style={styles.bannerText}>Finish onboarding to start receiving bookings and build your presence on Sacred Connect.</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
                 </TouchableOpacity>
-              </View>
+              ) : null}
             </View>
-          )}
-
-          {!loading && verificationStatus === 'incomplete' && (
-            <TouchableOpacity
-              style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
-              onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
-            >
-              <Ionicons name="shield-outline" size={24} color={APP_COLORS.warning} />
-              <View style={styles.bannerContent}>
-                <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Incomplete Profile</Text>
-                <Text style={styles.bannerText}>Finish onboarding to start receiving bookings.</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
-            </TouchableOpacity>
           )}
 
           {/* Reliability Warning Banner */}
@@ -332,17 +335,18 @@ const HomeScreen: React.FC = () => {
           ) : (
             <View style={styles.content}>
 
-              {/* Status Toggle */}
-              <HomeStatusToggle
-                currentStatus={currentAvailability?.status || 'offline'}
-                autoToggle={currentAvailability?.autoToggle ?? true}
-                isVerified={verificationStatus === 'approved'}
-                completionPercentage={profileCompletion?.completionPercentage || 0}
-                onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
-                style={{ marginBottom: 20 }}
-                disabled={verificationStatus !== 'approved'}
-                disabledMessage={verificationStatus === 'pending' ? "Profile Under Review" : (verificationStatus === 'rejected' ? "Verification Rejected" : "Incomplete Profile")}
-              />
+              {/* Status Toggle - Only show when approved to avoid redundancy with banners above */}
+              {verificationStatus === 'approved' && (
+                <HomeStatusToggle
+                  currentStatus={currentAvailability?.status || 'offline'}
+                  autoToggle={currentAvailability?.autoToggle ?? true}
+                  isVerified={verificationStatus === 'approved'}
+                  completionPercentage={profileCompletion?.completionPercentage || 0}
+                  onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
+                  style={{ marginBottom: 20 }}
+                  disabled={verificationStatus !== 'approved'}
+                />
+              )}
 
               {/* Pending Actions Carousel */}
               {pendingActions.length > 0 && (
@@ -352,11 +356,11 @@ const HomeScreen: React.FC = () => {
                     {pendingActions.map((action, index) => (
                       <View key={index} style={styles.actionCard}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                          <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info + '20' : APP_COLORS.warning + '20' }]}>
+                          <View style={[styles.actionIcon, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.primary + '20' : APP_COLORS.warning + '20' }]}>
                             <Ionicons
                               name={action.actionType === 'mark_complete' ? 'checkmark-circle-outline' : 'star-outline'}
                               size={24}
-                              color={action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning}
+                              color={action.actionType === 'mark_complete' ? APP_COLORS.primary : APP_COLORS.warning}
                             />
                           </View>
                           <View style={{ marginLeft: 12, flex: 1 }}>
@@ -366,7 +370,7 @@ const HomeScreen: React.FC = () => {
                         </View>
 
                         <TouchableOpacity
-                          style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.info : APP_COLORS.warning }]}
+                          style={[styles.actionBtn, { backgroundColor: action.actionType === 'mark_complete' ? APP_COLORS.primary : APP_COLORS.warning }]}
                           onPress={() => action.actionType === 'mark_complete' ? handleMarkComplete(action._id) : openRateModal(action)}
                         >
                           <Text style={styles.actionBtnText}>
@@ -546,45 +550,49 @@ const HomeScreen: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: APP_COLORS.background },
+  container: { flex: 1, backgroundColor: APP_COLORS.neutral },
   header: {
-    backgroundColor: APP_COLORS.primary,
     borderBottomLeftRadius: 24,
     borderBottomRightRadius: 24,
+    shadowColor: APP_COLORS.tertiary,
+    shadowOpacity: 0.06,
+    elevation: 3,
   },
-  headerRow: {
+  headerContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 20,
     alignItems: 'center'
   },
-  headerContent: {},
-  welcomeText: {
-    color: APP_COLORS.white,
-    opacity: 0.8,
-    fontSize: 14,
-  },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 24,
+    color: APP_COLORS.tertiary,
+    fontSize: 28,
+    fontFamily: 'serif',
     fontWeight: "bold",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: APP_COLORS.secondary,
+    fontFamily: 'serif',
+    opacity: 0.8,
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center'
   },
-  notificationBell: {
-    position: 'relative'
+  notificationBtn: {
+    position: 'relative',
+    padding: 8,
   },
   notificationBadge: {
     position: "absolute",
-    top: 0,
-    right: 0,
+    top: 8,
+    right: 8,
     width: 10,
     height: 10,
     borderRadius: 5,
     backgroundColor: APP_COLORS.error,
-    borderWidth: 1,
+    borderWidth: 2,
     borderColor: APP_COLORS.white,
   },
   content: {
@@ -593,18 +601,24 @@ const styles = StyleSheet.create({
   dashboardGrid: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 12,
   },
   statCard: {
     flex: 1,
     backgroundColor: APP_COLORS.white,
     padding: 16,
     borderRadius: 16,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   statLabel: {
     fontSize: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     marginBottom: 4,
   },
   statValue: {
@@ -624,19 +638,21 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 12,
   },
   upNextCard: {
     backgroundColor: APP_COLORS.white,
     borderRadius: 16,
     padding: 20,
-    elevation: 4,
-    shadowColor: APP_COLORS.primary,
-    shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 4 },
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   upNextHeader: {
     flexDirection: 'row',
@@ -647,19 +663,20 @@ const styles = StyleSheet.create({
   ceremonyTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     flex: 1,
   },
   badge: {
-    backgroundColor: APP_COLORS.success + '20',
-    paddingHorizontal: 8,
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 8,
+    borderRadius: 100,
   },
   badgeText: {
-    color: APP_COLORS.success,
+    color: APP_COLORS.primary,
     fontSize: 10,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   detailRow: {
     flexDirection: 'row',
@@ -669,7 +686,7 @@ const styles = StyleSheet.create({
   },
   detailText: {
     fontSize: 14,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
   },
   actionButton: {
     backgroundColor: APP_COLORS.primary,
@@ -677,32 +694,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
-    borderRadius: 12,
+    paddingHorizontal: 28,
+    borderRadius: 100,
     marginTop: 16,
     gap: 8,
   },
   actionButtonText: {
     color: APP_COLORS.white,
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 14,
+    letterSpacing: 0.5,
   },
   horizontalScroll: {
     marginHorizontal: -20,
     paddingHorizontal: 20,
   },
+  actionCard: {
+    backgroundColor: APP_COLORS.white,
+    width: 280,
+    padding: 16,
+    borderRadius: 16,
+    marginRight: 16,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.primary
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: APP_COLORS.tertiary,
+    fontFamily: 'serif',
+    marginBottom: 2
+  },
+  actionDesc: {
+    fontSize: 12,
+    color: APP_COLORS.secondary
+  },
+  actionBtn: {
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 8
+  },
+  actionBtnText: {
+    color: APP_COLORS.white,
+    fontWeight: 'bold',
+    fontSize: 14
+  },
   requestCard: {
     backgroundColor: APP_COLORS.white,
     width: 200,
     padding: 12,
-    borderRadius: 14,
+    borderRadius: 16,
     marginRight: 10,
     elevation: 3,
-    shadowColor: '#000',
+    shadowColor: APP_COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 4,
-    borderLeftWidth: 3,
-    borderLeftColor: APP_COLORS.warning,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   reqCardTop: {
     flexDirection: 'row',
@@ -711,25 +775,27 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   reqPendingBadge: {
-    backgroundColor: APP_COLORS.warning + '20',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+    backgroundColor: APP_COLORS.saffronLight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 100,
   },
   reqPendingText: {
     fontSize: 9,
-    fontWeight: 'bold',
-    color: APP_COLORS.warning,
+    fontWeight: '600',
+    color: APP_COLORS.primary,
   },
   reqPrice: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: APP_COLORS.success,
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   reqTitle: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
+    fontWeight: '600',
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 4,
   },
   reqDetailRow: {
@@ -740,12 +806,12 @@ const styles = StyleSheet.create({
   },
   reqClient: {
     fontSize: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     flex: 1,
   },
   reqDate: {
     fontSize: 11,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
   },
   reqTapHint: {
     alignItems: 'flex-end',
@@ -757,8 +823,9 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     marginTop: 12,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     fontSize: 16,
+    fontFamily: 'serif',
   },
   reviewCard: {
     backgroundColor: APP_COLORS.white,
@@ -766,7 +833,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginRight: 12,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   reviewerAvatar: {
     width: 32,
@@ -784,65 +857,29 @@ const styles = StyleSheet.create({
   reviewerName: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: APP_COLORS.black,
+    color: APP_COLORS.tertiary,
   },
   reviewComment: {
-    lineHeight: 20
+    lineHeight: 20,
+    color: APP_COLORS.secondary,
+    fontSize: 13,
+    fontStyle: 'italic',
   },
-  actionCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 280,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 16,
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: APP_COLORS.black,
-    marginBottom: 2
-  },
-  actionDesc: {
-    fontSize: 12,
-    color: APP_COLORS.gray
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8
-  },
-  actionBtnText: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14
+  statusSection: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
   },
   statusBanner: {
     flexDirection: "row",
     alignItems: "center",
-    marginHorizontal: 20,
-    marginBottom: 12,
     padding: 16,
     borderRadius: 16,
     borderLeftWidth: 4,
-    elevation: 2,
-    shadowColor: '#000',
+    backgroundColor: APP_COLORS.white,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 1,
     shadowRadius: 4,
   },
   bannerContent: {
@@ -851,26 +888,26 @@ const styles = StyleSheet.create({
   },
   bannerTitle: {
     fontSize: 16,
-    fontWeight: "bold",
-    marginBottom: 2,
+    fontWeight: 'bold',
+    fontFamily: 'serif',
+    marginBottom: 4,
   },
   bannerText: {
     fontSize: 13,
-    color: APP_COLORS.gray,
+    color: APP_COLORS.secondary,
     lineHeight: 18,
   },
   bannerBtn: {
-    marginTop: 10,
-    backgroundColor: APP_COLORS.error,
+    marginTop: 12,
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 16,
     borderRadius: 8,
     alignSelf: 'flex-start',
   },
   bannerBtnText: {
     color: APP_COLORS.white,
     fontSize: 12,
-    fontWeight: "bold",
+    fontWeight: 'bold',
   },
 });
 

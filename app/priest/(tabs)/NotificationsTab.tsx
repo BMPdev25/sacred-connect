@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSelector } from "react-redux";
 import { APP_COLORS } from "../../../constants/Colors";
@@ -157,18 +158,12 @@ const NotificationsScreen: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1 }}>
-        <View
+        <LinearGradient
+          colors={['#FFFFFF', '#FDFBF7']}
           style={[
             styles.header,
             {
               paddingTop: HEADER_TOP_PADDING,
-              shadowColor: "#000",
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.08,
-              shadowRadius: 4,
-              elevation: 4,
-              borderBottomWidth: 1,
-              borderBottomColor: APP_COLORS.lightGray,
             },
           ]}
         >
@@ -176,7 +171,7 @@ const NotificationsScreen: React.FC = () => {
           <TouchableOpacity onPress={markAllAsRead}>
             <Text style={styles.markAllText}>Mark all as read</Text>
           </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
         {loading ? (
           <View style={styles.loadingContainer}>
@@ -213,38 +208,53 @@ const NotificationsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.neutral,
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
     paddingHorizontal: 16,
     paddingBottom: 16,
-    // Top padding is now handled dynamically
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 4,
+    elevation: 3,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.divider,
   },
   headerTitle: {
-    color: APP_COLORS.white,
+    color: APP_COLORS.tertiary,
     fontSize: 22,
     fontWeight: "bold",
+    fontFamily: 'serif',
   },
   markAllText: {
-    color: APP_COLORS.white,
+    color: APP_COLORS.primary,
     fontWeight: "500",
   },
   notificationsList: {
     padding: 16,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.neutral,
   },
   notificationCard: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
     flexDirection: "row",
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   unreadNotification: {
     borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary,
+    borderLeftColor: '#D98934',
   },
   iconContainer: {
     width: 48,
@@ -266,6 +276,8 @@ const styles = StyleSheet.create({
   notificationTitle: {
     fontSize: 16,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   notificationTime: {
     fontSize: 12,
@@ -281,11 +293,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     padding: 24,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.neutral,
   },
   emptyText: {
     fontSize: 18,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginTop: 16,
     marginBottom: 8,
   },

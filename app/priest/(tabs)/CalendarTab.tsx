@@ -1,7 +1,9 @@
 import React, { useState, useCallback, useMemo, memo } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CalendarProvider, ExpandableCalendar, AgendaList } from 'react-native-calendars';
 import { APP_COLORS } from '../../../constants/Colors';
 import { useSelector } from 'react-redux';
@@ -43,6 +45,7 @@ const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: 
 ));
 
 export default function CalendarTab() {
+    const insets = useSafeAreaInsets();
     const { userInfo } = useSelector((state: RootState) => state.auth);
     const [sections, setSections] = useState<any[]>([]);
     const [markedDates, setMarkedDates] = useState<any>({});
@@ -125,19 +128,33 @@ export default function CalendarTab() {
 
     return (
         <View style={styles.container}>
-            <View style={styles.headerTabs}>
-                <TouchableOpacity
-                    style={[styles.tab, viewMode === 'bookings' && styles.activeTab]}
-                    onPress={() => setViewMode('bookings')}
-                >
-                    <Text style={[styles.tabText, viewMode === 'bookings' && styles.activeTabText]}>Bookings</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.tab, viewMode === 'availability' && styles.activeTab]}
-                    onPress={() => setViewMode('availability')}
-                >
-                    <Text style={[styles.tabText, viewMode === 'availability' && styles.activeTabText]}>Availability</Text>
-                </TouchableOpacity>
+            <StatusBar style="dark" />
+            
+            <LinearGradient
+                colors={['#FFFFFF', '#FDFBF7']}
+                style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}
+            >
+                <View style={styles.headerContent}>
+                    <Text style={styles.headerTitle}>Calendar</Text>
+                    <NotificationBell color={APP_COLORS.tertiary} />
+                </View>
+            </LinearGradient>
+
+            <View style={styles.tabContainer}>
+                <View style={styles.headerTabs}>
+                    <TouchableOpacity
+                        style={[styles.tab, viewMode === 'bookings' && styles.activeTab]}
+                        onPress={() => setViewMode('bookings')}
+                    >
+                        <Text style={[styles.tabText, viewMode === 'bookings' && styles.activeTabText]}>Bookings</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tab, viewMode === 'availability' && styles.activeTab]}
+                        onPress={() => setViewMode('availability')}
+                    >
+                        <Text style={[styles.tabText, viewMode === 'availability' && styles.activeTabText]}>Availability</Text>
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {viewMode === 'bookings' ? (
@@ -188,27 +205,55 @@ export default function CalendarTab() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+    },
+    headerContent: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flex: 1,
+    },
+    headerTitle: {
+        fontSize: 28,
+        fontWeight: 'bold',
+        color: APP_COLORS.tertiary,
+        fontFamily: 'serif',
+    },
+    tabContainer: {
+        backgroundColor: APP_COLORS.white,
+        borderBottomWidth: 1,
+        borderBottomColor: APP_COLORS.divider,
     },
     headerTabs: {
         flexDirection: 'row',
-        padding: 16,
+        padding: 12,
+        paddingHorizontal: 20,
         gap: 12,
-        backgroundColor: APP_COLORS.white,
     },
     tab: {
         flex: 1,
         paddingVertical: 10,
         alignItems: 'center',
-        borderRadius: 8,
-        backgroundColor: APP_COLORS.lightGray + '40',
+        borderRadius: 12,
+        backgroundColor: APP_COLORS.neutral,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
     activeTab: {
         backgroundColor: APP_COLORS.primary,
+        borderColor: APP_COLORS.primary,
     },
     tabText: {
-        fontWeight: 'bold',
-        color: APP_COLORS.gray,
+        fontWeight: '600',
+        color: APP_COLORS.secondary,
+        fontSize: 14,
     },
     activeTabText: {
         color: APP_COLORS.white,
@@ -238,15 +283,17 @@ const styles = StyleSheet.create({
     card: {
         flexDirection: 'row',
         backgroundColor: APP_COLORS.white,
-        borderRadius: 12,
+        borderRadius: 16,
         marginHorizontal: 16,
         marginBottom: 12,
         overflow: 'hidden',
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
         minHeight: 90,
     },
     cardSingle: {
@@ -289,8 +336,9 @@ const styles = StyleSheet.create({
     ceremonyName: {
         fontSize: 17,
         fontWeight: 'bold',
+        fontFamily: 'serif',
         marginBottom: 6,
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     textLarge: {
         fontSize: 28,

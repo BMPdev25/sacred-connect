@@ -5,7 +5,20 @@ import { router } from 'expo-router';
 
 // Helper function to determine the correct API URL
 const getBaseURL = (): string => {
-  return process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000';
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Fallback for development environments
+  if (__DEV__) {
+    // For Android Emulator, localhost is 10.0.2.2
+    if (Platform.OS === 'android') {
+      return 'http://10.0.2.2:5000';
+    }
+  }
+
+  return 'http://localhost:5000';
 };
 
 // Export for use in other files
@@ -13,8 +26,8 @@ export const API_BASE_URL = getBaseURL();
 
 // Create axios instance with proper configuration
 const api: AxiosInstance = axios.create({
-  baseURL: getBaseURL(),
-  timeout: 15000, // change this later
+  baseURL: API_BASE_URL,
+  timeout: 15000,
   headers: {
     'Content-Type': 'application/json',
   }

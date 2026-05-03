@@ -1,6 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { StatusBar as ExpoStatusBar } from "expo-status-bar";
+import { StatusBar } from "expo-status-bar";
 import { useFocusEffect } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -25,6 +27,7 @@ const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
 
 const EarningsScreen = () => {
   // ... hooks ...
+  const insets = useSafeAreaInsets();
   const { userInfo } = useSelector((state: RootState) => state.auth);
   const earningsData = useSelector((state: RootState) => state.priest.earnings);
   const earningsLoading = useSelector((state: RootState) => state.priest.isLoading);
@@ -113,7 +116,7 @@ const EarningsScreen = () => {
           { justifyContent: "center", alignItems: "center" },
         ]}
       >
-        <ExpoStatusBar style="light" backgroundColor={APP_COLORS.primary} />
+        <StatusBar style="dark" />
         <ActivityIndicator size="large" color={APP_COLORS.primary} />
         <Text style={{ marginTop: 16, color: APP_COLORS.gray }}>
           Loading earnings data...
@@ -123,13 +126,20 @@ const EarningsScreen = () => {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
+    <View style={{ flex: 1, backgroundColor: APP_COLORS.neutral }}>
+      <StatusBar style="dark" />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[APP_COLORS.primary]} />
         }
       >
+        <LinearGradient 
+          colors={['#FFFFFF', '#FDFBF7']} 
+          style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24, marginHorizontal: -16, marginBottom: 16 }]}
+        >
+          <Text style={styles.headerTitle}>Earnings</Text>
+        </LinearGradient>
 
         <View style={styles.earningsSummary}>
           <View style={styles.summaryHeader}>
@@ -365,17 +375,20 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.neutral,
   },
   header: {
-    backgroundColor: APP_COLORS.primary,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    // Top padding is now handled dynamically
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
+    shadowColor: APP_COLORS.tertiary,
+    shadowOpacity: 0.06,
+    elevation: 3,
+    paddingHorizontal: 20,
   },
   headerTitle: {
-    color: APP_COLORS.white,
-    fontSize: 22,
+    color: APP_COLORS.tertiary,
+    fontSize: 28,
+    fontFamily: 'serif',
     fontWeight: "bold",
   },
   scrollContent: {
@@ -383,10 +396,16 @@ const styles = StyleSheet.create({
   },
   earningsSummary: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 16,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   summaryHeader: {
     flexDirection: "row",
@@ -397,6 +416,8 @@ const styles = StyleSheet.create({
   summaryTitle: {
     fontSize: 16,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   periodSelector: {
     flexDirection: "row",
@@ -412,6 +433,8 @@ const styles = StyleSheet.create({
   totalAmount: {
     fontSize: 32,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 8,
   },
   growthIndicator: {
@@ -424,7 +447,7 @@ const styles = StyleSheet.create({
   },
   withdrawButton: {
     backgroundColor: APP_COLORS.primary,
-    borderRadius: 8,
+    borderRadius: 100,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -442,14 +465,22 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     marginBottom: 12,
   },
   transactionCard: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    elevation: 2,
+    elevation: 3,
+    shadowColor: APP_COLORS.cardShadow,
+    shadowOpacity: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    borderWidth: 1,
+    borderColor: APP_COLORS.divider,
   },
   transactionHeader: {
     flexDirection: "row",
@@ -459,7 +490,9 @@ const styles = StyleSheet.create({
   },
   transactionName: {
     fontSize: 14,
-    fontWeight: "500",
+    fontWeight: "600",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
     flex: 1, // Allow text to wrap if needed and take available space
     marginRight: 8, // Add spacing between name and amount
   },
@@ -515,6 +548,8 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "bold",
+    fontFamily: 'serif',
+    color: APP_COLORS.tertiary,
   },
   modalBody: {
     paddingBottom: 20,
@@ -532,11 +567,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
-    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.divider,
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
+    backgroundColor: APP_COLORS.surface,
   },
   paymentMethodLabel: {
     fontSize: 14,
@@ -580,7 +616,7 @@ const styles = StyleSheet.create({
   },
   withdrawConfirmButton: {
     backgroundColor: APP_COLORS.primary,
-    borderRadius: 8,
+    borderRadius: 100,
     paddingVertical: 12,
     alignItems: "center",
   },

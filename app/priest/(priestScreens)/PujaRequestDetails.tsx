@@ -13,6 +13,7 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from "expo-linear-gradient";
 import { APP_COLORS } from "../../../constants/Colors";
 import priestService from "../../../services/priestService";
 
@@ -208,13 +209,13 @@ const PujaRequestDetails = () => {
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
+                <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
-                </View>
+                </LinearGradient>
                 <View style={styles.centerContent}>
                     <ActivityIndicator size="large" color={APP_COLORS.primary} />
                     <Text style={styles.loadingText}>Loading request details...</Text>
@@ -227,13 +228,13 @@ const PujaRequestDetails = () => {
     if (error || !booking) {
         return (
             <SafeAreaView style={styles.container}>
-                <View style={styles.header}>
+                <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                     <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Booking Details</Text>
                     <View style={styles.headerPlaceholder} />
-                </View>
+                </LinearGradient>
                 <View style={styles.centerContent}>
                     <Ionicons name="alert-circle-outline" size={48} color={APP_COLORS.error} />
                     <Text style={styles.errorText}>{error || "Booking not found"}</Text>
@@ -261,13 +262,13 @@ const PujaRequestDetails = () => {
     return (
         <SafeAreaView style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
+            <LinearGradient colors={["#FFFFFF", APP_COLORS.neutral]} style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.black} />
+                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Booking Details</Text>
                 <View style={styles.headerPlaceholder} />
-            </View>
+            </LinearGradient>
 
             <ScrollView
                 style={styles.scrollContent}
@@ -315,7 +316,7 @@ const PujaRequestDetails = () => {
                                     : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
                                         ? APP_COLORS.success
                                         : booking.status === "completed"
-                                            ? APP_COLORS.info
+                                            ? APP_COLORS.success
                                             : APP_COLORS.error
                             }
                         />
@@ -329,7 +330,7 @@ const PujaRequestDetails = () => {
                                             : (booking.status === "confirmed" || booking.status === "arrived" || booking.status === "in_progress")
                                                 ? APP_COLORS.success
                                                 : booking.status === "completed"
-                                                    ? APP_COLORS.info
+                                                    ? APP_COLORS.success
                                                     : APP_COLORS.error,
                                 },
                             ]}
@@ -394,7 +395,7 @@ const PujaRequestDetails = () => {
                                     style={styles.contactRow}
                                     onPress={() => Linking.openURL(`tel:${devotee.phone}`)}
                                 >
-                                    <Ionicons name="call-outline" size={14} color={APP_COLORS.info} />
+                                    <Ionicons name="call-outline" size={14} color={APP_COLORS.primary} />
                                     <Text style={styles.contactText}>{devotee.phone}</Text>
                                 </TouchableOpacity>
                             )}
@@ -670,17 +671,16 @@ const PujaRequestDetails = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        backgroundColor: APP_COLORS.white,
         paddingHorizontal: 16,
         paddingVertical: 12,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
         elevation: 2,
     },
     backBtn: {
@@ -691,8 +691,9 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: 18,
+        fontFamily: "serif",
         fontWeight: "bold",
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     headerPlaceholder: { width: 40 },
     centerContent: {
@@ -771,15 +772,17 @@ const styles = StyleSheet.create({
         color: APP_COLORS.gray,
     },
     card: {
-        backgroundColor: APP_COLORS.white,
-        borderRadius: 14,
+        backgroundColor: APP_COLORS.surface,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 14,
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.08,
-        shadowRadius: 3,
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 8,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
     cardHeader: {
         flexDirection: "row",
@@ -787,13 +790,14 @@ const styles = StyleSheet.create({
         marginBottom: 14,
         paddingBottom: 10,
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
         gap: 8,
     },
     cardTitle: {
         fontSize: 16,
+        fontFamily: "serif",
         fontWeight: "bold",
-        color: APP_COLORS.black,
+        color: APP_COLORS.tertiary,
     },
     detailRow: {
         flexDirection: "row",
@@ -946,15 +950,15 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         paddingHorizontal: 16,
         paddingVertical: 12,
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         borderTopWidth: 1,
-        borderTopColor: APP_COLORS.lightGray,
+        borderTopColor: APP_COLORS.divider,
         gap: 12,
         elevation: 8,
-        shadowColor: "#000",
+        shadowColor: APP_COLORS.cardShadow,
         shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOpacity: 1,
+        shadowRadius: 8,
     },
     decisionBtn: {
         flex: 1,
@@ -962,11 +966,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: 14,
-        borderRadius: 12,
+        borderRadius: 100,
         gap: 8,
     },
     rejectBtn: {
-        backgroundColor: APP_COLORS.white,
+        backgroundColor: APP_COLORS.surface,
         borderWidth: 2,
         borderColor: APP_COLORS.error,
     },

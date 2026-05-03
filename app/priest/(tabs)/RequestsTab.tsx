@@ -2,11 +2,13 @@ import React, { useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, Alert, Image } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { StatusBar } from 'expo-status-bar';
 import { APP_COLORS } from '../../../constants/Colors';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import priestService from '../../../services/priestService';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function RequestsTab() {
     const { userInfo } = useSelector((state: RootState) => state.auth);
@@ -135,9 +137,13 @@ export default function RequestsTab() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+            <StatusBar style="dark" />
+            <LinearGradient
+                colors={['#FFFFFF', '#FDFBF7']}
+                style={styles.header}
+            >
                 <Text style={styles.title}>Booking Requests</Text>
-            </View>
+            </LinearGradient>
             <FlatList
                 data={requests}
                 renderItem={renderItem}
@@ -162,7 +168,7 @@ export default function RequestsTab() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
     },
     center: {
         flex: 1,
@@ -171,28 +177,36 @@ const styles = StyleSheet.create({
     },
     header: {
         padding: 16,
-        backgroundColor: APP_COLORS.white,
+        paddingTop: 24, // Optional depending on safe area
         borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.lightGray,
+        borderBottomColor: APP_COLORS.divider,
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
     },
     title: {
         fontSize: 24,
         fontWeight: 'bold',
-        color: APP_COLORS.black,
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary,
     },
     list: {
         padding: 16,
     },
     card: {
         backgroundColor: APP_COLORS.white,
-        borderRadius: 12,
+        borderRadius: 16,
         padding: 16,
         marginBottom: 16,
-        elevation: 2,
-        shadowColor: '#000',
+        elevation: 3,
+        shadowColor: APP_COLORS.cardShadow,
         shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
+        shadowOpacity: 1,
         shadowRadius: 4,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
     headerRow: {
         flexDirection: 'row',
@@ -221,7 +235,8 @@ const styles = StyleSheet.create({
     userName: {
         fontSize: 16,
         fontWeight: '600',
-        color: APP_COLORS.black,
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary,
     },
     timestamp: {
         fontSize: 12,
@@ -239,7 +254,7 @@ const styles = StyleSheet.create({
         color: APP_COLORS.success,
     },
     detailsContainer: {
-        backgroundColor: APP_COLORS.background,
+        backgroundColor: APP_COLORS.neutral,
         padding: 12,
         borderRadius: 8,
         marginBottom: 16,
@@ -247,7 +262,8 @@ const styles = StyleSheet.create({
     ceremonyTitle: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: APP_COLORS.primary,
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary,
         marginBottom: 8,
     },
     detailRow: {
@@ -268,17 +284,17 @@ const styles = StyleSheet.create({
     button: {
         flex: 1,
         paddingVertical: 12,
-        borderRadius: 8,
+        borderRadius: 100,
         alignItems: 'center',
         justifyContent: 'center',
     },
     acceptButton: {
-        backgroundColor: APP_COLORS.primary,
+        backgroundColor: '#D98934',
     },
     rejectButton: {
         backgroundColor: APP_COLORS.white,
-        borderWidth: 1,
-        borderColor: APP_COLORS.error,
+        borderWidth: 1.5,
+        borderColor: '#B22222',
     },
     acceptText: {
         color: APP_COLORS.white,
@@ -286,7 +302,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
     },
     rejectText: {
-        color: APP_COLORS.error,
+        color: '#B22222',
         fontWeight: 'bold',
         fontSize: 14,
     },

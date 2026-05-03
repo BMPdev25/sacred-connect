@@ -45,8 +45,16 @@ const LanguagePicker: React.FC<LanguagePickerProps> = ({
             setLoading(true);
             const response = await api.get('/api/languages');
             setLanguages(response.data);
-        } catch (error) {
-            console.error('Error fetching languages:', error);
+        } catch (error: any) {
+            console.error('Error fetching languages:', error.message);
+            if (error.config) {
+                console.error('Failed URL:', error.config.baseURL + error.config.url);
+            }
+            if (error.response) {
+                console.error('Response status:', error.response.status);
+            } else if (error.request) {
+                console.error('No response received from server. Check your connection or API URL.');
+            }
         } finally {
             setLoading(false);
         }

@@ -36,7 +36,7 @@ export const APP_COLORS = {
   lightGray: '#E5DFD7',
   gray: '#9D6D43', // Use secondary for gray areas
   error: '#B22222', // Deeper red based on Stitch palette
-  info: '#3178c6',
+  info: '#1E4D6E', // Premium Deep Navy instead of generic blue
   success: '#2E8B57', // Forest green
   warning: '#FF9933',
   text: '#704214',
@@ -44,7 +44,7 @@ export const APP_COLORS = {
   // Additional tokens
   cardShadow: 'rgba(112,66,20,0.08)', // Tinted shadow
   divider: '#E5DFD7',
-  saffronLight: '#FF993320',
+  saffronLight: '#FFF5E6',
   maroon: '#704214', // Map backward maroon to tertiary
 };
 

@@ -7,9 +7,11 @@ import {
     ActivityIndicator,
     ScrollView,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { StatusBar } from "expo-status-bar";
 import { APP_COLORS } from "../../../constants/Colors";
 import priestService from "../../../services/priestService";
 
@@ -78,26 +80,37 @@ export default function VerificationStatus() {
     if (state === "loading") {
         return (
             <View style={styles.loadingContainer}>
+                <StatusBar style="dark" />
                 <ActivityIndicator size="large" color={APP_COLORS.primary} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
-            {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={APP_COLORS.white} />
-                </TouchableOpacity>
-                <Text style={styles.headerTitle}>Verification Status</Text>
-                <View style={{ width: 34 }} />
-            </View>
+        <View style={styles.container}>
+            <StatusBar style="dark" />
+            
+            <LinearGradient
+                colors={['#FFFFFF', '#FDFBF7']}
+                style={[styles.header, { paddingTop: insets.top + 8 }]}
+            >
+                <View style={styles.headerContent}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={APP_COLORS.tertiary} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Verification</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+            </LinearGradient>
 
-            <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: "center" }}>
+            <ScrollView 
+                style={styles.content} 
+                contentContainerStyle={{ paddingBottom: insets.bottom + 24, alignItems: "center" }}
+                showsVerticalScrollIndicator={false}
+            >
                 {/* Big Icon */}
-                <View style={[styles.iconCircle, { borderColor: icon.color }]}>
-                    <Ionicons name={icon.name as any} size={64} color={icon.color} />
+                <View style={[styles.iconCircle, { borderColor: icon.color + '20', backgroundColor: icon.color + '08' }]}>
+                    <Ionicons name={icon.name as any} size={80} color={icon.color} />
                 </View>
 
                 <Text style={styles.title}>{titleMap[state]}</Text>
@@ -108,26 +121,40 @@ export default function VerificationStatus() {
                     <View style={styles.docsCard}>
                         <Text style={styles.docsCardTitle}>Submitted Documents</Text>
                         {docStatuses.map((doc, idx) => (
-                            <View key={idx} style={styles.docRow}>
-                                <Ionicons
-                                    name="document-text-outline"
-                                    size={18}
-                                    color={APP_COLORS.primary}
-                                />
-                                <Text style={styles.docName}>
-                                    {doc.type === "government_id" ? "Aadhaar / Govt ID" : "Religious Certificate"}
-                                </Text>
+                            <View key={idx} style={[styles.docRow, idx === docStatuses.length - 1 && { borderBottomWidth: 0 }]}>
+                                <View style={styles.docIconContainer}>
+                                    <Ionicons
+                                        name="document-text-outline"
+                                        size={20}
+                                        color={APP_COLORS.primary}
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.docName}>
+                                        {doc.type === "government_id" ? "Aadhaar / Govt ID" : "Religious Certificate"}
+                                    </Text>
+                                    <Text style={styles.docSubtitle}>{doc.fileName}</Text>
+                                </View>
                                 <View style={[
                                     styles.docBadge,
                                     {
                                         backgroundColor: doc.status === "verified"
-                                            ? APP_COLORS.success
+                                            ? APP_COLORS.success + '15'
                                             : doc.status === "rejected"
-                                                ? APP_COLORS.error
-                                                : APP_COLORS.warning,
+                                                ? APP_COLORS.error + '15'
+                                                : APP_COLORS.warning + '15',
                                     },
                                 ]}>
-                                    <Text style={styles.docBadgeText}>
+                                    <Text style={[
+                                        styles.docBadgeText,
+                                        {
+                                            color: doc.status === "verified"
+                                                ? APP_COLORS.success
+                                                : doc.status === "rejected"
+                                                    ? APP_COLORS.error
+                                                    : APP_COLORS.warning,
+                                        }
+                                    ]}>
                                         {doc.status.charAt(0).toUpperCase() + doc.status.slice(1)}
                                     </Text>
                                 </View>
@@ -139,7 +166,9 @@ export default function VerificationStatus() {
                 {/* Booking blocked banner */}
                 {state !== "verified" && (
                     <View style={styles.blockedBanner}>
-                        <Ionicons name="lock-closed" size={20} color={APP_COLORS.error} />
+                        <View style={styles.lockIconContainer}>
+                            <Ionicons name="lock-closed" size={20} color={APP_COLORS.error} />
+                        </View>
                         <Text style={styles.blockedText}>
                             Bookings are disabled until your profile is verified.
                         </Text>
@@ -149,11 +178,11 @@ export default function VerificationStatus() {
                 {/* Actions */}
                 {(state === "not_submitted" || state === "rejected") && (
                     <TouchableOpacity
-                        style={styles.uploadBtn}
+                        style={styles.primaryBtn}
                         onPress={() => router.push("/priest/DocumentUpload" as any)}
                     >
-                        <Ionicons name="cloud-upload-outline" size={20} color={APP_COLORS.white} />
-                        <Text style={styles.uploadBtnText}>
+                        <Ionicons name="cloud-upload-outline" size={22} color={APP_COLORS.white} />
+                        <Text style={styles.primaryBtnText}>
                             {state === "rejected" ? "Re-upload Documents" : "Upload Documents"}
                         </Text>
                     </TouchableOpacity>
@@ -161,90 +190,159 @@ export default function VerificationStatus() {
 
                 {(state === "verified" || state === "pending") && (
                     <TouchableOpacity
-                        style={[styles.uploadBtn, state === "verified" && { backgroundColor: APP_COLORS.success }]}
-                        onPress={() => router.push("/priest/HomeTab" as any)}
+                        style={[styles.primaryBtn, state === "verified" && { backgroundColor: APP_COLORS.success }]}
+                        onPress={() => router.replace("/priest/HomeTab" as any)}
                     >
-                        <Text style={styles.uploadBtnText}>Go to Dashboard</Text>
-                        <Ionicons name="arrow-forward" size={20} color={APP_COLORS.white} />
+                        <Text style={styles.primaryBtnText}>Go to Dashboard</Text>
+                        <Ionicons name="arrow-forward" size={22} color={APP_COLORS.white} />
                     </TouchableOpacity>
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: APP_COLORS.background },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: APP_COLORS.background },
+    container: { flex: 1, backgroundColor: APP_COLORS.neutral },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: APP_COLORS.neutral },
     header: {
-        backgroundColor: APP_COLORS.primary,
+        paddingHorizontal: 20,
+        paddingBottom: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: APP_COLORS.divider,
+    },
+    headerContent: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        paddingTop: 50,
     },
-    backBtn: { padding: 5 },
-    headerTitle: { color: APP_COLORS.white, fontSize: 20, fontWeight: "bold" },
-    content: { flex: 1, padding: 20 },
+    backBtn: { 
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: APP_COLORS.white,
+        justifyContent: 'center',
+        alignItems: 'center',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
+    headerTitle: { 
+        color: APP_COLORS.tertiary, 
+        fontSize: 22, 
+        fontFamily: 'serif',
+        fontWeight: "bold" 
+    },
+    content: { flex: 1 },
 
     iconCircle: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        borderWidth: 3,
+        width: 160,
+        height: 160,
+        borderRadius: 80,
+        borderWidth: 2,
         justifyContent: "center",
         alignItems: "center",
         marginTop: 40,
         marginBottom: 24,
-        backgroundColor: APP_COLORS.white,
     },
-    title: { fontSize: 22, fontWeight: "bold", color: APP_COLORS.black, marginBottom: 12, textAlign: "center" },
-    desc: { fontSize: 14, color: APP_COLORS.gray, textAlign: "center", lineHeight: 22, marginBottom: 24, paddingHorizontal: 10 },
+    title: { 
+        fontSize: 26, 
+        fontFamily: 'serif',
+        fontWeight: "bold", 
+        color: APP_COLORS.tertiary, 
+        marginBottom: 12, 
+        textAlign: "center" 
+    },
+    desc: { 
+        fontSize: 15, 
+        color: APP_COLORS.secondary, 
+        textAlign: "center", 
+        lineHeight: 24, 
+        marginBottom: 32, 
+        paddingHorizontal: 30 
+    },
 
     docsCard: {
         backgroundColor: APP_COLORS.white,
-        borderRadius: 14,
-        padding: 16,
-        width: "100%",
-        marginBottom: 20,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 2,
+        borderRadius: 20,
+        padding: 20,
+        width: "90%",
+        marginBottom: 24,
+        shadowColor: APP_COLORS.cardShadow,
+        shadowOpacity: 1,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 4,
+        borderWidth: 1,
+        borderColor: APP_COLORS.divider,
     },
-    docsCardTitle: { fontSize: 15, fontWeight: "bold", color: APP_COLORS.black, marginBottom: 12 },
-    docRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: 0.5, borderBottomColor: APP_COLORS.lightGray },
-    docName: { flex: 1, fontSize: 14, color: APP_COLORS.black },
-    docBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 },
-    docBadgeText: { color: APP_COLORS.white, fontSize: 11, fontWeight: "bold" },
+    docsCardTitle: { 
+        fontSize: 16, 
+        fontWeight: "bold", 
+        fontFamily: 'serif',
+        color: APP_COLORS.tertiary, 
+        marginBottom: 16 
+    },
+    docRow: { 
+        flexDirection: "row", 
+        alignItems: "center", 
+        gap: 12, 
+        paddingVertical: 12, 
+        borderBottomWidth: 1, 
+        borderBottomColor: APP_COLORS.divider 
+    },
+    docIconContainer: {
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: APP_COLORS.saffronLight,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    docName: { fontSize: 15, fontWeight: '600', color: APP_COLORS.tertiary },
+    docSubtitle: { fontSize: 12, color: APP_COLORS.gray, marginTop: 2 },
+    docBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: 8 },
+    docBadgeText: { fontSize: 12, fontWeight: "bold" },
 
     blockedBanner: {
         flexDirection: "row",
         alignItems: "center",
-        gap: 10,
-        backgroundColor: APP_COLORS.error + "12",
-        borderLeftWidth: 3,
-        borderLeftColor: APP_COLORS.error,
-        borderRadius: 10,
-        padding: 14,
-        width: "100%",
-        marginBottom: 20,
+        gap: 12,
+        backgroundColor: APP_COLORS.error + "08",
+        borderRadius: 12,
+        padding: 16,
+        width: "90%",
+        marginBottom: 32,
+        borderWidth: 1,
+        borderColor: APP_COLORS.error + "20",
     },
-    blockedText: { flex: 1, fontSize: 13, color: APP_COLORS.error, fontWeight: "600" },
+    lockIconContainer: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: APP_COLORS.error + "15",
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    blockedText: { flex: 1, fontSize: 14, color: APP_COLORS.error, fontWeight: "600" },
 
-    uploadBtn: {
+    primaryBtn: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
-        gap: 8,
+        gap: 10,
         backgroundColor: APP_COLORS.primary,
-        paddingVertical: 14,
-        paddingHorizontal: 24,
-        borderRadius: 12,
-        width: "100%",
+        paddingVertical: 16,
+        paddingHorizontal: 32,
+        borderRadius: 100,
+        width: "90%",
+        elevation: 4,
+        shadowColor: APP_COLORS.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
     },
-    uploadBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: "bold" },
+    primaryBtnText: { color: APP_COLORS.white, fontSize: 18, fontWeight: "bold" },
 });

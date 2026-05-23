@@ -1,0 +1,193 @@
+/**
+ * SignupDevoteeScreen — registers a new Devotee user.
+ * Built using shared signup components and hooks to ensure identical structure.
+ */
+
+import React from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import Logo from '@/components/shared/Logo';
+import PrimaryButton from '@/components/shared/PrimaryButton';
+import { THEME } from '@/constants/theme';
+import { useSignupForm } from '@/hooks/useSignupForm';
+
+import { LegalText, SignupFormFields } from './signup.components';
+import { handleDevoteeSignup } from './signup.handlers';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const DIVIDER_HEIGHT = 1;
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+export default function SignupDevoteeScreen(): React.ReactElement {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  
+  const {
+    formValues,
+    fieldErrors,
+    generalError,
+    isLoading,
+    setIsLoading,
+    setGeneralError,
+    handleFieldChange,
+    handleFieldBlur,
+    validateAll,
+    buildPayload,
+  } = useSignupForm();
+
+  async function onSubmit(): Promise<void> {
+    if (!validateAll()) return;
+    const payload = buildPayload('devotee');
+    await handleDevoteeSignup(payload, setIsLoading, setGeneralError, router);
+  }
+
+  return (
+    <KeyboardAvoidingView
+      style={styles.flex}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <ScrollView
+        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + THEME.spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Back button */}
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
+        </TouchableOpacity>
+
+        {/* Logo */}
+        <View style={styles.logoWrap}>
+          <Logo variant="full" size="md" />
+        </View>
+
+        {/* Headings */}
+        <Text style={styles.heading}>Create your account</Text>
+        <Text style={styles.subtext}>Join thousands of devotees on their spiritual journey.</Text>
+
+        {/* Form fields */}
+        <View style={styles.formArea}>
+          <SignupFormFields
+            values={formValues}
+            errors={fieldErrors}
+            onFieldChange={handleFieldChange}
+            onFieldBlur={handleFieldBlur}
+          />
+          
+          {Boolean(generalError) && <Text style={styles.errorText}>{generalError}</Text>}
+
+          {/* Primary CTA */}
+          <View style={styles.ctaWrap}>
+            <PrimaryButton
+              title="Sign Up"
+              onPress={onSubmit}
+              loading={isLoading}
+              testID="signup-devotee-btn"
+            />
+          </View>
+
+          {/* Legal Text */}
+          <LegalText
+            onTermsPress={() => { /* TODO: route to terms */ }}
+            onPrivacyPress={() => { /* TODO: route to privacy */ }}
+          />
+        </View>
+
+        <View style={styles.dividerRow}>
+          <View style={styles.dividerLine} />
+        </View>
+
+        {/* Footer */}
+        <TouchableOpacity
+          style={styles.loginRow}
+          onPress={() => router.push('/(auth)/login')}
+        >
+          <Text style={styles.loginPrompt}>Already have an account? </Text>
+          <Text style={styles.loginLink}>Login</Text>
+        </TouchableOpacity>
+
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: THEME.colors.background },
+  scroll: {
+    flexGrow: 1,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingTop: THEME.spacing.lg,
+  },
+  backBtn: { marginBottom: THEME.spacing.md },
+  logoWrap: { marginBottom: THEME.spacing.lg },
+  heading: {
+    fontSize: THEME.typography.displayMedium,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: THEME.spacing.xs,
+  },
+  subtext: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textSecondary,
+    marginBottom: THEME.spacing.xl,
+  },
+  formArea: { marginBottom: THEME.spacing.xs },
+  errorText: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.error,
+    marginTop: THEME.spacing.sm,
+    marginBottom: THEME.spacing.sm,
+    textAlign: 'center',
+  },
+  ctaWrap: { marginTop: THEME.spacing.sm },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: THEME.spacing.xl,
+  },
+  dividerLine: {
+    flex: 1,
+    height: DIVIDER_HEIGHT,
+    backgroundColor: THEME.colors.border,
+  },
+  loginRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loginPrompt: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textSecondary,
+  },
+  loginLink: {
+    fontSize: THEME.typography.body,
+    fontWeight: '600',
+    color: THEME.colors.primary,
+  },
+});

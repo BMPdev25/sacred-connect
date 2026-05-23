@@ -73,6 +73,8 @@ export interface FloatingInputProps {
   editable?: boolean;
   /** testID forwarded to the underlying TextInput for automated testing. */
   testID?: string;
+  /** Optional external blur callback, e.g. for per-field validation triggers. */
+  onBlur?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -116,7 +118,7 @@ export default function FloatingInput(props: FloatingInputProps): React.ReactEle
   const {
     label, value, onChangeText, leftIcon, rightIcon, isValid,
     error, secureTextEntry, keyboardType, autoCapitalize,
-    editable = true, testID,
+    editable = true, testID, onBlur: onBlurProp,
   } = props;
 
   const [isFocused, setIsFocused] = useState(false);
@@ -132,6 +134,7 @@ export default function FloatingInput(props: FloatingInputProps): React.ReactEle
     if (!value) {
       Animated.timing(labelAnim, { toValue: 1, duration: 180, useNativeDriver: false }).start();
     }
+    if (onBlurProp) onBlurProp();
   }
 
   const borderColor = getBorderColor(isFocused, Boolean(error));

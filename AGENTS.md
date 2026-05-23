@@ -16,6 +16,18 @@ MongoDB. Payment: Razorpay (physical service exemption, not Apple IAP).
 - Auth: Firebase Authentication (primary), Custom JWT (fallback)
 - Assets: Local folder assets/ (S3 migration planned — see Asset Rules)
 
+## Project Structure
+This is a two-repo project:
+- Frontend: sacred-connect/ (this repo — the one you are working in)
+- Backend: BMPserver/ (sibling folder — READ ONLY, never modify)
+
+When you need to verify an API endpoint, route, or response shape:
+Read from ../BMPserver/routes/ and ../BMPserver/controllers/
+Never create, edit, or delete files in ../BMPserver/
+
+Backend base URL: stored in .env as API_BASE_URL
+All API calls use the Axios instance at api/index.ts
+
 ## Routing Structure
 app/
   (auth)/          — Splash, Onboarding, Login, Signup, OTP, ForgotPassword

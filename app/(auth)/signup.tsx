@@ -91,26 +91,31 @@ export default function SignUpScreen() {
   const handleSubmit = () => {
     if (!validateStep1()) return;
 
-    if (userType === 'priest') {
-      dispatch(updateFormData({
-        name,
-        email,
-        password,
-        whatsappNumber: phone,
-        languages: languagesSpoken
-      }));
-      router.replace("/priest/OnboardingWizard" as any);
-      return;
-    }
-
     setSubmissionLoading(true);
-    dispatch(register({ name, email, phone, password, userType }))
+    dispatch(register({ name, email, phone, password, userType, languagesSpoken }))
       .unwrap()
       .then(() => {
-        router.replace("/devotee/HomeTab");
+        if (userType === 'priest') {
+          // Sync with onboarding draft for the wizard
+          dispatch(updateFormData({
+            name,
+            email,
+            password,
+            whatsappNumber: phone,
+            languages: languagesSpoken
+          }));
+          router.replace("/priest/OnboardingWizard" as any);
+        } else {
+          router.replace("/devotee/HomeTab");
+        }
       })
       .catch((err: any) => {
-        Alert.alert("Registration Failed", err || "Unknown error");
+        const errorMsg = String(err || "");
+        if (errorMsg.toLowerCase().includes("email") && errorMsg.toLowerCase().includes("already")) {
+          setErrors({ email: "This email is already registered." });
+        } else {
+          Alert.alert("Registration Failed", errorMsg || "Unknown error");
+        }
       })
       .finally(() => setSubmissionLoading(false));
   };

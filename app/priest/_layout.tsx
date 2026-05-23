@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Tabs, router } from "expo-router";
+import { Tabs, router, useSegments } from "expo-router";
 import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Pressable, Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -265,6 +265,24 @@ export default function PriestLayout() {
   const { socket } = useSocket();
   const [incomingRequest, setIncomingRequest] = React.useState<any>(null);
   const [modalVisible, setModalVisible] = React.useState(false);
+  const segments = useSegments();
+
+  // Check if the current route is the OnboardingWizard (pre-auth flow for new priests)
+  const isOnboardingRoute = segments.some((s) => s === 'OnboardingWizard');
+
+  React.useEffect(() => {
+    if (!userInfo && !isOnboardingRoute) {
+      // Only redirect to login if NOT in the onboarding wizard
+      // The OnboardingWizard is a pre-registration flow — user has no account yet
+      router.replace("/login" as any);
+    } else if (userInfo && userInfo.userType !== 'priest') {
+      // Force redirect to correct layout if role doesn't match
+      router.replace("/devotee/HomeTab" as any);
+    }
+  }, [userInfo, isOnboardingRoute]);
+
+  // Allow the OnboardingWizard to render even without a logged-in user
+  if (!userInfo && !isOnboardingRoute) return null;
 
   React.useEffect(() => {
     if (socket) {
@@ -285,13 +303,13 @@ export default function PriestLayout() {
       await priestService.acceptInstantBooking(bookingId);
       setModalVisible(false);
       setIncomingRequest(null);
-      
+
       // Navigate to booking details
       router.push({
         pathname: "/priest/PujaRequestDetails",
         params: { bookingId }
       });
-      
+
       Alert.alert("Success", "Instant booking confirmed!");
     } catch (error: any) {
       console.error("Failed to accept instant booking:", error);

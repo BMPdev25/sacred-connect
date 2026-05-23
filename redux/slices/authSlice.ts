@@ -313,7 +313,7 @@ const authSlice = createSlice({
       })
       .addCase(register.rejected, (state, action) => {
         state.isLoading = false;
-        state.error = action.error?.message || "Registration failed";
+        state.error = (action.payload as string) || action.error?.message || "Registration failed";
       })
       // Load User
       .addCase(loadUser.pending, (state) => {

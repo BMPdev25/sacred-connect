@@ -2,7 +2,7 @@ import React, { forwardRef, useImperativeHandle } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { THEME } from '@/constants/theme';
-import { StepRef } from './Step1BasicInfo';
+import { StepRef } from '@/types/stepRef.types';
 
 /**
  * Step 3: Offered Services component (Stub).

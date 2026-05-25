@@ -1,14 +1,16 @@
 import { configureStore } from '@reduxjs/toolkit';
 
 import onboardingReducer from './slices/onboardingSlice';
+import userReducer from './slices/userSlice';
 
 /**
  * Global Redux store configuration.
- * Registers the onboarding slice.
+ * Registers the onboarding and user slices.
  */
 export const store = configureStore({
   reducer: {
     onboarding: onboardingReducer,
+    user: userReducer,
   },
 });
 

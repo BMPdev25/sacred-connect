@@ -104,7 +104,7 @@ export function StateBSuccess({ email, router }: StateBProps): React.JSX.Element
       <Text style={styles.successEmail}>{email}</Text>
       <Text style={styles.successInstructions}>Check your inbox and follow the link to reset.</Text>
       <View style={styles.backBtnWrap}>
-        <PrimaryButton variant="outline" title="Back to Login" onPress={() => router.replace('/(auth)/login')} />
+        <PrimaryButton variant="outline" title="Back to Login" onPress={() => router.replace('/login')} />
       </View>
     </View>
   );

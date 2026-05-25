@@ -76,7 +76,7 @@ export async function registerUser(payload: SignupDevoteePayload | SignupPriestP
     const firebaseToken = await credential.user.getIdToken();
     
     const profile = await syncWithBackend(firebaseToken, {
-      role: payload.role,
+      userType: payload.role,
       name: payload.name,
       phone: payload.phone,
     });

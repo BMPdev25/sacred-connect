@@ -55,7 +55,7 @@ export default function RoleSelectionScreen(): React.ReactElement {
         icon="hand-left-outline"
         title="I'm a Devotee"
         subtitle="Book pandits for pujas and ceremonies"
-        onPress={() => router.push('/(auth)/signup-devotee')}
+        onPress={() => router.push('/signup-devotee')}
       />
 
       <View style={{ height: CARD_GAP }} />
@@ -64,7 +64,7 @@ export default function RoleSelectionScreen(): React.ReactElement {
         icon="person-outline"
         title="I'm a Pandit"
         subtitle="Offer services and earn on your schedule"
-        onPress={() => router.push('/(auth)/signup-priest')}
+        onPress={() => router.push('/signup-priest')}
       />
 
       <View style={styles.spacer} />
@@ -72,7 +72,7 @@ export default function RoleSelectionScreen(): React.ReactElement {
       {/* Footer */}
       <TouchableOpacity
         style={styles.loginRow}
-        onPress={() => router.push('/(auth)/login')}
+        onPress={() => router.push('/login')}
       >
         <Text style={styles.loginPrompt}>Already have an account? </Text>
         <Text style={styles.loginLink}>Login</Text>

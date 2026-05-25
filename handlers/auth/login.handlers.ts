@@ -72,7 +72,7 @@ export async function handleSendOtp(
     setLoading(true);
     setError('');
     await sendOtp(phone);
-    router.push({ pathname: '/(auth)/otp-verify', params: { phone } });
+    router.push({ pathname: '/otp-verify', params: { phone } });
   } catch (err: any) {
     logger.error('handleSendOtp failed', err);
     setError(err.message || 'Failed to send OTP. Please try again.');
@@ -100,7 +100,7 @@ export async function handleGoogleLogin(
     setError('');
     const { isNewUser } = await loginWithGoogle();
     if (isNewUser) {
-      router.replace('/(auth)/role-selection');
+      router.replace('/role-selection');
     } else {
       initializeAuthListener(null, router);
     }

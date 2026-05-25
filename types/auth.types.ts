@@ -61,7 +61,7 @@ export interface AuthSyncPayload {
   /** Optional phone to update or associate during sync. */
   phone?: string;
   /** Optional user type to set or sync. */
-  role?: UserType;
+  userType?: UserType;
 }
 
 /**

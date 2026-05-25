@@ -15,8 +15,8 @@ import {
   ForgotPasswordHeader,
   StateAForm,
   StateBSuccess,
-} from './forgot-password.components';
-import { handleSendReset } from './forgot-password.handlers';
+} from '@/components/auth/forgot-password.components';
+import { handleSendReset } from '@/handlers/auth/forgot-password.handlers';
 
 /**
  * ForgotPasswordScreen — email recovery flow.

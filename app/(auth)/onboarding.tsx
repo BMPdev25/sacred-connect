@@ -85,7 +85,6 @@ interface OnboardingSlideItemProps {
  * card overlapping at the bottom.
  */
 function OnboardingSlideItem({ slide, width }: OnboardingSlideItemProps): React.ReactElement {
-  const imageHeight = Math.round(width * 0.52 / (width / width)); // 52% of screen height approximated via aspect ratio
   return (
     <View style={[styles.slide, { width }]}>
       <Image
@@ -199,7 +198,7 @@ function useSlideNavigation(
   }
 
   function handleSkip(): void {
-    router.replace('/(auth)/role-selection');
+    router.replace('/role-selection');
   }
 
   function handleScroll(event: NativeSyntheticEvent<NativeScrollEvent>): void {
@@ -221,7 +220,7 @@ const DOT_INACTIVE_SIZE = 8;
 const DOT_GAP = 6;
 const SKIP_TOP = 16;
 const SKIP_RIGHT = 24;
-const IMAGE_HEIGHT_RATIO = 0.52;
+const IMAGE_HEIGHT_RATIO = 0.65;
 const CONTENT_OVERLAP = 16;
 
 // ---------------------------------------------------------------------------
@@ -282,7 +281,7 @@ export default function OnboardingScreen(): React.ReactElement {
           <View style={styles.getStartedWrap}>
             <PrimaryButton
               title="Get Started"
-              onPress={() => router.replace('/(auth)/role-selection')}
+              onPress={() => router.replace('/role-selection')}
               variant="primary"
             />
           </View>
@@ -312,7 +311,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   slideImage: {
-    height: '52%' as unknown as number,
+    height: '65%' as unknown as number,
   },
   contentCard: {
     flex: 1,

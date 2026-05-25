@@ -19,8 +19,8 @@ import { OTP_RESEND_COOLDOWN } from '@/constants/config';
 import { useOtpInput } from '@/hooks/useOtpInput';
 import { useCountdown } from '@/hooks/useCountdown';
 
-import { OtpHeader, OtpBoxRow, OtpTimerText } from './otp-verify.components';
-import { handleVerify, handleResend } from './otp-verify.handlers';
+import { OtpHeader, OtpBoxRow, OtpTimerText } from '@/components/auth/otp-verify.components';
+import { handleVerify, handleResend } from '@/handlers/auth/otp-verify.handlers';
 
 /**
  * OtpVerifyScreen — verification code screen for phone logins/signups.

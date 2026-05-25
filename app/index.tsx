@@ -1,12 +1,28 @@
-import { StyleSheet, Text, View } from "react-native";
+import React, { useEffect } from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { THEME } from '@/constants/theme';
 
-export default function Page() {
+/**
+ * Root entry component that programmatically redirects the user to the splash screen
+ * after a small delay to ensure the Expo Router navigation tree is fully initialized.
+ */
+export default function Index(): React.JSX.Element {
+  const router = useRouter();
+
+  useEffect(() => {
+    console.log('[DEBUG] Root index page mounted. Initializing redirect to /splash...');
+    const timer = setTimeout(() => {
+      console.log('[DEBUG] Root index: Redirecting to /splash');
+      router.replace('/splash');
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [router]);
+
   return (
     <View style={styles.container}>
-      <View style={styles.main}>
-        <Text style={styles.title}>Hello World</Text>
-        <Text style={styles.subtitle}>This is the first page of your app.</Text>
-      </View>
+      <ActivityIndicator size="large" color={THEME.colors.primary} />
     </View>
   );
 }
@@ -14,21 +30,8 @@ export default function Page() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    padding: 24,
-  },
-  main: {
-    flex: 1,
-    justifyContent: "center",
-    maxWidth: 960,
-    marginHorizontal: "auto",
-  },
-  title: {
-    fontSize: 64,
-    fontWeight: "bold",
-  },
-  subtitle: {
-    fontSize: 36,
-    color: "#38434D",
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: THEME.colors.background,
   },
 });

@@ -7,6 +7,10 @@
     "icon": "./assets/images/icon.png",
     "scheme": "sacredconnect",
     "userInterfaceStyle": "automatic",
+    "statusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FAFAF7"
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
@@ -22,6 +26,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "navigationBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#FAFAF7"
+      },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.bookmypujari",

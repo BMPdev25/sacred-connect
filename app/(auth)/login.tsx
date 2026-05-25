@@ -25,12 +25,12 @@ import {
   LoginTab,
   OrDivider,
   TabControl,
-} from './login.components';
+} from '@/components/auth/login.components';
 import {
   handleEmailLogin,
   handleGoogleLogin,
   handleSendOtp,
-} from './login.handlers';
+} from '@/handlers/auth/login.handlers';
 
 /** LoginScreen — email/password and phone OTP login with Google OAuth stub. */
 export default function LoginScreen(): React.ReactElement {
@@ -94,7 +94,7 @@ export default function LoginScreen(): React.ReactElement {
                 onTogglePassword={() => setShowPassword((v) => !v)}
               />
               <TouchableOpacity
-                onPress={() => router.push('/(auth)/forgot-password')}
+                onPress={() => router.push('/forgot-password')}
                 style={styles.forgotWrap}
               >
                 <Text style={styles.forgotText}>Forgot Password?</Text>
@@ -130,7 +130,7 @@ export default function LoginScreen(): React.ReactElement {
         {/* Footer */}
         <TouchableOpacity
           style={styles.signupRow}
-          onPress={() => router.push('/(auth)/role-selection')}
+          onPress={() => router.push('/role-selection')}
         >
           <Text style={styles.signupPrompt}>Don&apos;t have an account? </Text>
           <Text style={styles.signupLink}>Sign up</Text>

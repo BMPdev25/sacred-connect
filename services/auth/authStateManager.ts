@@ -89,6 +89,7 @@ export function routeAuthenticatedUser(
   dispatch: any,
   router: any
 ): void {
+  console.log(`[DEBUG] routeAuthenticatedUser: profile userType = ${profile.userType}`);
   if (dispatch) {
     dispatch({
       type: 'auth/setUserSession',
@@ -97,16 +98,20 @@ export function routeAuthenticatedUser(
   }
 
   if (profile.userType === 'devotee') {
+    console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Devotee Dashboard (/devotee)');
     router.replace('/devotee');
   } else if (profile.userType === 'priest') {
     if (priestState?.onboardingCompleted) {
+      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
     } else {
+      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Onboarding (/priest/onboarding)');
       router.replace('/priest/onboarding');
     }
   } else {
     logger.warn('Unknown userType encountered. Routing to auth selection', profile.userType);
-    router.replace('/(auth)/role-selection');
+    console.log('[DEBUG] routeAuthenticatedUser: Unknown userType. Redirecting to /role-selection');
+    router.replace('/role-selection');
   }
 }
 
@@ -117,10 +122,13 @@ export function routeAuthenticatedUser(
  * @param router - Expo Router instance.
  */
 export function routeUnauthenticatedUser(isFirstLaunch: boolean, router: any): void {
+  console.log(`[DEBUG] routeUnauthenticatedUser: isFirstLaunch = ${isFirstLaunch}`);
   if (isFirstLaunch) {
-    router.replace('/(auth)/onboarding');
+    console.log('[DEBUG] routeUnauthenticatedUser: Redirecting to /onboarding');
+    router.replace('/onboarding');
   } else {
-    router.replace('/(auth)/login');
+    console.log('[DEBUG] routeUnauthenticatedUser: Redirecting to /login');
+    router.replace('/login');
   }
 }
 
@@ -131,8 +139,9 @@ export function routeUnauthenticatedUser(isFirstLaunch: boolean, router: any): v
  * @param router - Expo Router instance.
  */
 export function handleAuthError(error: any, router: any): void {
+  console.log('[DEBUG] handleAuthError: Auth listener failed, redirecting to /login. Error:', error);
   logger.error('Authentication listener error occurred', error);
-  router.replace('/(auth)/login');
+  router.replace('/login');
 }
 
 /**
@@ -144,11 +153,14 @@ export function handleAuthError(error: any, router: any): void {
  * @returns The unsubscribe function for the auth listener.
  */
 export function initializeAuthListener(dispatch: any, router: any): () => void {
+  console.log('[DEBUG] initializeAuthListener: Subscribing to Firebase Auth changes...');
   return onAuthStateChanged(
     auth,
     async (firebaseUser) => {
       try {
+        console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
         if (firebaseUser) {
+          console.log(`[DEBUG] onAuthStateChanged: User UID = ${firebaseUser.uid}, email = ${firebaseUser.email}`);
           const profileWithState = await fetchUserProfile(firebaseUser);
           routeAuthenticatedUser(
             profileWithState,
@@ -157,14 +169,17 @@ export function initializeAuthListener(dispatch: any, router: any): () => void {
             router
           );
         } else {
+          console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
           const firstLaunch = await checkFirstLaunch();
           routeUnauthenticatedUser(firstLaunch, router);
         }
       } catch (err: any) {
+        console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);
         handleAuthError(err, router);
       }
     },
     (error) => {
+      console.log('[DEBUG] onAuthStateChanged: Firebase observer error event:', error);
       handleAuthError(error, router);
     }
   );

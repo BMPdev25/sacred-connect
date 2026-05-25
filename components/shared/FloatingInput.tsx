@@ -30,10 +30,11 @@ function getBorderColor(isFocused: boolean, hasError: boolean): string {
 }
 
 /** Returns animated label style that transitions between floated and inline positions. */
-function getLabelStyle(labelAnim: Animated.Value): object {
+function getLabelStyle(labelAnim: Animated.Value, hasLeftIcon: boolean): object {
+  const leftOffset = hasLeftIcon ? THEME.spacing.md + 32 : THEME.spacing.md;
   return {
     position: 'absolute' as const,
-    left: THEME.spacing.md,
+    left: leftOffset,
     top: labelAnim.interpolate({ inputRange: [0, 1], outputRange: [THEME.spacing.xs, THEME.spacing.md] }),
     fontSize: labelAnim.interpolate({ inputRange: [0, 1], outputRange: [THEME.typography.caption, THEME.typography.body] }),
     color: labelAnim.interpolate({
@@ -143,7 +144,7 @@ export default function FloatingInput(props: FloatingInputProps): React.ReactEle
     <View style={styles.wrapper}>
       <View style={[styles.container, { borderColor }]}>
         {leftIcon && <View style={styles.leftAdornment}>{leftIcon}</View>}
-        <Animated.Text style={getLabelStyle(labelAnim)} numberOfLines={1}>
+        <Animated.Text style={getLabelStyle(labelAnim, Boolean(leftIcon))} numberOfLines={1}>
           {label}
         </Animated.Text>
         <TextInput

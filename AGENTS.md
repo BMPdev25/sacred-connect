@@ -92,6 +92,13 @@ Never call onAuthStateChanged more than once simultaneously.
 Success: { success: true, data: {...}, message: string }
 Error:   { success: false, error: string, code: string }
 
+## Back Button Rule
+Back buttons are always absolutely positioned.
+Never in the document flow.
+Position: absolute, top: insets.top + 8, left: 16, zIndex: 10
+ScrollView paddingTop compensates: insets.top + 56
+Import useSafeAreaInsets from react-native-safe-area-context.
+
 ## What Is NOT In Scope (Do Not Build)
 - Admin panel (completely separate project)
 - Astrology consultation

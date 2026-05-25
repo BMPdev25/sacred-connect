@@ -58,9 +58,9 @@ function useAuthInitialization(opacity: Animated.Value): void {
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
 
+    console.log('[DEBUG] Splash Screen mounted. Starting auth listener initialization timer...');
     const animationDelay = setTimeout(() => {
-      // dispatch is not available yet (Redux not wired) — pass null;
-      // authStateManager handles null dispatch gracefully
+      console.log('[DEBUG] Splash Screen: Initializing auth state observer listener...');
       unsubscribe = initializeAuthListener(null, router);
     }, FADE_DURATION_MS);
 

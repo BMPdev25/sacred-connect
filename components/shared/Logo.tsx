@@ -38,6 +38,8 @@ export interface LogoProps {
   size: 'sm' | 'md' | 'lg';
   /** 'icon-only' renders just the icon; 'full' renders icon + brand text. */
   variant: 'full' | 'icon-only';
+  /** Optional flag to render the brand tagline (only applies when variant is 'full'). Defaults to false. */
+  showTagline?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,14 +62,23 @@ function LogoIcon({ size }: { size: LogoProps['size'] }): React.ReactElement {
 }
 
 /**
- * Renders the brand text portion (SACRED / CONNECT) beside the icon.
+ * Renders the brand text portion (SACRED / CONNECT) and optionally the tagline beside the icon.
  */
-function LogoText({ size }: { size: LogoProps['size'] }): React.ReactElement {
+function LogoText({
+  size,
+  showTagline = false,
+}: {
+  size: LogoProps['size'];
+  showTagline?: boolean;
+}): React.ReactElement {
   const fontSize = TEXT_SIZE[size];
   return (
     <View style={styles.textContainer}>
       <Text style={[styles.brandText, { fontSize }]}>SACRED</Text>
       <Text style={[styles.brandText, { fontSize }]}>CONNECT</Text>
+      {showTagline && (
+        <Text style={styles.taglineText}>seva · sanskriti · samarpan</Text>
+      )}
     </View>
   );
 }
@@ -81,11 +92,17 @@ function LogoText({ size }: { size: LogoProps['size'] }): React.ReactElement {
  * Reads assets through AssetService so the source URL swaps automatically
  * when migrating to S3.
  */
-export default function Logo({ size, variant }: LogoProps): React.ReactElement {
+export default function Logo({
+  size,
+  variant,
+  showTagline = false,
+}: LogoProps): React.ReactElement {
   return (
     <View style={styles.container}>
       <LogoIcon size={size} />
-      {variant === 'full' && <LogoText size={size} />}
+      {variant === 'full' && (
+        <LogoText size={size} showTagline={showTagline} />
+      )}
     </View>
   );
 }
@@ -108,5 +125,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 2,
     lineHeight: undefined,
+  },
+  taglineText: {
+    fontSize: 9,
+    color: THEME.colors.maroon,
+    letterSpacing: 1.5,
+    fontWeight: '400',
+    marginTop: 2,
   },
 });

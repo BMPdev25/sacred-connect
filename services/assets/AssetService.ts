@@ -16,8 +16,8 @@ const IMAGE_REGISTRY: LocalImageRegistry = {
   'auth.forgotSuccess': require('@/assets/images/auth/forgot-password-success.png'),
   'auth.temple': require('@/assets/images/auth/temple-silhouette.png'),
   'shared.logo': require('@/assets/images/logo.png'),
-  'shared.logoIcon': require('@/assets/images/shared/logo-icon.png'),
-  'shared.logoFull': require('@/assets/images/shared/logo-full.png'),
+  'shared.logoIcon': require('@/assets/images/shared/logo-icon-diya.png'),
+  'shared.logoFull': require('@/assets/images/shared/logo-full-diya.png'),
   'shared.avatarPlaceholder': require('@/assets/images/shared/avatar-placeholder.png'),
 };
 
@@ -32,8 +32,8 @@ const IMAGE_FILENAMES: Record<string, string> = {
   'auth.forgotSuccess': 'auth/forgot-password-success.png',
   'auth.temple': 'auth/temple-silhouette.png',
   'shared.logo': 'logo.png',
-  'shared.logoIcon': 'shared/logo-icon.png',
-  'shared.logoFull': 'shared/logo-full.png',
+  'shared.logoIcon': 'shared/logo-icon-diya.png',
+  'shared.logoFull': 'shared/logo-full-diya.png',
   'shared.avatarPlaceholder': 'shared/avatar-placeholder.png',
 };
 

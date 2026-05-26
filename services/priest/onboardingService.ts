@@ -1,4 +1,5 @@
 import api from '@/api/index';
+import { getReadableErrorMessage } from '@/utils/errorHandler';
 import {
   setCurrentStep,
   setOnboardingCompleted,
@@ -282,11 +283,13 @@ function buildStepPayload(step: number, data: Record<string, any>): Record<strin
       };
     case 3:
       return {
-        services: data.services?.map((svc: any) => ({
-          ceremonyId: svc.ceremonyId,
-          price: svc.price,
-          durationMinutes: svc.durationMinutes,
-        })) || [],
+        services: (data.services || [])
+          .filter((svc: any) => svc.ceremonyId && svc.ceremonyId.trim() !== '')
+          .map((svc: any) => ({
+            ceremonyId: svc.ceremonyId,
+            price: svc.price,
+            durationMinutes: svc.durationMinutes,
+          })),
       };
     case 4:
       return {
@@ -346,7 +349,7 @@ export async function loadOnboardingProgress(): Promise<OnboardingState> {
     return mappedState;
   } catch (error) {
     console.error('Failed to load onboarding progress:', error);
-    throw error;
+    throw new Error(getReadableErrorMessage(error));
   }
 }
 
@@ -364,6 +367,10 @@ export async function saveStepData(step: number, data: Record<string, unknown>):
       onboardingCurrentStep: step + 1,
     };
     await api.put('/priest/profile', payload);
+
+    if (step === 1 && typeof data.name === 'string' && data.name.trim()) {
+      await api.put('/users/profile', { name: data.name.trim() });
+    }
 
     // Dispatch appropriate actions based on step
     if (step === 1) {
@@ -384,7 +391,7 @@ export async function saveStepData(step: number, data: Record<string, unknown>):
     }
   } catch (error) {
     console.error(`Failed to save step ${step} data:`, error);
-    throw error;
+    throw new Error(getReadableErrorMessage(error));
   }
 }
 
@@ -439,7 +446,7 @@ export async function uploadDocument(
       })
     );
     console.error(`Failed to upload document for ${docType}:`, error);
-    throw error;
+    throw new Error(getReadableErrorMessage(error));
   }
 }
 
@@ -453,7 +460,7 @@ export async function submitForReview(): Promise<void> {
     store.dispatch(setOnboardingCompleted(true));
   } catch (error) {
     console.error('Failed to submit onboarding profile for review:', error);
-    throw error;
+    throw new Error(getReadableErrorMessage(error));
   }
 }
 

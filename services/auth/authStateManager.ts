@@ -8,8 +8,11 @@ import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 import { auth } from '@/config/firebase';
 import { ONBOARDING_STORAGE_KEY } from '@/constants/config';
+import { store } from '@/redux/store';
+import { setUserSession } from '@/redux/slices/userSlice';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
+import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
 import { refreshToken, syncWithBackend } from './authService';
 
 // ---------------------------------------------------------------------------
@@ -18,7 +21,7 @@ import { refreshToken, syncWithBackend } from './authService';
 
 /**
  * Checks AsyncStorage to verify if this is the first launch of the application.
- * 
+ *
  * @returns True if it is the first launch, otherwise false.
  */
 export async function checkFirstLaunch(): Promise<boolean> {
@@ -36,7 +39,7 @@ export async function checkFirstLaunch(): Promise<boolean> {
  */
 export async function markLaunched(): Promise<void> {
   try {
-    await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+    const hasLaunched = await AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
   } catch (err) {
     logger.error('AsyncStorage write error', err);
   }
@@ -45,7 +48,7 @@ export async function markLaunched(): Promise<void> {
 /**
  * Fetches the user profile and onboarding states from the backend.
  * Automatically attempts a single token refresh and retry on 401 errors.
- * 
+ *
  * @param firebaseUser - The active Firebase User session object.
  * @returns Consolidated User Profile and optional Priest Auth Onboarding state.
  */
@@ -77,35 +80,49 @@ export async function fetchUserProfile(
 
 /**
  * Determines and executes the navigation path for authenticated users.
- * 
+ * Always dispatches the user session to Redux via the global store.
+ *
  * @param profile - The user profile structure.
  * @param priestState - Priest onboarding status, if applicable.
- * @param dispatch - Redux action dispatcher.
  * @param router - Expo Router instance.
  */
 export function routeAuthenticatedUser(
   profile: UserProfile,
   priestState: PriestAuthState | undefined,
-  dispatch: any,
   router: any
 ): void {
   console.log(`[DEBUG] routeAuthenticatedUser: profile userType = ${profile.userType}`);
-  if (dispatch) {
-    dispatch({
-      type: 'auth/setUserSession',
-      payload: { user: profile, priestState },
-    });
-  }
+
+  // Always populate Redux with the authenticated user's data
+  store.dispatch(setUserSession({ user: profile, priestState }));
 
   if (profile.userType === 'devotee') {
     console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Devotee Dashboard (/devotee)');
     router.replace('/devotee');
   } else if (profile.userType === 'priest') {
-    if (priestState?.onboardingCompleted) {
+    const completed = hasPriestCompletedOnboarding(
+      priestState?.onboardingCompleted,
+      priestState?.verificationStatus
+    );
+
+    if (!completed) {
+      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Onboarding Wizard (/priest/onboarding)');
+      router.replace('/priest/onboarding');
+      return;
+    }
+
+    // Onboarding is complete — route based on verificationStatus
+    if ((priestState?.verificationStatus as string) === 'approved') {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
+    } else if (priestState?.verificationStatus === 'pending') {
+      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Verification Status (/priest/onboarding/verification-status)');
+      router.replace('/priest/onboarding/verification-status');
+    } else if (priestState?.verificationStatus === 'rejected') {
+      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Verification Status (/priest/onboarding/verification-status) - Rejected');
+      router.replace('/priest/onboarding/verification-status');
     } else {
-      console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Onboarding (/priest/onboarding)');
+      console.log('[DEBUG] routeAuthenticatedUser: Fallback - Redirecting to Priest Onboarding Wizard (/priest/onboarding)');
       router.replace('/priest/onboarding');
     }
   } else {
@@ -117,7 +134,7 @@ export function routeAuthenticatedUser(
 
 /**
  * Determines and executes the navigation path for unauthenticated sessions.
- * 
+ *
  * @param isFirstLaunch - Flag indicating whether it's the first time launch.
  * @param router - Expo Router instance.
  */
@@ -134,7 +151,7 @@ export function routeUnauthenticatedUser(isFirstLaunch: boolean, router: any): v
 
 /**
  * Handles errors occurring during authentication listener updates.
- * 
+ *
  * @param error - The encountered error object.
  * @param router - Expo Router instance.
  */
@@ -145,14 +162,16 @@ export function handleAuthError(error: any, router: any): void {
 }
 
 /**
- * Initializes the Firebase Auth observer, updating Redux session states
- * and routing the application depending on credentials and launch history.
- * 
- * @param dispatch - Redux action dispatcher.
+ * Initializes the Firebase Auth observer, populating Redux and routing the
+ * application based on the user's credentials and launch history.
+ *
+ * Must only be called ONCE (from splash.tsx). All login flows rely on the
+ * existing subscription firing when Firebase auth state changes.
+ *
  * @param router - Expo Router instance.
  * @returns The unsubscribe function for the auth listener.
  */
-export function initializeAuthListener(dispatch: any, router: any): () => void {
+export function initializeAuthListener(router: any): () => void {
   console.log('[DEBUG] initializeAuthListener: Subscribing to Firebase Auth changes...');
   return onAuthStateChanged(
     auth,
@@ -165,7 +184,6 @@ export function initializeAuthListener(dispatch: any, router: any): () => void {
           routeAuthenticatedUser(
             profileWithState,
             profileWithState.priestState,
-            dispatch,
             router
           );
         } else {

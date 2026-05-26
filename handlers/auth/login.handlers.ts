@@ -1,12 +1,6 @@
-/**
- * Login screen action handlers — all async auth operations extracted from
- * the component to satisfy the "API calls never live inside components" rule.
- */
-
 import { Router } from 'expo-router';
 
 import { loginWithEmail, loginWithGoogle, sendOtp } from '@/services/auth/authService';
-import { initializeAuthListener } from '@/services/auth/authStateManager';
 import { isValidPhone } from '@/services/auth/authValidation';
 import { logger } from '@/utils/logger';
 
@@ -38,8 +32,7 @@ export async function handleEmailLogin(
     setLoading(true);
     setError('');
     await loginWithEmail(email, password);
-    // onAuthStateChanged in initializeAuthListener handles routing
-    initializeAuthListener(null, router);
+    // Firebase onAuthStateChanged on the splash listener handles routing automatically
   } catch (err: any) {
     logger.error('handleEmailLogin failed', err);
     setError(err.message || 'Login failed. Please try again.');
@@ -101,9 +94,8 @@ export async function handleGoogleLogin(
     const { isNewUser } = await loginWithGoogle();
     if (isNewUser) {
       router.replace('/role-selection');
-    } else {
-      initializeAuthListener(null, router);
     }
+    // Existing users: splash listener handles routing via onAuthStateChanged
   } catch (err: any) {
     logger.error('handleGoogleLogin failed', err);
     setError(err.message || 'Google login failed. Please try again.');

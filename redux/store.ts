@@ -12,6 +12,10 @@ export const store = configureStore({
     onboarding: onboardingReducer,
     user: userReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });
 
 /**

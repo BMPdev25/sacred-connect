@@ -3,6 +3,10 @@ import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Provider } from 'react-redux';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { store } from '@/redux/store';
+import { queryClient } from '@/lib/queryClient';
 import { THEME } from '@/constants/theme';
 
 /**
@@ -19,6 +23,7 @@ function RootStack(): React.JSX.Element {
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="devotee/index" />
+        <Stack.Screen name="devotee/(tabs)" />
         <Stack.Screen name="priest/index" />
         <Stack.Screen name="priest/onboarding" />
         <Stack.Screen name="+not-found" />
@@ -28,14 +33,18 @@ function RootStack(): React.JSX.Element {
 }
 
 /**
- * Main application Root Layout. Wraps the app in the SafeAreaProvider
- * and mounts the top-padded Root Stack router.
+ * Main application Root Layout. Wraps the app in the SafeAreaProvider,
+ * QueryClientProvider, and mounts the top-padded Root Stack router.
  */
 export default function RootLayout(): React.JSX.Element {
   return (
-    <SafeAreaProvider>
-      <RootStack />
-    </SafeAreaProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <SafeAreaProvider>
+          <RootStack />
+        </SafeAreaProvider>
+      </QueryClientProvider>
+    </Provider>
   );
 }
 

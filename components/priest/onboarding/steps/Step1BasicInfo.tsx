@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
   ScrollView,
   StyleSheet,
@@ -40,7 +40,8 @@ function getCounterColor(length: number, max: number): string {
 
 /**
  * Step 1 of the priest onboarding wizard.
- * Collects languages spoken, years of experience, and a short biography.
+ * Displays a read-only profile card from the user session, then collects
+ * languages spoken, years of experience, and a short biography.
  * Reads from and dispatches to Redux onboarding slice.
  */
 export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
@@ -51,18 +52,14 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
   const stepper = useStepperLogic(
     EXPERIENCE_MIN,
     EXPERIENCE_MAX,
-    step1.experienceYears || EXPERIENCE_MIN
+    step1.experienceYears || EXPERIENCE_MIN,
+    (newValue) => {
+      dispatch(updateStep1Data({ experienceYears: newValue }));
+    }
   );
 
   const [bioFocused, setBioFocused] = useState(false);
   const [errors, setErrors] = useState<string[]>([]);
-
-  // Sync stepper value to Redux when changed
-  const prevStepperValue = useRef(stepper.value);
-  if (prevStepperValue.current !== stepper.value) {
-    prevStepperValue.current = stepper.value;
-    dispatch(updateStep1Data({ experienceYears: stepper.value }));
-  }
 
   function handleLanguageToggle(lang: string): void {
     const current = step1.languages;
@@ -96,10 +93,10 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      {/* Profile Display Card */}
+      {/* Section 1 — Profile Display Card (read-only) */}
       <ProfileCard name={user.name} email={user.email} phone={user.phone} />
 
-      {/* Languages Section */}
+      {/* Section 2 — Languages Spoken */}
       <Text style={styles.sectionHeading}>Languages Spoken</Text>
       <ChipSelector
         options={LANGUAGE_OPTIONS}
@@ -107,7 +104,7 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
         onToggle={handleLanguageToggle}
       />
 
-      {/* Experience Section */}
+      {/* Section 3 — Experience */}
       <Text style={styles.sectionHeading}>Experience</Text>
       <ExperienceStepper
         value={stepper.value}
@@ -117,23 +114,25 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
         isAtMax={stepper.isAtMax}
       />
 
-      {/* Bio Section */}
-      <Text style={styles.sectionHeading}>Short Biography</Text>
-      <TextInput
-        style={[styles.bioInput, bioFocused && styles.bioInputFocused]}
-        value={step1.bio}
-        onChangeText={handleBioChange}
-        placeholder="Tell devotees about your spiritual journey..."
-        placeholderTextColor={THEME.colors.textMuted}
-        maxLength={BIO_MAX_LENGTH}
-        multiline
-        textAlignVertical="top"
-        onFocus={() => setBioFocused(true)}
-        onBlur={() => setBioFocused(false)}
-      />
-      <Text style={[styles.charCounter, { color: getCounterColor(bioLength, BIO_MAX_LENGTH) }]}>
-        {bioLength}/{BIO_MAX_LENGTH}
-      </Text>
+      {/* Section 4 — Short Biography */}
+      <View>
+        <Text style={styles.sectionHeading}>Short Biography</Text>
+        <TextInput
+          style={[styles.bioInput, bioFocused && styles.bioInputFocused]}
+          value={step1.bio}
+          onChangeText={handleBioChange}
+          placeholder="Tell devotees about your spiritual journey..."
+          placeholderTextColor={THEME.colors.textMuted}
+          maxLength={BIO_MAX_LENGTH}
+          multiline
+          textAlignVertical="top"
+          onFocus={() => setBioFocused(true)}
+          onBlur={() => setBioFocused(false)}
+        />
+        <Text style={[styles.charCounter, { color: getCounterColor(bioLength, BIO_MAX_LENGTH) }]}>
+          {bioLength}/{BIO_MAX_LENGTH}
+        </Text>
+      </View>
 
       {/* Validation errors */}
       {errors.map((err) => (
@@ -174,6 +173,7 @@ const styles = StyleSheet.create({
     color: THEME.colors.textPrimary,
     backgroundColor: THEME.colors.surface,
     textAlignVertical: 'top',
+    marginTop: THEME.spacing.sm,
   },
   bioInputFocused: {
     borderColor: THEME.colors.borderActive,
@@ -181,7 +181,7 @@ const styles = StyleSheet.create({
   charCounter: {
     alignSelf: 'flex-end',
     fontSize: THEME.typography.caption,
-    marginTop: -THEME.spacing.sm,
+    marginTop: THEME.spacing.xs,
   },
   errorText: {
     fontSize: THEME.typography.caption,

@@ -58,20 +58,25 @@ export default function LoginScreen(): React.ReactElement {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <TouchableOpacity
+        onPress={() => router.back()}
+        style={[styles.backBtn, { top: insets.top + 8 }]}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
+      </TouchableOpacity>
+
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + THEME.spacing.xl }]}
+        contentContainerStyle={[
+          styles.scroll,
+          {
+            paddingTop: insets.top + 56,
+            paddingBottom: insets.bottom + THEME.spacing.xl,
+          },
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Back button */}
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={styles.backBtn}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
-        </TouchableOpacity>
-
         {/* Logo */}
         <View style={styles.logoWrap}>
           <Logo variant="full" size="md" />
@@ -149,9 +154,13 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: THEME.spacing.lg,
-    paddingTop: THEME.spacing.lg,
   },
-  backBtn: { marginBottom: THEME.spacing.md },
+  backBtn: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 10,
+    padding: 8,
+  },
   logoWrap: { marginBottom: THEME.spacing.lg },
   heading: {
     fontSize: THEME.typography.displayMedium,

@@ -78,7 +78,7 @@ export interface OnboardingState {
   currentStep: number;
   /** Indicates whether the onboarding process has been fully completed. */
   isCompleted: boolean;
-  /** Step 1: Basic profile and bio information. */
+  /** Step 1: Languages, experience, and bio information. */
   step1: {
     /** List of languages spoken by the priest. */
     languages: string[];

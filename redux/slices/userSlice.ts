@@ -2,6 +2,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 import { UserProfile } from '@/types/api.types';
 import { PriestAuthState } from '@/types/api.types';
+import { UserLocation } from '@/types/home.types';
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -23,6 +24,8 @@ export interface UserState {
   userType: 'devotee' | 'priest' | 'admin' | null;
   /** Priest-specific onboarding and verification state, if applicable. */
   priestState: PriestAuthState | null;
+  /** Devotee current device location state. */
+  userLocation: UserLocation;
 }
 
 const initialState: UserState = {
@@ -32,6 +35,12 @@ const initialState: UserState = {
   profilePicture: null,
   userType: null,
   priestState: null,
+  userLocation: {
+    coordinates: null,
+    cityName: null,
+    permissionStatus: 'undetermined',
+    lastFetched: null,
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -64,6 +73,20 @@ export const userSlice = createSlice({
     },
 
     /**
+     * Updates the user's name locally.
+     */
+    updateUserName(state, action: PayloadAction<string>) {
+      state.name = action.payload;
+    },
+
+    /**
+     * Updates the stored user location in Redux state.
+     */
+    setUserLocation(state, action: PayloadAction<UserLocation>) {
+      state.userLocation = action.payload;
+    },
+
+    /**
      * Clears the user session on logout.
      */
     clearUserSession() {
@@ -72,6 +95,11 @@ export const userSlice = createSlice({
   },
 });
 
-export const { setUserSession, clearUserSession } = userSlice.actions;
+export const {
+  setUserSession,
+  clearUserSession,
+  updateUserName,
+  setUserLocation,
+} = userSlice.actions;
 
 export default userSlice.reducer;

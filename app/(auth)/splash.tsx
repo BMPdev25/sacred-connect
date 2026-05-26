@@ -61,7 +61,7 @@ function useAuthInitialization(opacity: Animated.Value): void {
     console.log('[DEBUG] Splash Screen mounted. Starting auth listener initialization timer...');
     const animationDelay = setTimeout(() => {
       console.log('[DEBUG] Splash Screen: Initializing auth state observer listener...');
-      unsubscribe = initializeAuthListener(null, router);
+      unsubscribe = initializeAuthListener(router);
     }, FADE_DURATION_MS);
 
     return () => {

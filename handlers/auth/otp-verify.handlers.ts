@@ -2,7 +2,6 @@ import { Alert } from 'react-native';
 import { Router } from 'expo-router';
 
 import { sendOtp, verifyOtp } from '@/services/auth/authService';
-import { initializeAuthListener } from '@/services/auth/authStateManager';
 import { logger } from '@/utils/logger';
 
 /** Setter type for local React state hooks. */
@@ -40,7 +39,7 @@ export async function handleVerify(
     setLoading(true);
     setError('');
     await verifyOtp(phone, otp);
-    initializeAuthListener(null, router);
+    // Firebase onAuthStateChanged on the splash listener handles routing automatically
   } catch (err: any) {
     logger.error('OTP verification failed', err);
     setError(err.message || 'Incorrect code. Please try again.');

@@ -1,5 +1,6 @@
 import { sendPasswordReset } from '@/services/auth/authService';
 import { isValidEmail } from '@/services/auth/authValidation';
+import { getReadableErrorMessage } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
 
 /** Setter type for local React state hooks. */
@@ -36,7 +37,7 @@ export async function handleSendReset(
     startAnimation();
   } catch (err: any) {
     logger.error('Password reset request failed', err);
-    setError('No account found with this email');
+    setError(getReadableErrorMessage(err));
   } finally {
     setLoading(false);
   }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -24,28 +24,33 @@ export interface StepperLogic {
 
 /**
  * Custom hook encapsulating stepper increment/decrement logic with clamped min/max bounds.
+ * Pure logic version that does not use internal state to prevent sync loops.
  *
  * @param min - Minimum allowed value (inclusive).
  * @param max - Maximum allowed value (inclusive).
- * @param initial - Starting value.
+ * @param currentValue - Current value from external state.
+ * @param onChange - Callback to update the value.
  * @returns Stepper state and control functions.
  */
-export function useStepperLogic(min: number, max: number, initial: number): StepperLogic {
-  const [value, setValue] = useState<number>(Math.max(min, Math.min(max, initial)));
-
+export function useStepperLogic(
+  min: number,
+  max: number,
+  currentValue: number,
+  onChange: (newValue: number) => void
+): StepperLogic {
   function increment(): void {
-    setValue((prev) => Math.min(max, prev + 1));
+    onChange(Math.min(max, currentValue + 1));
   }
 
   function decrement(): void {
-    setValue((prev) => Math.max(min, prev - 1));
+    onChange(Math.max(min, currentValue - 1));
   }
 
   return {
-    value,
+    value: currentValue,
     increment,
     decrement,
-    isAtMin: value <= min,
-    isAtMax: value >= max,
+    isAtMin: currentValue <= min,
+    isAtMax: currentValue >= max,
   };
 }

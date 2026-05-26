@@ -15,6 +15,7 @@ import api from '@/api';
 import { auth } from '@/config/firebase';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { AuthSyncPayload, SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
+import { getReadableErrorMessage } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
 
 /** Helper to construct a typed UserProfile from backend response data. */
@@ -35,18 +36,26 @@ function mapToUserProfile(data: any): UserProfile {
   };
 }
 
-/** Helper to construct PriestAuthState from backend completion data. */
-function mapToPriestState(data: any): PriestAuthState | undefined {
-  if (data.userType !== 'priest') return undefined;
+/** Builds PriestAuthState from a priest profile API response (GET /priest/profile). */
+function mapToPriestStateFromProfile(profileData: any): PriestAuthState {
+  const rawStatus = profileData.verificationStatus || 'incomplete';
+  // Map backend 'incomplete' to frontend 'pending' (not in VerificationStatus union)
+  const verificationStatus: PriestAuthState['verificationStatus'] =
+    rawStatus === 'approved' ? 'verified'
+    : rawStatus === 'rejected' ? 'rejected'
+    : 'pending';
   return {
-    verificationStatus: data.profileCompleted ? 'verified' : 'pending',
-    onboardingCompleted: data.profileCompleted || false,
-    onboardingCurrentStep: data.profileCompleted ? 6 : 1,
+    verificationStatus,
+    onboardingCompleted: profileData.onboardingCompleted === true,
+    onboardingCurrentStep: profileData.onboardingCurrentStep || 1,
   };
 }
 
 /**
  * Synchronizes the Firebase user session with the backend database.
+ * For priest users, additionally fetches the priest profile to read the
+ * real onboardingCompleted flag — the /auth/sync endpoint only returns
+ * profileCompleted (based on isVerified) which is not the same field.
  */
 export async function syncWithBackend(
   firebaseToken: string,
@@ -57,11 +66,29 @@ export async function syncWithBackend(
       headers: { Authorization: `Bearer ${firebaseToken}` },
     });
     const userProfile = mapToUserProfile(response.data);
-    const priestState = mapToPriestState(response.data);
-    return { ...userProfile, priestState };
+
+    if (userProfile.userType !== 'priest') {
+      return { ...userProfile };
+    }
+
+    // Priests: fetch the actual priest profile to get onboardingCompleted
+    try {
+      const priestResponse = await api.get('/priest/profile', {
+        headers: { Authorization: `Bearer ${firebaseToken}` },
+      });
+      const priestState = mapToPriestStateFromProfile(priestResponse.data);
+      return { ...userProfile, priestState };
+    } catch (priestErr: any) {
+      // If priest profile fetch fails, treat as incomplete onboarding
+      logger.warn('Failed to fetch priest profile during sync, defaulting to onboarding', priestErr?.message);
+      return {
+        ...userProfile,
+        priestState: { verificationStatus: 'pending', onboardingCompleted: false, onboardingCurrentStep: 1 },
+      };
+    }
   } catch (err: any) {
     logger.error('Backend sync failed', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || 'Failed to sync with backend');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -83,7 +110,7 @@ export async function registerUser(payload: SignupDevoteePayload | SignupPriestP
     return profile;
   } catch (err: any) {
     logger.error('Registration failed', err);
-    throw new Error(err.message || 'Registration failed');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -95,7 +122,7 @@ export async function loginWithEmail(email: string, password: string): Promise<v
     await signInWithEmailAndPassword(auth, email, password);
   } catch (err: any) {
     logger.error('Email sign-in failed', err);
-    throw new Error(err.message || 'Email authentication failed');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -107,7 +134,7 @@ export async function sendOtp(phone: string): Promise<void> {
     await api.post('/auth/send-otp', { phone });
   } catch (err: any) {
     logger.error('Sending OTP failed', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || 'Failed to send verification code');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -121,7 +148,7 @@ export async function verifyOtp(phone: string, otp: string): Promise<void> {
     await signInWithCustomToken(auth, customToken);
   } catch (err: any) {
     logger.error('OTP verification failed', err.response?.data || err.message);
-    throw new Error(err.response?.data?.message || 'Failed to verify verification code');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -133,7 +160,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
     await sendPasswordResetEmail(auth, email);
   } catch (err: any) {
     logger.error('Password reset email dispatch failed', err);
-    throw new Error(err.message || 'Failed to dispatch password reset email');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -145,7 +172,7 @@ export async function loginWithGoogle(): Promise<{ isNewUser: boolean }> {
     throw new Error('Google OAuth is not configured on this device');
   } catch (err: any) {
     logger.error('Google authentication failed', err);
-    throw new Error(err.message || 'Google authentication failed');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -157,7 +184,7 @@ export async function logout(): Promise<void> {
     await signOut(auth);
   } catch (err: any) {
     logger.error('Logout failed', err);
-    throw new Error(err.message || 'Failed to sign out current session');
+    throw new Error(getReadableErrorMessage(err));
   }
 }
 
@@ -171,6 +198,6 @@ export async function refreshToken(): Promise<string> {
     return await user.getIdToken(true);
   } catch (err: any) {
     logger.error('Token refresh failed', err);
-    throw new Error(err.message || 'Failed to refresh authentication token');
+    throw new Error(getReadableErrorMessage(err));
   }
 }

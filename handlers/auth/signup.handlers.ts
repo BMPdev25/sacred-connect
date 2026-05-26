@@ -1,11 +1,8 @@
-/**
- * Signup screen action handlers — async operations extracted from components
- * per AGENTS.md rule 7 (API calls never live inside components).
- */
-
 import { Router } from 'expo-router';
 
 import { registerUser } from '@/services/auth/authService';
+import { store } from '@/redux/store';
+import { setUserSession } from '@/redux/slices/userSlice';
 import { SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
 import { logger } from '@/utils/logger';
 
@@ -17,7 +14,7 @@ type Setter<T> = (v: T) => void;
 // ---------------------------------------------------------------------------
 
 /**
- * Calls authService.registerUser and handles success/error routing.
+ * Calls authService.registerUser, populates Redux user session, and routes.
  * Shared by both devotee and priest handlers.
  */
 async function executeRegistration(
@@ -30,7 +27,9 @@ async function executeRegistration(
   try {
     setLoading(true);
     setGeneralError(null);
-    await registerUser(payload);
+    const profile = await registerUser(payload);
+    // Populate Redux so ProfileCard and other screens can read name/email/phone
+    store.dispatch(setUserSession({ user: profile }));
     router.replace(successRoute as any);
   } catch (err: any) {
     logger.error('Registration error', err);
@@ -61,7 +60,7 @@ export async function handleDevoteeSignup(
 ): Promise<void> {
   await executeRegistration(
     payload,
-    '/(devotee)/(tabs)/HomeTab',
+    '/devotee',
     setLoading,
     setGeneralError,
     router,
@@ -85,7 +84,7 @@ export async function handlePriestSignup(
 ): Promise<void> {
   await executeRegistration(
     payload,
-    '/(priest)/onboarding/wizard',
+    '/priest/onboarding',
     setLoading,
     setGeneralError,
     router,

@@ -23,7 +23,7 @@ export function useExplorePriests(
     queryFn: ({ pageParam = 1 }) => {
       const trimmedQuery = searchQuery.trim();
       if (trimmedQuery.length > 0) {
-        return exploreService.searchAll(trimmedQuery, pageParam);
+        return exploreService.searchAll(trimmedQuery, pageParam, filters, sort);
       }
       return exploreService.fetchPriests({
         page: pageParam,

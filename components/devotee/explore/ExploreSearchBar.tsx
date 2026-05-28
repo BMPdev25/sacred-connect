@@ -1,18 +1,10 @@
 /**
- * ExploreSearchBar — horizontal row containing a real TextInput for search
- * and a filter icon button with an active-filter count badge.
- *
- * Extracted hook: useFocusState — manages focus colour transitions.
+ * ExploreSearchBar — search input with a filter button.
+ * The input border color transitions between saffron (focused) and grey.
  */
 
 import React, { useRef, useState } from 'react';
-import {
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-  Text,
-} from 'react-native';
+import { StyleSheet, TextInput, TouchableOpacity, View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { THEME } from '@/constants/theme';
@@ -28,7 +20,7 @@ const BORDER_WIDTH = 1.5;
 const FILTER_BORDER_WIDTH = 1;
 
 // ---------------------------------------------------------------------------
-// Types
+// Types & Props
 // ---------------------------------------------------------------------------
 
 /** Props for ExploreSearchBar. */
@@ -37,7 +29,7 @@ export interface ExploreSearchBarProps {
   value: string;
   /** Called when input text changes. */
   onChangeText: (text: string) => void;
-  /** Called when the user submits the search (return key or submit). */
+  /** Called when the user submits the search. */
   onSubmit: (text: string) => void;
   /** Called when the clear (×) button is pressed. */
   onClear: () => void;
@@ -45,51 +37,10 @@ export interface ExploreSearchBarProps {
   onFocus?: () => void;
   /** If true, the input grabs keyboard focus on mount. */
   autoFocus?: boolean;
-  /** Number of currently active filters — drives badge visibility. */
+  /** Number of currently active filters. */
   filterCount: number;
   /** Called when the filter button is pressed. */
   onFilterPress: () => void;
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
-
-interface FocusState {
-  isFocused: boolean;
-  handleFocus: () => void;
-  handleBlur: () => void;
-}
-
-/**
- * Tracks TextInput focus to adjust border and icon colours.
- */
-function useFocusState(): FocusState {
-  const [isFocused, setIsFocused] = useState(false);
-  const handleFocus = () => setIsFocused(true);
-  const handleBlur = () => setIsFocused(false);
-  return { isFocused, handleFocus, handleBlur };
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-interface FilterBadgeProps {
-  count: number;
-}
-
-/**
- * Small circular badge showing the active-filter count.
- * Only rendered when count > 0.
- */
-function FilterBadge({ count }: FilterBadgeProps): React.JSX.Element | null {
-  if (count <= 0) return null;
-  return (
-    <View style={styles.badge} accessibilityLabel={`${count} filters active`}>
-      <Text style={styles.badgeText}>{count.toString()}</Text>
-    </View>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -98,40 +49,30 @@ function FilterBadge({ count }: FilterBadgeProps): React.JSX.Element | null {
 
 /**
  * Search bar with a TextInput (flex 1) and an adjacent filter button.
- * The input border colour transitions between saffron (focused) and grey.
- * A count badge appears on the filter button when filters are active.
  */
-export default function ExploreSearchBar(
-  props: ExploreSearchBarProps,
-): React.JSX.Element {
+export default function ExploreSearchBar(props: ExploreSearchBarProps): React.JSX.Element {
   const {
-    value, onChangeText, onSubmit, onClear,
-    onFocus, autoFocus = false, filterCount, onFilterPress,
+    value,
+    onChangeText,
+    onSubmit,
+    onClear,
+    onFocus,
+    autoFocus = false,
+    filterCount,
+    onFilterPress,
   } = props;
 
-  const { isFocused, handleFocus, handleBlur } = useFocusState();
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
-  function handleFocusInternal() {
-    handleFocus();
-    onFocus?.();
-  }
-
-  const borderColor = isFocused
-    ? THEME.colors.borderActive
-    : THEME.colors.border;
-
+  const borderColor = isFocused ? THEME.colors.borderActive : THEME.colors.border;
   const iconColor = isFocused ? THEME.colors.primary : THEME.colors.textMuted;
 
   return (
     <View style={styles.row}>
       {/* ── Search input ── */}
       <View style={[styles.inputContainer, { borderColor }]}>
-        <Ionicons
-          name="search-outline"
-          size={20}
-          color={iconColor}
-        />
+        <Ionicons name="search-outline" size={20} color={iconColor} />
 
         <TextInput
           ref={inputRef}
@@ -142,8 +83,11 @@ export default function ExploreSearchBar(
           placeholderTextColor={THEME.colors.textMuted}
           returnKeyType="search"
           onSubmitEditing={() => onSubmit(value)}
-          onFocus={handleFocusInternal}
-          onBlur={handleBlur}
+          onFocus={() => {
+            setIsFocused(true);
+            onFocus?.();
+          }}
+          onBlur={() => setIsFocused(false)}
           autoFocus={autoFocus}
           clearButtonMode="never"
           accessibilityLabel="Search priests and ceremonies"
@@ -157,11 +101,7 @@ export default function ExploreSearchBar(
             accessibilityLabel="Clear search"
             accessibilityRole="button"
           >
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color={THEME.colors.textMuted}
-            />
+            <Ionicons name="close-circle" size={18} color={THEME.colors.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -171,19 +111,15 @@ export default function ExploreSearchBar(
         style={styles.filterButton}
         onPress={onFilterPress}
         activeOpacity={0.75}
-        accessibilityLabel={
-          filterCount > 0
-            ? `Filters, ${filterCount} active`
-            : 'Open filters'
-        }
+        accessibilityLabel={filterCount > 0 ? `Filters, ${filterCount} active` : 'Open filters'}
         accessibilityRole="button"
       >
-        <Ionicons
-          name="options-outline"
-          size={22}
-          color={THEME.colors.primary}
-        />
-        <FilterBadge count={filterCount} />
+        <Ionicons name="options-outline" size={22} color={THEME.colors.primary} />
+        {filterCount > 0 && (
+          <View style={styles.badge} accessibilityLabel={`${filterCount} filters active`}>
+            <Text style={styles.badgeText}>{filterCount.toString()}</Text>
+          </View>
+        )}
       </TouchableOpacity>
     </View>
   );

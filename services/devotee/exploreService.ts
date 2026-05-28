@@ -144,15 +144,47 @@ export async function fetchSuggestions(query: string): Promise<SearchSuggestion[
 }
 
 /**
- * Run a full text search across priests and ceremonies.
+ * Run a full text search across priests and ceremonies with filters.
  * Calls GET /api/search/universal.
  *
  * @param query - Unified search query.
  * @param page - Current pagination page number.
+ * @param filters - Optional active filters to apply to search results.
+ * @param sort - Optional sort selection.
  * @returns Paginated results containing mapped pujaris.
  */
-export async function searchAll(query: string, page: number = 1): Promise<PaginatedPriests> {
+export async function searchAll(
+  query: string,
+  page: number = 1,
+  filters?: ExploreFilters,
+  sort?: SortOption
+): Promise<PaginatedPriests> {
   try {
+    const queryParams: Record<string, any> = {
+      q: query,
+      query,
+      page,
+      limit: 10,
+    };
+
+    if (filters) {
+      if (filters.ceremonyTypes.length > 0) {
+        // Pass first category to match backend's expected category query param
+        queryParams.category = filters.ceremonyTypes[0];
+      }
+      if (filters.minPrice > 0 || filters.maxPrice < 10000) {
+        queryParams.priceRange = `${filters.minPrice}-${filters.maxPrice}`;
+      }
+    }
+
+    if (sort) {
+      if (sort === 'rating') {
+        queryParams.sortBy = 'rating';
+      } else if (sort === 'price_asc' || sort === 'price_desc') {
+        queryParams.sortBy = 'price';
+      }
+    }
+
     const response = await api.get<{
       success: boolean;
       data: {
@@ -162,7 +194,7 @@ export async function searchAll(query: string, page: number = 1): Promise<Pagina
         pagination: { current: number; total: number; hasMore: boolean };
       };
     }>('/search/universal', {
-      params: { q: query, query, page, limit: 10 },
+      params: queryParams,
     });
     if (!response.data || !response.data.success) {
       throw new Error('Universal search failed');

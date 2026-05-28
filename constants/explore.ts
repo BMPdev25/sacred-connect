@@ -22,3 +22,23 @@ export const DEFAULT_MAX_DISTANCE_KM = 50;
  * Default pagination page size/limit.
  */
 export const DEFAULT_PAGE_LIMIT = 10;
+
+/**
+ * Available minimum rating options for filter selection.
+ */
+export const RATING_OPTIONS = [
+  { label: 'Any', value: null },
+  { label: '3+', value: 3 },
+  { label: '4+', value: 4 },
+  { label: '4.5+', value: 4.5 },
+] as const;
+
+/**
+ * Spoken languages available for priest filters.
+ */
+export const LANGUAGES = [
+  'Hindi', 'Sanskrit', 'English', 'Telugu', 'Tamil',
+  'Kannada', 'Malayalam', 'Bengali', 'Marathi', 'Gujarati',
+  'Punjabi', 'Odia',
+] as const;
+

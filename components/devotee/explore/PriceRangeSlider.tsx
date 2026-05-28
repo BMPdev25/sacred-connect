@@ -53,7 +53,18 @@ export function PriceRangeSlider({
   maxPrice,
   onChange,
 }: PriceRangeSliderProps): React.JSX.Element {
+  const [localValues, setLocalValues] = React.useState<number[]>([minPrice, maxPrice]);
+
+  React.useEffect(() => {
+    setLocalValues([minPrice, maxPrice]);
+  }, [minPrice, maxPrice]);
+
   function handleChange(values: number | number[]): void {
+    const arr = Array.isArray(values) ? values : [values, values];
+    setLocalValues([Math.round(arr[0]), Math.round(arr[1])]);
+  }
+
+  function handleSlidingComplete(values: number | number[]): void {
     const arr = Array.isArray(values) ? values : [values, values];
     onChange(Math.round(arr[0]), Math.round(arr[1]));
   }
@@ -61,15 +72,16 @@ export function PriceRangeSlider({
   return (
     <View>
       <Text style={styles.valueLabel}>
-        {`₹${formatRupee(minPrice)} – ₹${formatRupee(maxPrice)}`}
+        {`₹${formatRupee(localValues[0])} – ₹${formatRupee(localValues[1])}`}
       </Text>
 
       <Slider
         minimumValue={PRICE_MIN}
         maximumValue={PRICE_MAX}
         step={PRICE_STEP}
-        value={[minPrice, maxPrice]}
+        value={localValues}
         onValueChange={handleChange}
+        onSlidingComplete={handleSlidingComplete}
         minimumTrackTintColor={THEME.colors.primary}
         maximumTrackTintColor={THEME.colors.border}
         thumbTintColor={THEME.colors.primary}

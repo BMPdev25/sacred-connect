@@ -22,7 +22,7 @@ const BUTTON_WIDTH = 180;
 // ---------------------------------------------------------------------------
 
 /** Reason codes that determine which empty state variant is shown. */
-export type ExploreEmptyReason = 'no_results' | 'no_location' | 'search_empty';
+export type ExploreEmptyReason = 'no_results' | 'no_location' | 'search_empty' | 'error';
 
 /** Props for ExploreEmptyState. */
 export interface ExploreEmptyStateProps {
@@ -34,6 +34,8 @@ export interface ExploreEmptyStateProps {
   onClearFilters?: () => void;
   /** Called when the user taps "Enable Location" (no_location only). */
   onEnableLocation?: () => void;
+  /** Called when the user taps "Retry" after an error. */
+  onRetry?: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,6 +74,12 @@ function getConfig(
         heading: 'Enable location to find pandits near you',
         body: 'We need your location to show pandits in your area',
       };
+    case 'error':
+      return {
+        iconName: 'alert-circle-outline',
+        heading: 'Something went wrong',
+        body: 'Failed to load available pandits. Please try again.',
+      };
   }
 }
 
@@ -98,6 +106,7 @@ export default function ExploreEmptyState({
   searchQuery,
   onClearFilters,
   onEnableLocation,
+  onRetry,
 }: ExploreEmptyStateProps): React.JSX.Element {
   const config = getConfig(reason, searchQuery);
 
@@ -135,6 +144,16 @@ export default function ExploreEmptyState({
             variant="outline"
             title="Enable Location"
             onPress={handleEnableLocation}
+          />
+        </View>
+      )}
+
+      {reason === 'error' && onRetry && (
+        <View style={styles.buttonWrap}>
+          <PrimaryButton
+            variant="outline"
+            title="Retry"
+            onPress={onRetry}
           />
         </View>
       )}

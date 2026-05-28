@@ -1,10 +1,9 @@
 /**
- * ExploreTab — main marketplace search and discovery screen.
- * Orchestrates search, suggestions, filtering, and the infinite priest list.
+ * ExploreTab — main discoverability tab for devotees.
  */
 
 import React, { useEffect, useState } from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,153 +20,103 @@ import { useDebounce } from '@/hooks/useDebounce';
 import { useSearchSuggestions } from '@/hooks/useSearchSuggestions';
 import { useExplorePriests } from '@/hooks/useExploreData';
 
-import ExploreSearchBar from '@/components/devotee/explore/ExploreSearchBar';
-import SuggestionDropdown from '@/components/devotee/explore/SuggestionDropdown';
+import { ExploreHeader } from '@/components/devotee/explore/ExploreHeader';
 import SortChips from '@/components/devotee/explore/SortChips';
 import PriestList from '@/components/devotee/explore/PriestList';
 import ExploreEmptyState, { ExploreEmptyReason } from '@/components/devotee/explore/ExploreEmptyState';
 import FilterBottomSheet from '@/components/devotee/explore/FilterBottomSheet';
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
+/**
+ * Returns empty state reason if applicable, otherwise null.
+ */
 function getEmptyStateReason(
   priests: NearbyPriest[],
   isLoading: boolean,
   permissionStatus: string,
-  searchInput: string
+  searchInput: string,
+  error: any
 ): ExploreEmptyReason | null {
   if (isLoading) return null;
+  if (error) return 'error';
   if (priests.length > 0) return null;
   if (permissionStatus === 'denied') return 'no_location';
   if (searchInput.length > 0) return 'search_empty';
   return 'no_results';
 }
 
-// ---------------------------------------------------------------------------
-// Main Screen Component
-// ---------------------------------------------------------------------------
-
+/**
+ * Discovery tab component coordinating search suggestions, list pagination, and filters.
+ */
 export default function ExploreTab(): React.JSX.Element {
   const dispatch = useDispatch();
-  const params = useLocalSearchParams<{ focusSearch?: string; categoryId?: string; categoryName?: string }>();
-
-  // Global State & Hooks
+  const params = useLocalSearchParams<{ focusSearch?: string; categoryId?: string }>();
   const filters = useSelector((state: RootState) => state.explore);
   const { coordinates, permissionStatus } = useUserLocation();
   const categories = useCategories();
 
-  // Local State
   const [searchInput, setSearchInput] = useState('');
   const debouncedSearch = useDebounce(searchInput, 400);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
 
-  // Data Queries
   const { suggestions, isLoading: isLoadingSuggestions } = useSearchSuggestions(debouncedSearch);
-  const { priests, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } = useExplorePriests(
+  const { priests, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch, error } = useExplorePriests(
     debouncedSearch,
     filters,
     filters.sortBy,
     coordinates
   );
 
-  // Mount Effect
   useEffect(() => {
-    if (params.categoryId) {
-      dispatch(applyPresetCategory(params.categoryId));
-    }
+    if (params.categoryId) dispatch(applyPresetCategory(params.categoryId));
   }, [params.categoryId, dispatch]);
 
-  // Handlers
-  function handleSearchChange(text: string): void {
-    setSearchInput(text);
-    setIsSuggestionOpen(text.length >= 2);
-  }
-
-  function handleSearchSubmit(query: string): void {
-    setIsSuggestionOpen(false);
-    setSearchInput(query);
-  }
-
-  function handleSearchClear(): void {
-    setSearchInput('');
-    setIsSuggestionOpen(false);
-  }
-
-  function handleSuggestionPress(suggestion: SearchSuggestion): void {
-    setSearchInput(suggestion.text);
-    setIsSuggestionOpen(false);
-  }
-
-  function handleSuggestionSearchPress(query: string): void {
-    setSearchInput(query);
-    setIsSuggestionOpen(false);
-  }
-
-  function handlePriestPress(priestId: string): void {
-    router.push({
-      pathname: '/devotee/(screens)/PriestDetails' as any,
-      params: { id: priestId },
-    });
-  }
-
-  function handleClearFilters(): void {
-    dispatch(resetFilters());
-  }
-
-  function handleEnableLocation(): void {
-    Linking.openSettings();
-  }
-
-  function handleFilterApply(): void {
-    setIsFilterSheetOpen(false);
-  }
-
-  const emptyReason = getEmptyStateReason(priests, isLoading, permissionStatus, searchInput);
+  const emptyReason = getEmptyStateReason(priests, isLoading, permissionStatus, searchInput, error);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* ── Fixed Header ── */}
-      <View style={styles.header}>
-        <Text style={styles.title}>Explore Pandits</Text>
-
-        <View style={styles.searchWrap}>
-          <ExploreSearchBar
-            value={searchInput}
-            onChangeText={handleSearchChange}
-            onSubmit={handleSearchSubmit}
-            onClear={handleSearchClear}
-            autoFocus={params.focusSearch === 'true'}
-            filterCount={filters.activeFilterCount}
-            onFilterPress={() => setIsFilterSheetOpen(true)}
-          />
-          <SuggestionDropdown
-            visible={isSuggestionOpen}
-            suggestions={suggestions}
-            query={searchInput}
-            isLoading={isLoadingSuggestions}
-            onSuggestionPress={handleSuggestionPress}
-            onSearchPress={handleSuggestionSearchPress}
-          />
-        </View>
-      </View>
+      <ExploreHeader
+        title="Explore Pandits"
+        searchInput={searchInput}
+        onChangeSearchInput={(text) => {
+          setSearchInput(text);
+          setIsSuggestionOpen(text.length >= 2);
+        }}
+        isSuggestionOpen={isSuggestionOpen}
+        setIsSuggestionOpen={setIsSuggestionOpen}
+        suggestions={suggestions}
+        isLoadingSuggestions={isLoadingSuggestions}
+        filterCount={filters.activeFilterCount}
+        onFilterPress={() => setIsFilterSheetOpen(true)}
+        autoFocus={params.focusSearch === 'true'}
+        onSuggestionPress={(s) => {
+          setSearchInput(s.text);
+          setIsSuggestionOpen(false);
+        }}
+        onSearchSubmit={(q) => {
+          setIsSuggestionOpen(false);
+          setSearchInput(q);
+        }}
+        onSearchClear={() => {
+          setSearchInput('');
+          setIsSuggestionOpen(false);
+        }}
+        onFocus={() => {
+          if (searchInput.length >= 2) setIsSuggestionOpen(true);
+        }}
+      />
 
       <View style={styles.sortWrap}>
-        <SortChips
-          selectedSort={filters.sortBy}
-          onSortChange={(sort) => dispatch(setSortBy(sort))}
-        />
+        <SortChips selectedSort={filters.sortBy} onSortChange={(sort) => dispatch(setSortBy(sort))} />
       </View>
 
-      {/* ── Scrollable List / Empty State ── */}
       {emptyReason ? (
         <ExploreEmptyState
           reason={emptyReason}
           searchQuery={searchInput}
-          onClearFilters={handleClearFilters}
-          onEnableLocation={handleEnableLocation}
+          onClearFilters={() => dispatch(resetFilters())}
+          onEnableLocation={() => Linking.openSettings()}
+          onRetry={refetch}
         />
       ) : (
         <PriestList
@@ -176,17 +125,16 @@ export default function ExploreTab(): React.JSX.Element {
           isFetchingNextPage={isFetchingNextPage}
           hasNextPage={hasNextPage}
           onEndReached={fetchNextPage}
-          onPriestPress={handlePriestPress}
+          onPriestPress={(id) => router.push({ pathname: '/devotee/(screens)/PriestDetails' as any, params: { id } })}
           resultCount={priests.length}
           isSearchActive={searchInput.length > 0}
         />
       )}
 
-      {/* ── Filter Sheet ── */}
       <FilterBottomSheet
         isVisible={isFilterSheetOpen}
         onClose={() => setIsFilterSheetOpen(false)}
-        onApply={handleFilterApply}
+        onApply={() => setIsFilterSheetOpen(false)}
         categories={categories.data ?? []}
         resultCount={priests.length}
       />
@@ -194,32 +142,7 @@ export default function ExploreTab(): React.JSX.Element {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Styles
-// ---------------------------------------------------------------------------
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: THEME.colors.background,
-  },
-  header: {
-    paddingHorizontal: THEME.spacing.md,
-    paddingTop: THEME.spacing.sm,
-    zIndex: 10,
-  },
-  title: {
-    fontSize: THEME.typography.displayMedium,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    marginBottom: THEME.spacing.md,
-  },
-  searchWrap: {
-    zIndex: 20,
-    position: 'relative',
-  },
-  sortWrap: {
-    marginVertical: THEME.spacing.md,
-    zIndex: 1,
-  },
+  container: { flex: 1, backgroundColor: THEME.colors.background },
+  sortWrap: { marginVertical: THEME.spacing.md, zIndex: 1 },
 });

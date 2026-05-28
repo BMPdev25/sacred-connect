@@ -52,10 +52,11 @@ export function isUpcoming(festival: Festival): boolean {
  */
 export function formatFestivalForDisplay(festival: Festival): FestivalParsed {
   const date = parseFestivalDate(festival.date);
-  const dayNumber = date.getDate().toString().padStart(2, '0');
-  const monthShort = date
-    .toLocaleString('en-IN', { month: 'short' })
-    .toUpperCase();
+  const dayNumber = date.getUTCDate().toString().padStart(2, '0');
+  // Build short month from UTC components to avoid local-timezone drift
+  const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+    'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  const monthShort = monthNames[date.getUTCMonth()];
 
   return {
     ...festival,
@@ -100,7 +101,73 @@ export async function fetchCategories(): Promise<CeremonyCategory[]> {
 }
 
 /**
+ * Maps raw backend priest details to NearbyPriest interface.
+ *
+ * @param p - The raw priest object from backend.
+ * @returns Mapped NearbyPriest object.
+ */
+function mapPujariToNearbyPriest(p: any): NearbyPriest {
+  const ratings = p.ratings || p.rating || {};
+  const startingPrice = p.services?.[0]?.price || 1500;
+  const spec =
+    p.services?.[0]?.ceremonyId?.name ||
+    p.services?.[0]?.name ||
+    p.religiousTradition ||
+    'Pandit';
+  return {
+    _id: p._id,
+    userId: typeof p.userId === 'object' ? (p.userId?._id || '') : (p.userId || ''),
+    name: p.name || (typeof p.userId === 'object' && p.userId?.name) || 'Unknown Priest',
+    profilePicture: p.profilePicture || undefined,
+    primarySpecialization: spec,
+    rating: typeof ratings.average === 'number' ? ratings.average : 4.5,
+    reviewCount: typeof ratings.count === 'number' ? ratings.count : 5,
+    startingPrice,
+    experienceYears: p.experience || 5,
+  };
+}
+
+/**
+ * Fetches active ceremonies and returns the first ceremony ID found.
+ *
+ * @returns Promise resolving to first ceremony ID, or null.
+ */
+async function fetchFirstCeremonyId(): Promise<string | null> {
+  try {
+    const response = await api.get<{ ceremonies: any[] }>('/ceremonies');
+    const list = response.data?.ceremonies;
+    if (Array.isArray(list) && list.length > 0) {
+      return list[0]._id;
+    }
+    return null;
+  } catch (err) {
+    logger.warn('fetchFirstCeremonyId failed, using fallback', err);
+    return null;
+  }
+}
+
+/**
+ * Fallback to fetch all priests when nearby search is unavailable.
+ *
+ * @returns Promise resolving to list of NearbyPriest.
+ */
+async function fallbackFetchAllPriests(): Promise<NearbyPriest[]> {
+  try {
+    const response = await api.get<{ priests: any[] }>('/devotee/priests/all');
+    const list = response.data?.priests;
+    if (Array.isArray(list)) {
+      return list.map(mapPujariToNearbyPriest);
+    }
+    return [];
+  } catch (err) {
+    logger.error('fallbackFetchAllPriests failed', err);
+    return [];
+  }
+}
+
+/**
  * Fetches nearby priests based on latitude and longitude coordinates.
+ * Falls back to fetching all priests if the primary endpoint fails or if no ceremonies are found.
  *
  * @param latitude - User's latitude.
  * @param longitude - User's longitude.
@@ -113,16 +180,21 @@ export async function fetchNearbyPriests(
   limit: number = 6
 ): Promise<NearbyPriest[]> {
   try {
-    const response = await api.get<ApiResponse<NearbyPriest[]>>('/priest/available', {
-      params: { lat: latitude, lng: longitude, limit },
-    });
-    if (response.data && response.data.success) {
-      return response.data.data;
+    const ceremonyId = await fetchFirstCeremonyId();
+    if (!ceremonyId) {
+      return await fallbackFetchAllPriests();
     }
-    return [];
+    const response = await api.get<{ pujaris: any[] }>('/priest/available', {
+      params: { lat: latitude, lng: longitude, limit, ceremonyId },
+    });
+    const list = response.data?.pujaris;
+    if (Array.isArray(list)) {
+      return list.map(mapPujariToNearbyPriest);
+    }
+    return await fallbackFetchAllPriests();
   } catch (err) {
-    logger.error('fetchNearbyPriests failed', err);
-    return [];
+    logger.warn('fetchNearbyPriests primary call failed, falling back', err);
+    return await fallbackFetchAllPriests();
   }
 }
 

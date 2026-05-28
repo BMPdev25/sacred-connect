@@ -127,16 +127,21 @@ export default function HomeTab(): React.JSX.Element {
 
   const lat = coordinates?.latitude ?? null;
   const lng = coordinates?.longitude ?? null;
+  const locationGranted = permissionStatus === 'granted';
 
   const bannersQuery = useBanners();
   const categoriesQuery = useCategories();
   const priestsQuery = useNearbyPriests(lat, lng);
   const festivalsQuery = useUpcomingFestivals();
 
-  const isFirstLoad =
+  // Include priests query in first-load detection only when the query is active (location granted)
+  const coreQueriesPending =
     bannersQuery.isPending &&
     categoriesQuery.isPending &&
     festivalsQuery.isPending;
+
+  const priestsPending = locationGranted && priestsQuery.isPending;
+  const isFirstLoad = coreQueriesPending || priestsPending;
 
   const isRefreshing =
     bannersQuery.isFetching ||
@@ -154,9 +159,8 @@ export default function HomeTab(): React.JSX.Element {
   const categories = categoriesQuery.data ?? [];
   const priests = priestsQuery.data ?? [];
   const festivals = festivalsQuery.data ?? [];
-  const locationGranted = permissionStatus === 'granted';
 
-  if (isFirstLoad && !locationLoading) {
+  if (isFirstLoad || locationLoading) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top }]}>
         <HomeSkeleton />
@@ -195,6 +199,7 @@ export default function HomeTab(): React.JSX.Element {
         <NearbyPriestsSection
           priests={priests}
           locationGranted={locationGranted}
+          locationLoading={locationLoading}
           onRequestLocation={requestLocation}
         />
 

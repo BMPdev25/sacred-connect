@@ -90,12 +90,14 @@ interface HomeBannerCarouselProps {
  */
 export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps): React.JSX.Element | null {
   const [activeIndex, setActiveIndex] = useState(0);
+  const activeIndexRef = useRef(0);
   const listRef = useRef<FlatList<Banner>>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
       if (viewableItems.length > 0 && viewableItems[0].index != null) {
+        activeIndexRef.current = viewableItems[0].index;
         setActiveIndex(viewableItems[0].index);
       }
     },
@@ -104,11 +106,12 @@ export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps)
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 });
 
+  /** Advances to the next slide using the ref — stable across re-renders. */
   const scrollToNext = useCallback(() => {
     if (banners.length < 2) return;
-    const next = (activeIndex + 1) % banners.length;
+    const next = (activeIndexRef.current + 1) % banners.length;
     listRef.current?.scrollToIndex({ index: next, animated: true });
-  }, [activeIndex, banners.length]);
+  }, [banners.length]);
 
   useEffect(() => {
     if (banners.length < 2) return;
@@ -152,11 +155,10 @@ const styles = StyleSheet.create({
     marginBottom: THEME.spacing.md,
   },
   slide: {
-    width: SCREEN_WIDTH - THEME.spacing.md * 2,
+    width: SCREEN_WIDTH,
     height: BANNER_HEIGHT,
     borderRadius: THEME.borderRadius.lg,
     overflow: 'hidden',
-    marginRight: THEME.spacing.sm,
   },
   slideImage: {
     ...StyleSheet.absoluteFillObject,

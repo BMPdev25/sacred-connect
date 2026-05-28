@@ -32,7 +32,9 @@ export interface CeremonyCategory {
   isActive: boolean;
   /** Display sorting order number. */
   order: number;
-  /** Optional icon name representing the category. */
+  /** Expo Ionicons name for the category icon (backend field). */
+  icon?: string;
+  /** Alias kept for backwards compatibility. */
   iconName?: string;
 }
 

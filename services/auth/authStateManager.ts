@@ -161,6 +161,40 @@ export function handleAuthError(error: any, router: any): void {
   router.replace('/login');
 }
 
+/** State to prevent registering multiple firebase auth observers. */
+let isListenerInitialized = false;
+
+/**
+ * Processes Firebase Auth state changes and routes the user accordingly.
+ *
+ * @param firebaseUser - The active Firebase User session object or null.
+ * @param router - Expo Router instance.
+ */
+async function handleAuthStateChange(
+  firebaseUser: FirebaseUser | null,
+  router: any
+): Promise<void> {
+  try {
+    console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
+    if (firebaseUser) {
+      console.log(`[DEBUG] onAuthStateChanged: User UID = ${firebaseUser.uid}, email = ${firebaseUser.email}`);
+      const profileWithState = await fetchUserProfile(firebaseUser);
+      routeAuthenticatedUser(
+        profileWithState,
+        profileWithState.priestState,
+        router
+      );
+    } else {
+      console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
+      const firstLaunch = await checkFirstLaunch();
+      routeUnauthenticatedUser(firstLaunch, router);
+    }
+  } catch (err: any) {
+    console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);
+    handleAuthError(err, router);
+  }
+}
+
 /**
  * Initializes the Firebase Auth observer, populating Redux and routing the
  * application based on the user's credentials and launch history.
@@ -172,33 +206,28 @@ export function handleAuthError(error: any, router: any): void {
  * @returns The unsubscribe function for the auth listener.
  */
 export function initializeAuthListener(router: any): () => void {
+  if (isListenerInitialized) {
+    console.log('[DEBUG] initializeAuthListener: Listener already active, skipping re-initialization.');
+    return () => {
+      console.log('[DEBUG] initializeAuthListener: Unsubscribe called on duplicate (no-op)');
+    };
+  }
+
+  isListenerInitialized = true;
   console.log('[DEBUG] initializeAuthListener: Subscribing to Firebase Auth changes...');
-  return onAuthStateChanged(
+
+  onAuthStateChanged(
     auth,
-    async (firebaseUser) => {
-      try {
-        console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
-        if (firebaseUser) {
-          console.log(`[DEBUG] onAuthStateChanged: User UID = ${firebaseUser.uid}, email = ${firebaseUser.email}`);
-          const profileWithState = await fetchUserProfile(firebaseUser);
-          routeAuthenticatedUser(
-            profileWithState,
-            profileWithState.priestState,
-            router
-          );
-        } else {
-          console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
-          const firstLaunch = await checkFirstLaunch();
-          routeUnauthenticatedUser(firstLaunch, router);
-        }
-      } catch (err: any) {
-        console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);
-        handleAuthError(err, router);
-      }
+    (user) => {
+      handleAuthStateChange(user, router);
     },
     (error) => {
       console.log('[DEBUG] onAuthStateChanged: Firebase observer error event:', error);
       handleAuthError(error, router);
     }
   );
+
+  return () => {
+    console.log('[DEBUG] initializeAuthListener: Unsubscribe called on global listener (ignored)');
+  };
 }

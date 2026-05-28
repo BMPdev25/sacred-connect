@@ -56,6 +56,8 @@ function LocationBlocked({ onRequestLocation }: LocationBlockedProps): React.JSX
 interface NearbyPriestsSectionProps {
   priests: NearbyPriest[];
   locationGranted: boolean;
+  /** True while the location hook is actively fetching coordinates. */
+  locationLoading: boolean;
   onRequestLocation: () => void;
 }
 
@@ -66,8 +68,18 @@ interface NearbyPriestsSectionProps {
 export default function NearbyPriestsSection({
   priests,
   locationGranted,
+  locationLoading,
   onRequestLocation,
 }: NearbyPriestsSectionProps): React.JSX.Element {
+  // Permission granted but coords still resolving — neutral state, not an error
+  if (locationGranted && locationLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Finding pandits near you…</Text>
+      </View>
+    );
+  }
+
   if (!locationGranted) {
     return <LocationBlocked onRequestLocation={onRequestLocation} />;
   }

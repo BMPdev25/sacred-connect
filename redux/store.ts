@@ -2,15 +2,17 @@ import { configureStore } from '@reduxjs/toolkit';
 
 import onboardingReducer from './slices/onboardingSlice';
 import userReducer from './slices/userSlice';
+import exploreReducer from './slices/exploreSlice';
 
 /**
  * Global Redux store configuration.
- * Registers the onboarding and user slices.
+ * Registers the onboarding, user, and explore slices.
  */
 export const store = configureStore({
   reducer: {
     onboarding: onboardingReducer,
     user: userReducer,
+    explore: exploreReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

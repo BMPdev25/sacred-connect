@@ -30,6 +30,7 @@ interface ChipProps {
  * Renders a single tappable category chip with an optional icon.
  */
 function Chip({ category, onPress }: ChipProps): React.JSX.Element {
+  const iconName = category.icon || category.iconName;
   return (
     <TouchableOpacity
       style={styles.chip}
@@ -38,9 +39,9 @@ function Chip({ category, onPress }: ChipProps): React.JSX.Element {
       accessibilityLabel={`Browse ${category.name} ceremonies`}
       accessibilityRole="button"
     >
-      {category.iconName ? (
+      {iconName ? (
         <Ionicons
-          name={category.iconName as any}
+          name={iconName as any}
           size={16}
           color={THEME.colors.primary}
           style={styles.chipIcon}

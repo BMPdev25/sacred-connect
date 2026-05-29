@@ -42,4 +42,4 @@ export const ONBOARDING_STORAGE_KEY = 'sc_has_launched';
  * Service fee percentage taken from priest bookings.
  * Checked with backend: currently 0 as placeholder.
  */
-export const PLATFORM_FEE_PERCENTAGE = 0;
+export const PLATFORM_FEE_PERCENTAGE = 0.05;

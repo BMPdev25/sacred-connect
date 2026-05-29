@@ -19,6 +19,7 @@ const IMAGE_REGISTRY: LocalImageRegistry = {
   'shared.logoIcon': require('@/assets/images/shared/logo-icon-diya.png'),
   'shared.logoFull': require('@/assets/images/shared/logo-full-diya.png'),
   'shared.avatarPlaceholder': require('@/assets/images/shared/avatar-placeholder.png'),
+  'booking.confirmationSuccess': require('@/assets/images/auth/forgot-password-success.png'),
 };
 
 /**
@@ -35,6 +36,7 @@ const IMAGE_FILENAMES: Record<string, string> = {
   'shared.logoIcon': 'shared/logo-icon-diya.png',
   'shared.logoFull': 'shared/logo-full-diya.png',
   'shared.avatarPlaceholder': 'shared/avatar-placeholder.png',
+  'booking.confirmationSuccess': 'auth/forgot-password-success.png',
 };
 
 /**

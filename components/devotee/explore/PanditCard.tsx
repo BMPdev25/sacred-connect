@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { NearbyPriest } from '@/types/home.types';
 import { AssetService } from '@/services/assets/AssetService';
 import { THEME } from '@/constants/theme';
+import { StarDisplay } from '@/components/shared/StarDisplay';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -70,7 +71,7 @@ interface RatingRowProps {
 function RatingRow({ rating, reviewCount }: RatingRowProps): React.JSX.Element {
   return (
     <View style={styles.ratingRow}>
-      <Ionicons name="star" size={STAR_SIZE} color={THEME.colors.gold} />
+      <StarDisplay rating={rating} size={STAR_SIZE} color={THEME.colors.gold} />
       <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
       <Text style={styles.reviewCount}>{`(${reviewCount})`}</Text>
     </View>

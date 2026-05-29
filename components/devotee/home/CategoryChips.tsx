@@ -69,8 +69,11 @@ export default function CategoryChips({ categories }: CategoryChipsProps): React
 
   if (categories.length === 0) return null;
 
-  const handleChipPress = () => {
-    router.navigate('/devotee/(tabs)/ExploreTab' as any);
+  const handleChipPress = (category: CeremonyCategory) => {
+    router.navigate({
+      pathname: '/devotee/(tabs)/ExploreTab' as any,
+      params: { categoryId: category._id, categoryName: category.name },
+    });
   };
 
   return (
@@ -81,7 +84,7 @@ export default function CategoryChips({ categories }: CategoryChipsProps): React
         contentContainerStyle={styles.scrollContent}
       >
         {categories.map((cat) => (
-          <Chip key={cat._id} category={cat} onPress={handleChipPress} />
+          <Chip key={cat._id} category={cat} onPress={() => handleChipPress(cat)} />
         ))}
       </ScrollView>
     </View>

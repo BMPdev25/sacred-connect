@@ -12,6 +12,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 
 import { NearbyPriest } from '@/types/home.types';
 import PriestCard from './PriestCard';
@@ -92,11 +93,23 @@ export default function NearbyPriestsSection({
     );
   }
 
+  const router = useRouter();
+
   return (
     <FlatList
       data={priests}
       keyExtractor={(p) => p._id}
-      renderItem={({ item }) => <PriestCard priest={item} />}
+      renderItem={({ item }) => (
+        <PriestCard
+          priest={item}
+          onPress={() =>
+            router.push({
+              pathname: '/devotee/(screens)/PriestDetails' as any,
+              params: { id: item._id },
+            })
+          }
+        />
+      )}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.listContent}

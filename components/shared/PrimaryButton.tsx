@@ -14,6 +14,7 @@ import {
   TouchableOpacity,
   View,
   ViewStyle,
+  StyleProp,
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
@@ -99,6 +100,8 @@ export interface PrimaryButtonProps {
   leftIcon?: React.ReactNode;
   /** testID forwarded to the TouchableOpacity for automated testing. */
   testID?: string;
+  /** Optional custom styling to override container dimensions (e.g. width, height). */
+  style?: StyleProp<ViewStyle>;
 }
 
 // ---------------------------------------------------------------------------
@@ -113,7 +116,7 @@ export interface PrimaryButtonProps {
 export default function PrimaryButton(props: PrimaryButtonProps): React.ReactElement {
   const {
     title, onPress, loading = false, disabled = false,
-    variant = 'primary', leftIcon, testID,
+    variant = 'primary', leftIcon, testID, style,
   } = props;
 
   const isDisabled = disabled || loading;
@@ -129,19 +132,21 @@ export default function PrimaryButton(props: PrimaryButtonProps): React.ReactEle
       disabled={isDisabled}
       testID={testID}
       activeOpacity={0.85}
-      style={styles.touchable}
+      style={[styles.touchable, style]}
     >
       {isPrimary ? (
         <LinearGradient
           colors={[THEME.colors.primary, THEME.colors.primaryDark]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
-          style={[styles.base, containerStyle]}
+          style={[styles.base, containerStyle, style && { height: StyleSheet.flatten(style).height }]}
         >
           {content}
         </LinearGradient>
       ) : (
-        <View style={[styles.base, containerStyle]}>{content}</View>
+        <View style={[styles.base, containerStyle, style && { height: StyleSheet.flatten(style).height }]}>
+          {content}
+        </View>
       )}
     </TouchableOpacity>
   );

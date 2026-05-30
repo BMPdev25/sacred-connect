@@ -43,3 +43,9 @@ export const ONBOARDING_STORAGE_KEY = 'sc_has_launched';
  * Checked with backend: currently 0 as placeholder.
  */
 export const PLATFORM_FEE_PERCENTAGE = 0.05;
+
+/**
+ * Expiration duration for a booking request sent to a priest in hours.
+ */
+export const BOOKING_REQUEST_EXPIRY_HOURS = 24;
+

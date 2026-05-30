@@ -4,10 +4,11 @@ import onboardingReducer from './slices/onboardingSlice';
 import userReducer from './slices/userSlice';
 import exploreReducer from './slices/exploreSlice';
 import bookingReducer from './slices/bookingSlice';
+import priestDashboardReducer from './slices/priestDashboardSlice';
 
 /**
  * Global Redux store configuration.
- * Registers the onboarding, user, explore, and booking slices.
+ * Registers the onboarding, user, explore, booking, and priestDashboard slices.
  */
 export const store = configureStore({
   reducer: {
@@ -15,7 +16,9 @@ export const store = configureStore({
     user: userReducer,
     explore: exploreReducer,
     booking: bookingReducer,
+    priestDashboard: priestDashboardReducer,
   },
+
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,

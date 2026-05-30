@@ -142,7 +142,15 @@ export default function FloatingInput(props: FloatingInputProps): React.ReactEle
 
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.container, { borderColor }]}>
+      <View
+        style={[
+          styles.container,
+          {
+            borderColor,
+            backgroundColor: editable ? THEME.colors.surface : '#F9F9F9',
+          },
+        ]}
+      >
         {leftIcon && <View style={styles.leftAdornment}>{leftIcon}</View>}
         <Animated.Text style={getLabelStyle(labelAnim, Boolean(leftIcon))} numberOfLines={1}>
           {label}

@@ -3,6 +3,7 @@ import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { UserProfile } from '@/types/api.types';
 import { PriestAuthState } from '@/types/api.types';
 import { UserLocation } from '@/types/home.types';
+import { NotificationPreferences } from '@/types/profile.types';
 
 // ---------------------------------------------------------------------------
 // State shape
@@ -26,6 +27,10 @@ export interface UserState {
   priestState: PriestAuthState | null;
   /** Devotee current device location state. */
   userLocation: UserLocation;
+  /** ISO date string representing registration timestamp. */
+  createdAt: string;
+  /** Devotee notification toggle configurations. */
+  notificationPrefs: NotificationPreferences;
 }
 
 const initialState: UserState = {
@@ -40,6 +45,14 @@ const initialState: UserState = {
     cityName: null,
     permissionStatus: 'undetermined',
     lastFetched: null,
+  },
+  createdAt: '',
+  notificationPrefs: {
+    bookingConfirmations: true,
+    upcomingReminders: true,
+    cancellationAlerts: true,
+    festivalOffers: true,
+    newFeatures: true,
   },
 };
 
@@ -70,6 +83,18 @@ export const userSlice = createSlice({
       state.profilePicture = user.profilePicture || null;
       state.userType = user.userType || null;
       state.priestState = priestState || null;
+      state.createdAt = user.createdAt || '';
+
+      const notifications = user.notifications;
+      if (notifications) {
+        state.notificationPrefs = {
+          bookingConfirmations: notifications.push?.bookingUpdates ?? true,
+          upcomingReminders: notifications.push?.reminders ?? true,
+          cancellationAlerts: notifications.push?.bookingUpdates ?? true,
+          festivalOffers: notifications.push?.promotions ?? true,
+          newFeatures: notifications.push?.promotions ?? true,
+        };
+      }
     },
 
     /**
@@ -77,6 +102,26 @@ export const userSlice = createSlice({
      */
     updateUserName(state, action: PayloadAction<string>) {
       state.name = action.payload;
+    },
+
+    /**
+     * Updates the local user profile state with partial data.
+     */
+    updateUserProfile(
+      state,
+      action: PayloadAction<Partial<UserProfile & { notificationPrefs: NotificationPreferences }>>
+    ) {
+      const partial = action.payload;
+      if (partial.name !== undefined) state.name = partial.name;
+      if (partial.phone !== undefined) state.phone = partial.phone;
+      if (partial.profilePicture !== undefined) state.profilePicture = partial.profilePicture;
+      if (partial.email !== undefined) state.email = partial.email;
+      if (partial.notificationPrefs !== undefined) {
+        state.notificationPrefs = {
+          ...state.notificationPrefs,
+          ...partial.notificationPrefs,
+        };
+      }
     },
 
     /**
@@ -100,6 +145,7 @@ export const {
   clearUserSession,
   updateUserName,
   setUserLocation,
+  updateUserProfile,
 } = userSlice.actions;
 
 export default userSlice.reducer;

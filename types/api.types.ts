@@ -68,6 +68,19 @@ export interface UserProfile {
   authProvider: AuthProvider;
   /** Flag representing email validation state. */
   isEmailVerified: boolean;
+  /** Optional notification preferences from backend. */
+  notifications?: {
+    email: {
+      bookingUpdates: boolean;
+      promotions: boolean;
+      reminders: boolean;
+    };
+    push: {
+      bookingUpdates: boolean;
+      promotions: boolean;
+      reminders: boolean;
+    };
+  };
   /** ISO date string representing registration timestamp. */
   createdAt: string;
   /** ISO date string representing last update timestamp. */

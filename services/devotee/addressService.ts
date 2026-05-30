@@ -98,3 +98,82 @@ export async function saveAddress(
     throw new Error(errMsg || 'Failed to save address.');
   }
 }
+
+/**
+ * Updates an existing address on the devotee's backend profile.
+ * Maps the address fields to the backend structure and returns the updated address.
+ *
+ * @param addressId - The unique identifier of the address to update.
+ * @param updates - Partial devotee address fields to update.
+ * @returns A promise resolving to the updated DevoteeAddress object.
+ * @throws An error on update failure.
+ */
+export async function updateAddress(
+  addressId: string,
+  updates: Partial<Omit<DevoteeAddress, '_id'>>
+): Promise<DevoteeAddress> {
+  try {
+    const payload: any = {};
+    if (updates.label !== undefined) {
+      payload.type = updates.label === 'Office' || updates.label === 'Work' ? 'Work' : (updates.label === 'Home' ? 'Home' : 'Other');
+    }
+    if (updates.houseNo !== undefined || updates.street !== undefined) {
+      const houseNo = updates.houseNo || '';
+      const street = updates.street || '';
+      payload.street = houseNo ? `${houseNo}, ${street}` : street;
+    }
+    if (updates.city !== undefined) payload.city = updates.city;
+    if (updates.state !== undefined) payload.state = updates.state;
+    if (updates.pincode !== undefined) payload.zip = updates.pincode;
+    if (updates.landmark !== undefined) payload.landmark = updates.landmark || '';
+    if (updates.isDefault !== undefined) payload.isDefault = updates.isDefault;
+
+    const response = await api.put(`/devotee/addresses/${addressId}`, payload);
+    const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    
+    const updatedBackendAddress = data.find((addr: any) => addr._id === addressId);
+    if (!updatedBackendAddress) {
+      throw new Error('Updated address not found in response');
+    }
+    
+    return mapBackendToDevoteeAddress(updatedBackendAddress);
+  } catch (err: any) {
+    logger.error('updateAddress failed', err);
+    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    throw new Error(errMsg || 'Failed to update address.');
+  }
+}
+
+/**
+ * Deletes a saved address from the devotee's backend profile.
+ *
+ * @param addressId - The unique identifier of the address to delete.
+ * @returns A promise resolving when the deletion is successful.
+ * @throws An error with a user-friendly message on failure.
+ */
+export async function deleteAddress(addressId: string): Promise<void> {
+  try {
+    await api.delete(`/devotee/addresses/${addressId}`);
+  } catch (err: any) {
+    logger.error('deleteAddress failed', err);
+    throw new Error('Failed to delete address.');
+  }
+}
+
+/**
+ * Sets an address as the default address for the devotee.
+ *
+ * @param addressId - The unique identifier of the address to mark default.
+ * @returns A promise resolving when successful.
+ * @throws An error on failure.
+ */
+export async function setDefaultAddress(addressId: string): Promise<void> {
+  try {
+    await api.put(`/devotee/addresses/${addressId}`, { isDefault: true });
+  } catch (err: any) {
+    logger.error('setDefaultAddress failed', err);
+    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    throw new Error(errMsg || 'Failed to set default address.');
+  }
+}
+

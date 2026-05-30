@@ -158,6 +158,37 @@ import api from '@/api/index';
   }
 
   /**
+   * Fetches the currently authenticated priest's profile from the backend.
+   *
+   * @returns A promise resolving to the priest's profile details.
+   */
+  export async function fetchPriestProfile(): Promise<any> {
+    try {
+      const response = await api.get('/priest/profile');
+      return response.data;
+    } catch (err) {
+      logger.error('Failed to fetch priest profile', err);
+      throw err;
+    }
+  }
+
+  /**
+   * Updates the currently authenticated priest's profile data.
+   *
+   * @param updates - Partial fields to update on the priest profile.
+   * @returns A promise resolving to the updated profile details.
+   */
+  export async function updatePriestProfile(updates: Record<string, any>): Promise<any> {
+    try {
+      const response = await api.put('/priest/profile', updates);
+      return response.data;
+    } catch (err) {
+      logger.error('Failed to update priest profile', err);
+      throw err;
+    }
+  }
+
+  /**
    * Exported CalendarService containing all calendar operations.
    */
   export const CalendarService = {
@@ -165,4 +196,6 @@ import api from '@/api/index';
     buildMarkedDates,
     markBookingComplete,
     fetchBookingDetail,
+    fetchPriestProfile,
+    updatePriestProfile,
   };

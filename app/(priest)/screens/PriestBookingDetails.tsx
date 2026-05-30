@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,6 +13,7 @@ import BookingTimeline from '@/components/shared/BookingTimeline';
 import DevoteeCard from '@/components/priest/DevoteeCard';
 import CeremonyCard from '@/components/priest/CeremonyCard';
 import EarningsCard from '@/components/priest/EarningsCard';
+import StatusHeader from '@/components/priest/StatusHeader';
 
 function isDateTodayOrPast(dateStr: string): boolean {
   if (!dateStr) return false;
@@ -26,28 +27,6 @@ function isDateTodayOrPast(dateStr: string): boolean {
   }
 }
 
-function StatusHeader({ ceremonyType, status, bookingRef }: { ceremonyType: string; status: string; bookingRef: string }): React.JSX.Element {
-  const getStatusStyle = () => {
-    if (status === 'confirmed') return [styles.statusBadge, styles.statusConfirmed];
-    if (status === 'completed') return [styles.statusBadge, styles.statusCompleted];
-    return [styles.statusBadge, styles.statusCancelled];
-  };
-
-  const textStyle = status === 'confirmed' ? styles.textConfirmed : status === 'completed' ? styles.textCompleted : styles.textCancelled;
-
-  return (
-    <View style={styles.statusHeaderContainer}>
-      <Text style={styles.ceremonyTitle} numberOfLines={2}>{ceremonyType}</Text>
-      <Text style={styles.bookingRef}>{bookingRef}</Text>
-      <View style={getStatusStyle()}>
-        <Text style={[styles.statusText, textStyle]}>
-          {status === 'confirmed' ? 'Confirmed' : status === 'completed' ? 'Completed' : 'Cancelled'}
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 export default function PriestBookingDetails(): React.JSX.Element {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
@@ -55,7 +34,7 @@ export default function PriestBookingDetails(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const [isMarkingComplete, setIsMarkingComplete] = useState<boolean>(false);
 
-  const { data: booking, isLoading } = useQuery({
+  const { data: booking, isLoading, isError, refetch } = useQuery({
     queryKey: ['priestBookingDetail', bookingId],
     queryFn: () => CalendarService.fetchBookingDetail(bookingId!),
     staleTime: 30000,
@@ -84,10 +63,38 @@ export default function PriestBookingDetails(): React.JSX.Element {
     ]);
   };
 
+  if (isError) {
+    return (
+      <View style={styles.container}>
+        <View style={[styles.headerContainer, { top: insets.top + 8 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="arrow-back" size={24} color={THEME.colors.maroon} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Booking Details</Text>
+        </View>
+        <View style={[styles.centerAlign, { flex: 1, paddingTop: insets.top + 56, paddingHorizontal: 24 }]}>
+          <Ionicons name="alert-circle-outline" size={48} color={THEME.colors.error} />
+          <Text style={styles.errorText}>Failed to load booking details.</Text>
+          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn} activeOpacity={0.8}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  }
+
   if (isLoading || !booking) {
     return (
-      <View style={[styles.container, styles.centerAlign]}>
-        <ActivityIndicator size="large" color={THEME.colors.primary} />
+      <View style={styles.container}>
+        <View style={[styles.headerContainer, { top: insets.top + 8 }]}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="arrow-back" size={24} color={THEME.colors.maroon} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Booking Details</Text>
+        </View>
+        <View style={[styles.centerAlign, { flex: 1, paddingTop: insets.top + 56 }]}>
+          <ActivityIndicator size="large" color={THEME.colors.primary} />
+        </View>
       </View>
     );
   }
@@ -156,20 +163,12 @@ export default function PriestBookingDetails(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME.colors.background },
   centerAlign: { justifyContent: 'center', alignItems: 'center' },
+  errorText: { fontSize: THEME.typography.body, color: THEME.colors.textSecondary, marginTop: 12, textAlign: 'center' },
+  retryBtn: { marginTop: 16, backgroundColor: THEME.colors.primary, paddingHorizontal: 20, paddingVertical: 10, borderRadius: THEME.borderRadius.pill },
+  retryBtnText: { fontSize: THEME.typography.bodySmall, color: '#FFF', fontWeight: '600' },
   headerContainer: { position: 'absolute', left: 0, right: 0, zIndex: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', height: 40 },
   backBtn: { position: 'absolute', left: 16, padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: THEME.colors.maroon },
-  statusHeaderContainer: { backgroundColor: '#FFF3E0', borderBottomLeftRadius: 24, borderBottomRightRadius: 24, paddingHorizontal: 20, paddingBottom: 24, paddingTop: 8, alignItems: 'center' },
-  ceremonyTitle: { fontSize: 22, fontWeight: '700', color: THEME.colors.textPrimary, textAlign: 'center' },
-  bookingRef: { fontSize: 13, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', color: THEME.colors.gold, marginTop: 4, fontWeight: '600' },
-  statusBadge: { paddingHorizontal: 12, paddingVertical: 4, borderRadius: THEME.borderRadius.pill, marginTop: 8 },
-  statusConfirmed: { backgroundColor: '#DCFCE7' },
-  statusCompleted: { backgroundColor: '#F1F5F9' },
-  statusCancelled: { backgroundColor: '#FEE2E2' },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  textConfirmed: { color: '#16A34A' },
-  textCompleted: { color: '#475569' },
-  textCancelled: { color: '#DC2626' },
   actionPanel: { marginTop: 8, paddingBottom: 16 },
   infoBanner: { backgroundColor: '#FFF3E0', borderRadius: 12, padding: 12, marginHorizontal: 16, marginBottom: 16, flexDirection: 'row', alignItems: 'center' },
   infoBannerText: { flex: 1, fontSize: THEME.typography.bodySmall, color: THEME.colors.textSecondary, paddingLeft: 8, fontWeight: '500' },

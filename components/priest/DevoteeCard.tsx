@@ -38,13 +38,21 @@ function handleCallDevotee(phone: string): void {
   }
 }
 
+function getProfilePictureUrl(pic: any): string | null {
+  if (!pic) return null;
+  if (typeof pic === 'string') return pic;
+  if (typeof pic === 'object' && pic.url) return pic.url;
+  return null;
+}
+
 /**
  * Renders the devotee card section with profile photo, name, badges, and call action.
  */
 export default function DevoteeCard({ devoteeId, status, isFirstTimeDevotee }: DevoteeCardProps): React.JSX.Element {
   const showCallButton = devoteeId.phone && status === 'confirmed';
-  const avatarSource = devoteeId.profilePicture
-    ? { uri: devoteeId.profilePicture }
+  const avatarUrl = getProfilePictureUrl(devoteeId.profilePicture);
+  const avatarSource = avatarUrl
+    ? { uri: avatarUrl }
     : AssetService.getImage('shared.avatarPlaceholder');
 
   return (

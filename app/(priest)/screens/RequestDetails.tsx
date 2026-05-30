@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -7,16 +7,22 @@ import { useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { THEME } from '@/constants/theme';
+import { styles } from './RequestDetails.styles';
 import PrimaryButton from '@/components/shared/PrimaryButton';
-import { StarDisplay } from '@/components/shared/StarDisplay';
 import { PriestRequestsService } from '@/services/priest/priestRequestsService';
 import { decrementPendingRequests } from '@/redux/slices/priestDashboardSlice';
-import { formatTime12Hour, formatDisplayDate } from '@/utils/bookingUtils';
-import { formatDuration } from '@/utils/priestDetailsUtils';
-import { formatRequestExpiry, isFirstTimeDevotee } from '@/utils/priestUtils';
-import { formatMemberSince, formatDistance } from '@/utils/requestDetailsUtils';
-import { AssetService } from '@/services/assets/AssetService';
+import { formatRequestExpiry } from '@/utils/priestUtils';
+import {
+  RequestDevoteeCard,
+  RequestCeremonyCard,
+  RequestEarningsCard,
+  RequestDetailsSkeleton,
+} from '@/components/priest/RequestDetailsComponents';
 
+/**
+ * RequestDetails Screen.
+ * Displays details of a booking request to a priest, allowing acceptance or declination.
+ */
 export default function RequestDetails(): React.JSX.Element {
   const { bookingId } = useLocalSearchParams<{ bookingId: string }>();
   const router = useRouter();
@@ -26,7 +32,7 @@ export default function RequestDetails(): React.JSX.Element {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const { data: request, isLoading } = useQuery({
+  const { data: request, isLoading, isError, refetch } = useQuery({
     queryKey: ['requestDetail', bookingId],
     queryFn: () => PriestRequestsService.fetchRequestDetail(bookingId!),
     staleTime: 0,
@@ -41,7 +47,6 @@ export default function RequestDetails(): React.JSX.Element {
       queryClient.invalidateQueries({ queryKey: ['priestPendingRequests'] });
       dispatch(decrementPendingRequests());
       router.back();
-      // Toast can be added here
     } catch (error: any) {
       if (error.message?.toLowerCase().includes('no longer available')) {
         Alert.alert('Too Late', 'This request was already taken or expired.');
@@ -72,7 +77,7 @@ export default function RequestDetails(): React.JSX.Element {
   const handleDecline = () => {
     Alert.alert(
       'Decline Request',
-      'The devotee will be notified that you\'re unavailable.',
+      "The devotee will be notified that you're unavailable.",
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Decline', style: 'destructive', onPress: confirmDecline },
@@ -80,7 +85,7 @@ export default function RequestDetails(): React.JSX.Element {
     );
   };
 
-  if (isLoading || !request) {
+  if (isError) {
     return (
       <View style={styles.container}>
         <TouchableOpacity
@@ -90,14 +95,19 @@ export default function RequestDetails(): React.JSX.Element {
         >
           <Ionicons name="arrow-back" size={24} color={THEME.colors.maroon} />
         </TouchableOpacity>
-        <View style={{ paddingTop: insets.top + 56 }}>
-          <Text style={styles.screenTitle}>Booking Request</Text>
-          {/* Basic Skeleton */}
-          <View style={styles.skeletonCard} />
-          <View style={styles.skeletonCardLarge} />
+        <View style={[styles.centerAlign, { flex: 1, paddingTop: insets.top + 56, paddingHorizontal: 24 }]}>
+          <Ionicons name="alert-circle-outline" size={48} color={THEME.colors.error} />
+          <Text style={styles.errorText}>Failed to load request details.</Text>
+          <TouchableOpacity onPress={() => refetch()} style={styles.retryBtn} activeOpacity={0.8}>
+            <Text style={styles.retryBtnText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       </View>
     );
+  }
+
+  if (isLoading || !request) {
+    return <RequestDetailsSkeleton onBack={() => router.back()} topInset={insets.top} />;
   }
 
   const expiryText = formatRequestExpiry(request.createdAt);
@@ -116,96 +126,23 @@ export default function RequestDetails(): React.JSX.Element {
 
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[
-          styles.scrollContent,
-          {
-            paddingTop: insets.top + 56,
-            paddingBottom: 20,
-          },
-        ]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + 56, paddingBottom: 20 }]}
       >
         <Text style={styles.screenTitle}>Booking Request</Text>
-        {/* DEVOTEE CARD */}
-        <View style={styles.devoteeCard}>
-          <Image
-            source={
-              request.devoteeId?.profilePicture
-                ? { uri: request.devoteeId.profilePicture }
-                : (AssetService.getImage('shared.placeholderAvatar') as any)
-            }
-            style={styles.avatar}
-          />
-          <View style={styles.devoteeInfo}>
-            <Text style={styles.devoteeName}>{request.devoteeId?.name || 'Devotee'}</Text>
-            <Text style={styles.memberSince}>
-              Member since {formatMemberSince(request.devoteeId?.createdAt || '')}
-            </Text>
-            
-            <View style={styles.ratingRow}>
-              {/* Note: StarDisplay props might vary, using rating & size as requested */}
-              <StarDisplay rating={5.0} size={14} />
-              <Text style={styles.ratingText}>5.0</Text>
-              
-              {isFirstTimeDevotee(request.devoteeId?.createdAt || '') && (
-                <View style={styles.firstBookingBadge}>
-                  <Text style={styles.firstBookingText}>FIRST BOOKING</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </View>
-
-        {/* CEREMONY DETAILS CARD */}
-        <View style={styles.ceremonyCard}>
-          <Text style={styles.sectionTitle}>Ceremony Details</Text>
-          <Text style={styles.ceremonyName}>{request.ceremonyType}</Text>
-          
-          <View style={styles.detailRow}>
-            <Ionicons name="calendar" size={18} color={THEME.colors.primary} />
-            <Text style={styles.detailText}>{formatDisplayDate(request.date)}</Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="time" size={18} color={THEME.colors.primary} />
-            <Text style={styles.detailText}>
-              {formatTime12Hour(request.startTime)} – {formatTime12Hour(request.endTime)} ({formatDuration(request.durationMinutes || 0)})
-            </Text>
-          </View>
-
-          <View style={styles.detailRow}>
-            <Ionicons name="location" size={18} color={THEME.colors.primary} />
-            <Text style={styles.detailText} numberOfLines={2}>
-              {request.location?.address}
-            </Text>
-          </View>
-
-          {request.distance !== undefined && (
-            <View style={styles.distanceRow}>
-              <Ionicons name="location-outline" size={14} color={THEME.colors.textMuted} />
-              <Text style={styles.distanceText}>
-                {formatDistance(request.distance)} from your location
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* EARNINGS CARD */}
-        <View style={styles.earningsCard}>
-          <Text style={styles.earningsCaption}>YOUR EARNINGS</Text>
-          <Text style={styles.earningsAmount}>
-            ₹{(request.basePrice || 0).toLocaleString('en-IN')}
-          </Text>
-          <Text style={styles.earningsSubtext}>
-            For {formatDuration(request.durationMinutes || 0)} of service
-          </Text>
-          
-          <View style={styles.divider} />
-          
-          <View style={styles.infoRow}>
-            <Ionicons name="information-circle-outline" size={14} color={THEME.colors.textMuted} style={{ marginRight: 4 }} />
-            <Text style={styles.infoText}>Sacred Connect facilitates payment on your behalf</Text>
-          </View>
-        </View>
+        <RequestDevoteeCard devotee={request.devoteeId} />
+        <RequestCeremonyCard
+          ceremonyType={request.ceremonyType}
+          date={request.date}
+          startTime={request.startTime}
+          endTime={request.endTime}
+          durationMinutes={request.durationMinutes || 0}
+          address={request.location?.address || ''}
+          distance={request.distance}
+        />
+        <RequestEarningsCard
+          basePrice={request.basePrice || 0}
+          durationMinutes={request.durationMinutes || 0}
+        />
       </ScrollView>
 
       {/* ACTION SECTION */}
@@ -234,223 +171,4 @@ export default function RequestDetails(): React.JSX.Element {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F9FAFB',
-  },
-  backBtn: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 10,
-    padding: 8,
-  },
-  screenTitle: {
-    fontSize: THEME.typography.subheading,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: THEME.spacing.md,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    // Scroll content layout
-  },
-  
-  // Skeleton
-  skeletonCard: {
-    backgroundColor: '#E5E7EB',
-    height: 100,
-    margin: 16,
-    borderRadius: 16,
-  },
-  skeletonCardLarge: {
-    backgroundColor: '#E5E7EB',
-    height: 250,
-    marginHorizontal: 16,
-    borderRadius: 16,
-  },
 
-  // Devotee Card
-  devoteeCard: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    margin: 16,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-  },
-  devoteeInfo: {
-    marginLeft: 16,
-    flex: 1,
-    justifyContent: 'center',
-  },
-  devoteeName: {
-    fontSize: THEME.typography.subheading,
-    fontWeight: '600',
-    color: THEME.colors.textPrimary,
-  },
-  memberSince: {
-    fontSize: THEME.typography.bodySmall,
-    color: THEME.colors.textSecondary,
-    marginTop: 2,
-  },
-  ratingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  ratingText: {
-    fontSize: THEME.typography.bodySmall,
-    color: '#D4AF37', // gold
-    marginLeft: 4,
-    fontWeight: '600',
-  },
-  firstBookingBadge: {
-    backgroundColor: '#DCFCE7',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: THEME.borderRadius.pill,
-    marginLeft: 8,
-  },
-  firstBookingText: {
-    color: '#16A34A',
-    fontSize: THEME.typography.caption,
-    fontWeight: '700',
-  },
-
-  // Ceremony Details Card
-  ceremonyCard: {
-    backgroundColor: '#FFFFFF',
-    marginHorizontal: 16,
-    marginBottom: 16,
-    borderRadius: 16,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  sectionTitle: {
-    fontSize: THEME.typography.subheading,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    marginBottom: THEME.spacing.md,
-  },
-  ceremonyName: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: THEME.colors.textPrimary,
-    marginBottom: THEME.spacing.md,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  detailText: {
-    fontSize: THEME.typography.body,
-    color: THEME.colors.textPrimary,
-    marginLeft: 12,
-    flex: 1,
-    lineHeight: 22,
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 30, // Indented under location
-    marginTop: -4,
-  },
-  distanceText: {
-    fontSize: THEME.typography.bodySmall,
-    color: THEME.colors.textMuted,
-    marginLeft: 6,
-  },
-
-  // Earnings Card
-  earningsCard: {
-    backgroundColor: '#FFF3E0',
-    marginHorizontal: 16,
-    borderRadius: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  earningsCaption: {
-    fontSize: THEME.typography.caption,
-    textTransform: 'uppercase',
-    color: THEME.colors.textMuted,
-    letterSpacing: 2,
-    marginBottom: THEME.spacing.sm,
-    fontWeight: '600',
-  },
-  earningsAmount: {
-    fontSize: 48,
-    fontWeight: '900',
-    color: '#D4AF37', // gold
-  },
-  earningsSubtext: {
-    fontSize: THEME.typography.bodySmall,
-    color: THEME.colors.textSecondary,
-    marginTop: THEME.spacing.xs,
-  },
-  divider: {
-    height: 1,
-    width: '100%',
-    backgroundColor: THEME.colors.border,
-    marginVertical: THEME.spacing.md,
-    borderStyle: 'dashed',
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoText: {
-    fontSize: THEME.typography.caption,
-    color: THEME.colors.textMuted,
-  },
-
-  // Action Section
-  actionSection: {
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    backgroundColor: '#F9FAFB',
-    borderTopWidth: 1,
-    borderTopColor: THEME.colors.border,
-  },
-  declineButton: {
-    borderWidth: 1.5,
-    borderColor: '#EF4444',
-    borderRadius: THEME.borderRadius.pill,
-    height: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  declineButtonText: {
-    fontSize: THEME.typography.body,
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-  expiryText: {
-    fontSize: THEME.typography.bodySmall,
-    color: THEME.colors.textMuted,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  expiredErrorText: {
-    color: '#EF4444',
-    fontWeight: '600',
-  },
-});

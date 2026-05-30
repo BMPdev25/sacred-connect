@@ -33,6 +33,13 @@ export interface UserState {
   notificationPrefs: NotificationPreferences;
 }
 
+function extractProfilePictureUrl(pic: any): string | null {
+  if (!pic) return null;
+  if (typeof pic === 'string') return pic;
+  if (typeof pic === 'object' && pic.url) return pic.url;
+  return null;
+}
+
 const initialState: UserState = {
   name: '',
   email: '',
@@ -80,7 +87,7 @@ export const userSlice = createSlice({
       state.name = user.name || '';
       state.email = user.email || '';
       state.phone = user.phone || '';
-      state.profilePicture = user.profilePicture || null;
+      state.profilePicture = extractProfilePictureUrl(user.profilePicture);
       state.userType = user.userType || null;
       state.priestState = priestState || null;
       state.createdAt = user.createdAt || '';
@@ -114,7 +121,9 @@ export const userSlice = createSlice({
       const partial = action.payload;
       if (partial.name !== undefined) state.name = partial.name;
       if (partial.phone !== undefined) state.phone = partial.phone;
-      if (partial.profilePicture !== undefined) state.profilePicture = partial.profilePicture;
+      if (partial.profilePicture !== undefined) {
+        state.profilePicture = extractProfilePictureUrl(partial.profilePicture);
+      }
       if (partial.email !== undefined) state.email = partial.email;
       if (partial.notificationPrefs !== undefined) {
         state.notificationPrefs = {

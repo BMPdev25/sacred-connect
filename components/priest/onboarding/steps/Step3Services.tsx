@@ -46,6 +46,11 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
   const reduxServices = useSelector((state: RootState) => state.onboarding.step3.services);
 
   const [services, setServices] = useState<PriestService[]>(reduxServices);
+
+  useEffect(() => {
+    setServices(reduxServices);
+  }, [reduxServices]);
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [formValues, setFormValues] = useState<ServiceFormValues>(EMPTY_FORM);

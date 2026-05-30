@@ -6,6 +6,8 @@ export interface ProfileUpdatePayload {
   name?: string;
   /** Primary contact phone number */
   phone?: string;
+  /** Array of language ObjectIDs */
+  languagesSpoken?: string[];
 }
 
 /**

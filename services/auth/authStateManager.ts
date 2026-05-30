@@ -199,7 +199,7 @@ async function handleAuthStateChange(
       err.message?.includes('404')
     ) {
       console.log('[DEBUG] onAuthStateChanged: Backend has no record for this Firebase user. Redirecting to role selection.');
-      router.replace('/(auth)/role-selection' as any);
+      router.replace('/role-selection');
       return;
     }
     handleAuthError(err, router);

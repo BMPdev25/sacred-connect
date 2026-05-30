@@ -44,7 +44,7 @@ export interface PriestListProps {
   /** Called when the list scrolls near the end. */
   onEndReached: () => void;
   /** Called when a priest card is tapped. */
-  onPriestPress: (priestId: string) => void;
+  onPriestPress: (priestId: string, userId: string) => void;
   /** Total result count for the label above the list. */
   resultCount: number;
   /** True when the user has an active text search query. */
@@ -161,7 +161,7 @@ export default function PriestList({
         <ResultCountRow count={resultCount} isSearchActive={isSearchActive} />
       }
       renderItem={({ item }) => (
-        <PanditCard priest={item} onPress={() => onPriestPress(item._id)} />
+        <PanditCard priest={item} onPress={() => onPriestPress(item._id, item.userId)} />
       )}
       contentContainerStyle={styles.listContent}
       ItemSeparatorComponent={() => <View style={styles.separator} />}

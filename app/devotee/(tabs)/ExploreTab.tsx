@@ -125,7 +125,7 @@ export default function ExploreTab(): React.JSX.Element {
           isFetchingNextPage={isFetchingNextPage}
           hasNextPage={hasNextPage}
           onEndReached={fetchNextPage}
-          onPriestPress={(id) => router.push({ pathname: '/devotee/(screens)/PriestDetails' as any, params: { id } })}
+          onPriestPress={(id, userId) => router.push({ pathname: '/devotee/(screens)/PriestDetails' as any, params: { id, userId } })}
           resultCount={priests.length}
           isSearchActive={searchInput.length > 0}
         />

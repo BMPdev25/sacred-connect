@@ -7,7 +7,7 @@ import { useDispatch } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { THEME } from '@/constants/theme';
-import { styles } from './RequestDetails.styles';
+import { styles } from '../../../components/priest/RequestDetails.styles';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { PriestRequestsService } from '@/services/priest/priestRequestsService';
 import { decrementPendingRequests } from '@/redux/slices/priestDashboardSlice';

@@ -231,7 +231,7 @@ export default function HomeTab(): React.JSX.Element {
 
   const handleBookingPress = (bookingId: string) => {
     router.push({
-      pathname: '/(priest)/screens/BookingDetails',
+      pathname: '/(priest)/screens/PriestBookingDetails',
       params: { bookingId },
     } as any);
   };

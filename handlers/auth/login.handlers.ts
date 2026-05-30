@@ -91,11 +91,12 @@ export async function handleGoogleLogin(
   try {
     setLoading(true);
     setError('');
-    const { isNewUser } = await loginWithGoogle();
-    if (isNewUser) {
-      router.replace('/role-selection');
+    const result = await loginWithGoogle();
+    if (result.isNewUser) {
+      router.replace('/(auth)/role-selection');
+    } else {
+      // existing user — auth listener handles routing
     }
-    // Existing users: splash listener handles routing via onAuthStateChanged
   } catch (err: any) {
     logger.error('handleGoogleLogin failed', err);
     setError(err.message || 'Google login failed. Please try again.');

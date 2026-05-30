@@ -45,6 +45,9 @@ export default function RequestDetails(): React.JSX.Element {
     try {
       await PriestRequestsService.acceptRequest(bookingId);
       queryClient.invalidateQueries({ queryKey: ['priestPendingRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['priestTodayBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['priestCalendarBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['priestEarnings'] });
       dispatch(decrementPendingRequests());
       router.back();
     } catch (error: any) {

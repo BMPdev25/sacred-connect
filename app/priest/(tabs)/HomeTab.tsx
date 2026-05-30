@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   FlatList,
   Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -121,11 +121,7 @@ function OnlineToggleBanner({
         </View>
 
         <View style={styles.bannerRight}>
-          {isToggling ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <ToggleSwitch isOn={isOnline} disabled={isToggling} />
-          )}
+          <ToggleSwitch isOn={isOnline} disabled={isToggling} />
         </View>
       </View>
     </TouchableOpacity>
@@ -172,7 +168,7 @@ export default function HomeTab(): React.JSX.Element {
   const { currentStatus, isTogglingStatus, todayBookings, stats, pendingRequestsCount } = useSelector(
     (state: RootState) => state.priestDashboard
   );
-  const priest = useSelector((state: RootState) => (state as any).user?.user);
+  const priestId = useSelector((state: RootState) => state.user._id);
 
   useEffect(() => {
     PriestDashboardService.fetchPriestStatus().then((status) => {
@@ -180,21 +176,20 @@ export default function HomeTab(): React.JSX.Element {
     });
   }, [dispatch]);
 
-  useEffect(() => {
-    PriestDashboardService.fetchTodayBookings().then((bookings) => {
-      dispatch(setTodayBookings(bookings));
-    });
-  }, [dispatch]);
+  useFocusEffect(
+    useCallback(() => {
+      PriestDashboardService.fetchTodayBookings().then((bookings) => {
+        dispatch(setTodayBookings(bookings));
+      });
+      PriestDashboardService.fetchDashboardStats().then((data) => {
+        dispatch(setStats(data));
+      });
+    }, [dispatch])
+  );
 
   useEffect(() => {
-    PriestDashboardService.fetchDashboardStats().then((data) => {
-      dispatch(setStats(data));
-    });
-  }, [dispatch]);
-
-  useEffect(() => {
-    if (priest?._id && !SocketManager.isConnected()) {
-      SocketManager.connectSocket(priest._id);
+    if (priestId && !SocketManager.isConnected()) {
+      SocketManager.connectSocket(priestId);
     }
 
     const handleNewRequest = () => {
@@ -207,18 +202,23 @@ export default function HomeTab(): React.JSX.Element {
     return () => {
       SocketManager.offNewBookingRequest(handleNewRequest);
     };
-  }, [dispatch, priest]);
+  }, [dispatch, priestId]);
 
   const handleToggle = async () => {
     if (isTogglingStatus) return;
+    const originalStatus = currentStatus;
+    const targetStatus = originalStatus === 'available' ? 'offline' : 'available';
+    
+    // Flip instantly
+    dispatch(setCurrentStatus(targetStatus));
     dispatch(setIsTogglingStatus(true));
-    const isOnline = currentStatus === 'available';
-    const targetStatus = isOnline ? 'offline' : 'available';
     
     try {
       const newStatus = await PriestDashboardService.toggleOnlineStatus(targetStatus);
       dispatch(setCurrentStatus(newStatus));
     } catch (error: any) {
+      // Revert on network failure
+      dispatch(setCurrentStatus(originalStatus));
       Alert.alert('Error', error.message || 'Failed to update status');
     } finally {
       dispatch(setIsTogglingStatus(false));

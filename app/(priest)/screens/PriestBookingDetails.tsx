@@ -18,10 +18,9 @@ import StatusHeader from '@/components/priest/StatusHeader';
 function isDateTodayOrPast(dateStr: string): boolean {
   if (!dateStr) return false;
   try {
-    const [year, month, day] = dateStr.split('-').map(Number);
-    const bookingDate = new Date(year, month - 1, day);
-    const today = new Date();
-    return bookingDate <= new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const cleanDateStr = dateStr.split('T')[0];
+    const todayStr = new Date().toISOString().split('T')[0];
+    return cleanDateStr <= todayStr;
   } catch {
     return false;
   }

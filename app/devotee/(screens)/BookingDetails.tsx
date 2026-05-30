@@ -56,6 +56,7 @@ export default function BookingDetails() {
     try {
       await cancelBooking(bookingId);
       queryClient.invalidateQueries({ queryKey: ['upcomingBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['pastBookings'] });
       queryClient.invalidateQueries({ queryKey: ['bookingDetail', bookingId] });
       Alert.alert('Cancelled', 'Your booking has been cancelled.');
       router.back();

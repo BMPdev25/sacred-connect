@@ -4,7 +4,7 @@
  * error state border coloring via theme tokens.
  */
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Animated,
   KeyboardTypeOptions,
@@ -124,6 +124,13 @@ export default function FloatingInput(props: FloatingInputProps): React.ReactEle
 
   const [isFocused, setIsFocused] = useState(false);
   const labelAnim = useRef(new Animated.Value(value ? 0 : 1)).current;
+
+  useEffect(() => {
+    // Instantly snap the label to floated or inline based on the presence of value when not focused
+    if (!isFocused) {
+      labelAnim.setValue(value ? 0 : 1);
+    }
+  }, [value, isFocused, labelAnim]);
 
   function handleFocus(): void {
     setIsFocused(true);

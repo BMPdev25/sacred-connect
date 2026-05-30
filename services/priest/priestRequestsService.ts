@@ -136,7 +136,7 @@ export async function acceptRequest(bookingId: string): Promise<void> {
 export async function declineRequest(bookingId: string, reason?: string): Promise<void> {
   try {
     await api.put(`/priest/bookings/${bookingId}/status`, {
-      status: 'rejected',
+      status: 'cancelled',
       reason: reason || 'Declined by priest',
     });
   } catch (err) {

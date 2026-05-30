@@ -26,7 +26,9 @@ export function RequestDevoteeCard({ devotee }: RequestDevoteeCardProps): React.
     ? { uri: devotee.profilePicture }
     : (AssetService.getImage('shared.placeholderAvatar') as any);
 
-  const isFirst = isFirstTimeDevotee(devotee?.createdAt || '');
+  const isFirst = devotee?.createdAt 
+    ? isFirstTimeDevotee(devotee.createdAt)
+    : false;  // if unknown, do not show badge
 
   return (
     <View style={styles.devoteeCard}>

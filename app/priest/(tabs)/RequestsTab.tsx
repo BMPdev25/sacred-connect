@@ -22,6 +22,7 @@ export default function RequestsTab(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const isAnyProcessing = processingId !== null;
   
   const { currentStatus } = useSelector((state: RootState) => state.priestDashboard);
 
@@ -52,11 +53,14 @@ export default function RequestsTab(): React.JSX.Element {
   }, [queryClient]);
 
   const handleAccept = async (requestId: string) => {
+    if (processingId !== null) return;
     setProcessingId(requestId);
     try {
       await PriestRequestsService.acceptRequest(requestId);
       queryClient.invalidateQueries({ queryKey: ['priestPendingRequests'] });
       queryClient.invalidateQueries({ queryKey: ['priestTodayBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['priestCalendarBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['priestEarnings'] });
       dispatch(decrementPendingRequests());
       // Optional: Success toast
     } catch (error: any) {
@@ -67,6 +71,7 @@ export default function RequestsTab(): React.JSX.Element {
   };
 
   const confirmDecline = async (requestId: string) => {
+    if (processingId !== null) return;
     setProcessingId(requestId);
     try {
       await PriestRequestsService.declineRequest(requestId);
@@ -80,6 +85,7 @@ export default function RequestsTab(): React.JSX.Element {
   };
 
   const handleDecline = (requestId: string) => {
+    if (processingId !== null) return;
     Alert.alert(
       'Decline Request?',
       'The devotee will be notified.',
@@ -154,6 +160,7 @@ export default function RequestsTab(): React.JSX.Element {
               onDecline={handleDecline}
               onPress={handleViewDetails}
               isProcessing={processingId === item._id}
+              isDisabled={isAnyProcessing && processingId !== item._id}
             />
           )}
         />

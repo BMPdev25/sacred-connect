@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 
 import { RootState } from '@/redux/store';
-import { initBookingFlow, setSelectedService } from '@/redux/slices/bookingSlice';
+import { initBookingFlow, setSelectedService, updatePriestDisplayInfo } from '@/redux/slices/bookingSlice';
 import { usePriestProfile } from '@/hooks/usePriestDetails';
 import { THEME } from '@/constants/theme';
 import { StepIndicator } from '@/components/devotee/booking/StepIndicator';
@@ -59,17 +59,17 @@ export default function BookCeremonyScreen() {
     }
   };
 
+  // Effect 1: Runs ONCE on mount only (empty dependency array).
+  // Sets priest identifiers. Never resets selections.
   useEffect(() => {
     dispatch(
       initBookingFlow({
         priestProfileId: params.priestId || '',
         priestUserId: params.priestUserId || '',
-        priestName: cachedPriestData?.name || 'Priest Name', 
-        priestProfilePicture: cachedPriestData?.profilePicture || null,
-        priestRating: cachedPriestData?.ratings?.average || null,
       })
     );
 
+    // Pre-select service if passed as param
     if (params.serviceId && params.ceremonyName) {
       const selected = cachedPriestData?.services?.find(s => s._id === params.serviceId);
       dispatch(
@@ -82,7 +82,21 @@ export default function BookCeremonyScreen() {
         })
       );
     }
-  }, [dispatch, params.priestId, params.priestUserId, params.serviceId, params.ceremonyName, cachedPriestData]);
+  }, []);
+
+  // Effect 2: Runs when cachedPriestData resolves.
+  // Only updates priest display info (name, photo, rating).
+  // NEVER touches selections.
+  useEffect(() => {
+    if (!cachedPriestData) return;
+    dispatch(
+      updatePriestDisplayInfo({
+        priestName: cachedPriestData.name,
+        priestProfilePicture: cachedPriestData.profilePicture,
+        priestRating: cachedPriestData.ratings?.average,
+      })
+    );
+  }, [cachedPriestData]);
 
   const getStepStatus = (section: 'service' | 'date' | 'time' | 'address') => {
     switch (section) {

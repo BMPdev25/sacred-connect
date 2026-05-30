@@ -43,6 +43,38 @@ export default function PaymentScreen(): React.ReactElement {
 
   useBookingPolling(params.bookingId, isPollingActive);
 
+  const handleVerifyPayment = async (paymentData: any) => {
+    try {
+      const booking = await bookingService.verifyPayment({
+        bookingId: params.bookingId || '',
+        rzpPaymentId: paymentData.razorpay_payment_id,
+        rzpOrderId: paymentData.razorpay_order_id,
+        rzpSignature: paymentData.razorpay_signature,
+      });
+
+      clearTimeout(timeout12sRef.current);
+      clearTimeout(timeout60sRef.current);
+
+      const reference = formatBookingReference(
+        booking.paymentDetails?.receiptNumber,
+        booking._id,
+        booking.date
+      );
+      dispatch(setCreatedBooking({
+        bookingId: booking._id,
+        razorpayOrderId: paymentData.razorpay_order_id,
+        bookingReference: reference,
+      }));
+      router.replace('/(devotee)/screens/BookingConfirmation' as any);
+    } catch (error: any) {
+      setErrorMessage(
+        'Payment was received but verification failed. ' +
+        'If amount was deducted, contact support@sacredconnect.in'
+      );
+      setScreenState('failed');
+    }
+  };
+
   const launchRazorpay = async () => {
     const options = {
       description: 'Sacred Connect Ceremony Booking',
@@ -61,7 +93,7 @@ export default function PaymentScreen(): React.ReactElement {
     };
 
     try {
-      await RazorpayCheckout.open(options);
+      const paymentData = await RazorpayCheckout.open(options);
       setScreenState('processing');
       
       timeout12sRef.current = setTimeout(() => {
@@ -73,6 +105,8 @@ export default function PaymentScreen(): React.ReactElement {
         setErrorMessage('Verification timed out. Please contact support.');
         setScreenState('failed');
       }, 60000);
+
+      await handleVerifyPayment(paymentData);
 
     } catch (error: any) {
       if (error && (error.code === 2 || error.description === 'Payment Cancelled' || error.message?.includes('cancelled'))) {

@@ -13,9 +13,15 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL?.replace(/\/api$/, '') || '
  * @param priestId - The unique user/profile ID of the priest.
  */
 export function connectSocket(priestId: string): void {
-  if (socket?.connected) {
-    logger.log('Socket already connected, skipping initialization');
+  if (socket && (socket.connected || (socket as any).connecting)) {
+    logger.log('Socket already connected or connecting, skipping initialization');
     return;
+  }
+
+  // If socket exists but is neither connected nor connecting:
+  if (socket) {
+    socket.disconnect(); // clean up the stale socket first
+    socket = null;
   }
 
   socket = io(API_BASE_URL, {

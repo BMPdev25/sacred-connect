@@ -112,7 +112,8 @@ export function routeAuthenticatedUser(
     }
 
     // Onboarding is complete — route based on verificationStatus
-    if ((priestState?.verificationStatus as string) === 'approved') {
+    const isVerified = priestState?.verificationStatus === 'verified' || (priestState?.verificationStatus as string) === 'approved';
+    if (isVerified) {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
     } else if (priestState?.verificationStatus === 'pending') {
@@ -161,8 +162,8 @@ export function handleAuthError(error: any, router: any): void {
   router.replace('/login');
 }
 
-/** State to prevent registering multiple firebase auth observers. */
-let isListenerInitialized = false;
+/** Reference to the active Firebase Auth unsubscribe handler to prevent multiple observers. */
+let activeUnsubscribe: (() => void) | null = null;
 
 /**
  * Processes Firebase Auth state changes and routes the user accordingly.
@@ -191,6 +192,16 @@ async function handleAuthStateChange(
     }
   } catch (err: any) {
     console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);
+    if (
+      err.status === 400 ||
+      err.status === 404 ||
+      err.message?.includes('400') ||
+      err.message?.includes('404')
+    ) {
+      console.log('[DEBUG] onAuthStateChanged: Backend has no record for this Firebase user. Redirecting to role selection.');
+      router.replace('/(auth)/role-selection' as any);
+      return;
+    }
     handleAuthError(err, router);
   }
 }
@@ -206,17 +217,15 @@ async function handleAuthStateChange(
  * @returns The unsubscribe function for the auth listener.
  */
 export function initializeAuthListener(router: any): () => void {
-  if (isListenerInitialized) {
-    console.log('[DEBUG] initializeAuthListener: Listener already active, skipping re-initialization.');
-    return () => {
-      console.log('[DEBUG] initializeAuthListener: Unsubscribe called on duplicate (no-op)');
-    };
+  if (activeUnsubscribe) {
+    console.log('[DEBUG] initializeAuthListener: Unsubscribing previous listener before re-initialization.');
+    activeUnsubscribe();
+    activeUnsubscribe = null;
   }
 
-  isListenerInitialized = true;
   console.log('[DEBUG] initializeAuthListener: Subscribing to Firebase Auth changes...');
 
-  onAuthStateChanged(
+  const unsubscribe = onAuthStateChanged(
     auth,
     (user) => {
       handleAuthStateChange(user, router);
@@ -227,7 +236,6 @@ export function initializeAuthListener(router: any): () => void {
     }
   );
 
-  return () => {
-    console.log('[DEBUG] initializeAuthListener: Unsubscribe called on global listener (ignored)');
-  };
+  activeUnsubscribe = unsubscribe;
+  return unsubscribe;
 }

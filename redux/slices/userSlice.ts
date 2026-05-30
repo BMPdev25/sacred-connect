@@ -13,6 +13,8 @@ import { NotificationPreferences } from '@/types/profile.types';
  * Redux state for the currently authenticated user's profile.
  */
 export interface UserState {
+  /** Unique MongoDB document identifier. */
+  _id: string;
   /** Full display name of the authenticated user. */
   name: string;
   /** Primary email address. */
@@ -41,6 +43,7 @@ function extractProfilePictureUrl(pic: any): string | null {
 }
 
 const initialState: UserState = {
+  _id: '',
   name: '',
   email: '',
   phone: '',
@@ -84,6 +87,7 @@ export const userSlice = createSlice({
       action: PayloadAction<{ user: UserProfile; priestState?: PriestAuthState }>
     ) {
       const { user, priestState } = action.payload;
+      state._id = user._id || '';
       state.name = user.name || '';
       state.email = user.email || '';
       state.phone = user.phone || '';

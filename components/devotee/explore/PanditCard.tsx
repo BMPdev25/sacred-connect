@@ -79,6 +79,18 @@ function RatingRow({ rating, reviewCount }: RatingRowProps): React.JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Formats starting price, fallback to "Contact for pricing" if undefined or 0.
+ */
+function formatStartingPrice(price: number | undefined): string {
+  if (!price || price <= 0) return 'Contact for pricing';
+  return '₹' + price.toLocaleString('en-IN');
+}
+
+// ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
 
@@ -127,9 +139,11 @@ export default function PanditCard({
       </View>
 
       <View style={styles.priceCol}>
-        <Text style={styles.priceFrom}>From</Text>
+        <Text style={styles.priceFrom}>
+          {priest.startingPrice && priest.startingPrice > 0 ? 'From' : ''}
+        </Text>
         <Text style={styles.price}>
-          {`₹${priest.startingPrice.toLocaleString('en-IN')}`}
+          {formatStartingPrice(priest.startingPrice)}
         </Text>
       </View>
     </TouchableOpacity>

@@ -57,6 +57,29 @@ export default function BookingSummaryScreen() {
   };
 
   const handleConfirmAndPay = async () => {
+    if (draft.createdBookingId) {
+      // Booking already created in a previous attempt.
+      // Skip creation, go straight to creating payment order.
+      try {
+        const order = await bookingService.createPaymentOrder(
+          draft.createdBookingId,
+          draft.pricing?.totalAmount || 0
+        );
+        router.push({
+          pathname: '/devotee/(screens)/Payment' as any,
+          params: {
+            bookingId: draft.createdBookingId,
+            razorpayOrderId: order.id,
+            amount: order.amount.toString(),
+            totalDisplay: (draft.pricing?.totalAmount || 0).toString(),
+          }
+        });
+      } catch (error: any) {
+        Alert.alert('Error', error.message || 'Failed to initialize payment.');
+      }
+      return; // exit early, no new booking created
+    }
+
     if (!draft.priestProfileId || !draft.selectedService || !draft.selectedDate || !draft.selectedTimeSlot || !draft.selectedAddress) {
       Alert.alert('Missing Details', 'Please complete all fields before booking.');
       return;

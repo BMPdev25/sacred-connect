@@ -11,16 +11,22 @@ import { fetchBookingDetails } from '@/services/devotee/bookingService';
  */
 export function useBookingPolling(bookingId: string | undefined, isActive: boolean): void {
   const router = useRouter();
-  const intervalRef = useRef<any>(null);
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isActiveRef = useRef<boolean>(true);
 
   useEffect(() => {
     if (!isActive || !bookingId) return;
+
+    isActiveRef.current = true;
 
     const checkStatus = async () => {
       try {
         const res = await fetchBookingDetails(bookingId);
         if (res.status === 'confirmed' || res.paymentStatus === 'completed') {
-          clearInterval(intervalRef.current!);
+          isActiveRef.current = false;
+          if (intervalRef.current) {
+            clearTimeout(intervalRef.current);
+          }
           router.replace('/devotee/(screens)/BookingConfirmation' as any);
         }
       } catch (err) {
@@ -28,13 +34,24 @@ export function useBookingPolling(bookingId: string | undefined, isActive: boole
       }
     };
 
-    checkStatus();
-    intervalRef.current = setInterval(checkStatus, 5000);
+    const scheduleNextPoll = () => {
+      intervalRef.current = setTimeout(async () => {
+        if (!isActiveRef.current) return;  // guard for cleanup
+        await checkStatus();               // wait for completion
+        if (isActiveRef.current) {        // still mounted?
+          scheduleNextPoll();              // only then schedule next
+        }
+      }, 5000);
+    };
+
+    scheduleNextPoll();  // kick off first poll
     
     return () => {
+      isActiveRef.current = false;
       if (intervalRef.current) {
-        clearInterval(intervalRef.current);
+        clearTimeout(intervalRef.current);
       }
     };
   }, [bookingId, isActive, router]);
 }
+

@@ -20,7 +20,7 @@ import {
  * @returns The calculated price breakdown containing basePrice, platformFee, totalAmount, and feePercentageLabel.
  */
 export function calculatePricing(basePrice: number): BookingPriceBreakdown {
-  const platformFee = Math.round(basePrice * PLATFORM_FEE_PERCENTAGE * 100) / 100;
+  const platformFee = Math.round(basePrice * PLATFORM_FEE_PERCENTAGE);
   const totalAmount = basePrice + platformFee;
   const feePercentageLabel = (PLATFORM_FEE_PERCENTAGE * 100).toFixed(0) + '%';
 
@@ -66,11 +66,11 @@ export interface InitBookingFlowPayload {
   /** The priest user ID (User._id) */
   priestUserId: string;
   /** The priest name */
-  priestName: string;
+  priestName?: string;
   /** The priest profile picture URL */
-  priestProfilePicture: string | null;
+  priestProfilePicture?: string | null;
   /** The priest rating score */
-  priestRating: number | null;
+  priestRating?: number | null;
   /** Optional service ID if preset */
   serviceId?: string;
   /** Optional ceremony ID if preset */
@@ -101,32 +101,42 @@ export const bookingSlice = createSlice({
         priestName,
         priestProfilePicture,
         priestRating,
-        serviceId,
-        ceremonyId,
-        ceremonyName,
-        durationMinutes,
-        basePrice,
       } = action.payload;
+
+      // If same priest, do not reset selections
+      if (state.priestProfileId === priestProfileId) {
+        return;  // already initialized for this priest, keep selections
+      }
 
       // Reset state to initial and populate priest context
       Object.assign(state, initialState);
       state.priestProfileId = priestProfileId;
       state.priestUserId = priestUserId;
-      state.priestName = priestName;
-      state.priestProfilePicture = priestProfilePicture;
-      state.priestRating = priestRating;
+      state.priestName = priestName ?? null;
+      state.priestProfilePicture = priestProfilePicture ?? null;
+      state.priestRating = priestRating ?? null;
+    },
 
-      // Handle preset service if serviceId is provided
-      if (serviceId && ceremonyId && ceremonyName && typeof durationMinutes === 'number' && typeof basePrice === 'number') {
-        state.selectedService = {
-          serviceId,
-          ceremonyId,
-          ceremonyName,
-          durationMinutes,
-          basePrice,
-        };
-        state.pricing = calculatePricing(basePrice);
-        state.activeSection = 'date';
+    /**
+     * Updates the display information of the priest.
+     */
+    updatePriestDisplayInfo(
+      state,
+      action: PayloadAction<{
+        priestName?: string;
+        priestProfilePicture?: string | null;
+        priestRating?: number | null;
+      }>
+    ) {
+      // Only update display fields, never touch selections
+      if (action.payload.priestName !== undefined) {
+        state.priestName = action.payload.priestName;
+      }
+      if (action.payload.priestProfilePicture !== undefined) {
+        state.priestProfilePicture = action.payload.priestProfilePicture;
+      }
+      if (action.payload.priestRating !== undefined) {
+        state.priestRating = action.payload.priestRating;
       }
     },
 
@@ -205,6 +215,7 @@ export const {
   setActiveSection,
   setCreatedBooking,
   clearBookingDraft,
+  updatePriestDisplayInfo,
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

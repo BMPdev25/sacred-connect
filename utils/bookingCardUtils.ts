@@ -16,6 +16,20 @@ const DISPLAY_MAP: Record<BookingStatus, BookingCardDisplay> = {
     actionLabel: 'View Details →',
     actionVariant: 'outline',
   },
+  arrived: {
+    badgeLabel: 'In Progress',
+    badgeBackground: '#EDE9FE',
+    badgeTextColor: '#7C3AED',
+    actionLabel: 'View Details →',
+    actionVariant: 'outline',
+  },
+  in_progress: {
+    badgeLabel: 'In Progress',
+    badgeBackground: '#EDE9FE',
+    badgeTextColor: '#7C3AED',
+    actionLabel: 'View Details →',
+    actionVariant: 'outline',
+  },
   completed: {
     badgeLabel: 'Completed',
     badgeBackground: '#F3F4F6',
@@ -46,7 +60,13 @@ const DISPLAY_MAP: Record<BookingStatus, BookingCardDisplay> = {
  * @returns Display configurations for rendering card badges and buttons.
  */
 export function getBookingCardDisplay(status: BookingStatus): BookingCardDisplay {
-  return DISPLAY_MAP[status];
+  return DISPLAY_MAP[status] ?? {
+    badgeLabel: status,           // show raw status as fallback
+    badgeBackground: '#F3F4F6',
+    badgeTextColor: '#374151',
+    actionLabel: 'View Details →',
+    actionVariant: 'outline' as const
+  };
 }
 
 /**

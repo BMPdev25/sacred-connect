@@ -33,7 +33,10 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.bookmypujari",
-      "googleServicesFile": "./google-services.json"
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.READ_PHONE_STATE"
+      ]
     },
     "web": {
       "bundler": "metro",

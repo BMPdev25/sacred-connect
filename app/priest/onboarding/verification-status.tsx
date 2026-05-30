@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Dimensions,
   Image,
@@ -8,14 +8,17 @@ import {
   Text,
   TouchableOpacity,
   View,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { THEME } from '@/constants/theme';
 import { useVerificationPolling } from '@/hooks/useVerificationPolling';
 import { AssetService } from '@/services/assets/AssetService';
+import api from '@/api/index';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -50,9 +53,89 @@ function VerificationStep({ number, text, isLast = false }: VerificationStepProp
 export default function VerificationStatusScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [loading, setLoading] = useState(true);
+  const [priestProfile, setPriestProfile] = useState<{
+    verificationStatus: 'pending' | 'verified' | 'approved' | 'rejected';
+    rejectionReason?: string;
+  } | null>(null);
 
   // Start polling in the background without UI blocking
   useVerificationPolling(30000);
+
+  useEffect(() => {
+    async function loadStatus() {
+      try {
+        const response = await api.get('/priest/profile');
+        setPriestProfile(response.data);
+      } catch (error) {
+        console.error('Error fetching verification profile:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadStatus();
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.centered]}>
+        <ActivityIndicator size="large" color={THEME.colors.primary} />
+      </View>
+    );
+  }
+
+  const isRejected = priestProfile?.verificationStatus === 'rejected';
+
+  if (isRejected) {
+    return (
+      <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Top Section — Rejection Icon */}
+          <View style={styles.rejectedIconContainer}>
+            <Ionicons name="close-circle-outline" size={64} color="#EF4444" />
+          </View>
+
+          {/* Heading */}
+          <View style={styles.statusContainer}>
+            <Text style={[styles.statusHeading, { color: THEME.colors.textPrimary }]}>
+              Verification Unsuccessful
+            </Text>
+            {priestProfile?.rejectionReason ? (
+              <Text style={styles.rejectionReasonText}>
+                Reason: {priestProfile.rejectionReason}
+              </Text>
+            ) : (
+              <Text style={styles.rejectionReasonText}>
+                Your documents could not be verified.
+              </Text>
+            )}
+          </View>
+
+          {/* What to do next */}
+          <View style={styles.nextStepsContainer}>
+            <Text style={styles.nextStepsHeading}>What to do next:</Text>
+            <Text style={styles.bulletPoint}>• Review your uploaded documents</Text>
+            <Text style={styles.bulletPoint}>• Ensure ID is clearly visible and not expired</Text>
+            <Text style={styles.bulletPoint}>• Re-upload if needed from Edit Profile</Text>
+          </View>
+        </ScrollView>
+
+        {/* Buttons footer */}
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
+          <PrimaryButton
+            title="Edit Documents"
+            onPress={() => router.push('/(priest)/screens/EditPriestProfile' as any)}
+            style={{ marginBottom: THEME.spacing.sm }}
+          />
+          <PrimaryButton
+            variant="outline"
+            title="Contact Support"
+            onPress={() => Linking.openURL('mailto:support@sacredconnect.in')}
+          />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -89,13 +172,15 @@ export default function VerificationStatusScreen() {
       </ScrollView>
 
       {/* Go to Dashboard Button */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
-        <PrimaryButton
-          variant="outline"
-          title="Go to Dashboard"
-          onPress={() => router.replace('/priest' as any)}
-        />
-      </View>
+      {(priestProfile?.verificationStatus === 'approved' || priestProfile?.verificationStatus === 'verified') && (
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
+          <PrimaryButton
+            variant="outline"
+            title="Go to Dashboard"
+            onPress={() => router.replace('/priest' as any)}
+          />
+        </View>
+      )}
     </View>
   );
 }
@@ -109,6 +194,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: THEME.colors.background,
   },
+  centered: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   scrollContent: {
     flexGrow: 1,
   },
@@ -119,6 +208,11 @@ const styles = StyleSheet.create({
   illustration: {
     width: SCREEN_WIDTH * 0.7,
     height: SCREEN_WIDTH * 0.7,
+  },
+  rejectedIconContainer: {
+    alignItems: 'center',
+    paddingTop: THEME.spacing.xxl,
+    marginBottom: THEME.spacing.md,
   },
   statusContainer: {
     alignItems: 'center',
@@ -135,6 +229,28 @@ const styles = StyleSheet.create({
     color: THEME.colors.primary,
     textAlign: 'center',
     marginTop: THEME.spacing.xs,
+  },
+  rejectionReasonText: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textSecondary,
+    textAlign: 'center',
+    marginTop: THEME.spacing.sm,
+    paddingHorizontal: THEME.spacing.lg,
+  },
+  nextStepsContainer: {
+    paddingHorizontal: THEME.spacing.xl,
+    marginTop: THEME.spacing.lg,
+  },
+  nextStepsHeading: {
+    fontSize: THEME.typography.body,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: THEME.spacing.sm,
+  },
+  bulletPoint: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textSecondary,
+    marginBottom: THEME.spacing.xs,
   },
   card: {
     backgroundColor: THEME.colors.surface,

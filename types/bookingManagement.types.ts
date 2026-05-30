@@ -1,7 +1,7 @@
 /**
  * Lifecycle status of a booking.
  */
-export type BookingStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'rejected';
+export type BookingStatus = 'pending' | 'confirmed' | 'arrived' | 'in_progress' | 'completed' | 'cancelled' | 'rejected';
 
 /**
  * A booking item in the list view.
@@ -32,6 +32,12 @@ export interface BookingListItem {
   };
   createdAt: string;
   updatedAt: string;
+  priestProfile?: {
+    _id: string;
+    ratings?: any;
+    experience?: number;
+    religiousTradition?: string;
+  };
 }
 
 /**

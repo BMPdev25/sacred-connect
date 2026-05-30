@@ -15,6 +15,7 @@ interface RequestCardProps {
   onPress: (requestId: string) => void;
   isNewest: boolean;
   isProcessing?: boolean;
+  isDisabled?: boolean;
 }
 
 export default function RequestCard({
@@ -24,6 +25,7 @@ export default function RequestCard({
   onPress,
   isNewest,
   isProcessing = false,
+  isDisabled = false,
 }: RequestCardProps) {
   const pulseAnim = useRef(new Animated.Value(0.6)).current;
 
@@ -60,7 +62,7 @@ export default function RequestCard({
       activeOpacity={0.9}
       style={styles.cardContainer}
       onPress={() => onPress(request._id)}
-      disabled={isProcessing}
+      disabled={isDisabled || isProcessing}
     >
       {isNewest && (
         <Animated.View style={[styles.leftBorder, { opacity: pulseAnim }]} />
@@ -117,9 +119,9 @@ export default function RequestCard({
       {/* BUTTON ROW */}
       <View style={styles.buttonRow}>
         <TouchableOpacity
-          style={styles.declineButton}
+          style={[styles.declineButton, isDisabled && { opacity: 0.4 }]}
           onPress={() => onDecline(request._id)}
-          disabled={isProcessing}
+          disabled={isDisabled || isProcessing}
         >
           <Text style={styles.declineButtonText}>Decline</Text>
         </TouchableOpacity>
@@ -129,8 +131,8 @@ export default function RequestCard({
             title="Accept"
             onPress={() => onAccept(request._id)}
             loading={isProcessing}
-            disabled={isProcessing}
-            style={{ height: 44 }}
+            disabled={isDisabled || isProcessing}
+            style={[{ height: 44 }, isDisabled && { opacity: 0.4 }]}
           />
         </View>
       </View>

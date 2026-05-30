@@ -40,11 +40,25 @@ export default function PriestDetailsScreen() {
   });
 
   const handleBookNow = () => {
-    router.push({ pathname: '/devotee/(screens)/BookCeremony' as any, params: { priestId: priestProfileId } });
+    router.push({
+      pathname: '/devotee/(screens)/BookCeremony' as any,
+      params: {
+        priestId: priestProfileId,
+        priestUserId: priest.userId,
+      }
+    });
   };
   
   const handleBookService = (serviceId: string, ceremonyName: string) => {
-    router.push({ pathname: '/devotee/(screens)/BookCeremony' as any, params: { priestId: priestProfileId, serviceId, ceremonyName } });
+    router.push({
+      pathname: '/devotee/(screens)/BookCeremony' as any,
+      params: {
+        priestId: priestProfileId,
+        priestUserId: priest.userId,
+        serviceId,
+        ceremonyName,
+      }
+    });
   };
 
   const handleViewAllReviews = () => {

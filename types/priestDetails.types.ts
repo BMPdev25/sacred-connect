@@ -75,6 +75,8 @@ export interface AvailabilitySlot {
 export interface PublicPriestProfile {
   /** Unique identifier of the priest profile */
   _id: string;
+  /** Associated user ID */
+  userId: string;
   /** Priest's name */
   name: string;
   /** Optional profile picture URL */

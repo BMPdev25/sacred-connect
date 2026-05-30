@@ -13,6 +13,7 @@ import {
 
 import api from '@/api';
 import { auth } from '@/config/firebase';
+import { SocketManager as socketManager } from '@/services/priest/socketManager';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { AuthSyncPayload, SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
 import { getReadableErrorMessage } from '@/utils/errorHandler';
@@ -88,7 +89,9 @@ export async function syncWithBackend(
     }
   } catch (err: any) {
     logger.error('Backend sync failed', err.response?.data || err.message);
-    throw new Error(getReadableErrorMessage(err));
+    const error = new Error(getReadableErrorMessage(err)) as any;
+    error.status = err.response?.status;
+    throw error;
   }
 }
 
@@ -175,12 +178,13 @@ export async function loginWithGoogle(): Promise<{ isNewUser: boolean }> {
     throw new Error(getReadableErrorMessage(err));
   }
 }
-
 /**
  * Signs out the current user session from Firebase and local state.
  */
 export async function logout(): Promise<void> {
   try {
+    // Disconnect socket first to prevent event leakage
+    socketManager.disconnectSocket();
     await signOut(auth);
   } catch (err: any) {
     logger.error('Logout failed', err);

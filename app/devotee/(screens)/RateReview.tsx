@@ -91,6 +91,9 @@ export default function RateReview() {
       queryClient.invalidateQueries({ queryKey: ['pastBookings'] });
       queryClient.invalidateQueries({ queryKey: ['bookingDetail', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['priestProfile'] });
+      if (booking.priestProfile?._id) {
+        queryClient.invalidateQueries({ queryKey: ['priestReviews', booking.priestProfile._id] });
+      }
 
       Alert.alert(
         'Thank you! 🙏',

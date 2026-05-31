@@ -19,7 +19,11 @@ function isDateTodayOrPast(dateStr: string): boolean {
   if (!dateStr) return false;
   try {
     const cleanDateStr = dateStr.split('T')[0];
-    const todayStr = new Date().toISOString().split('T')[0];
+    const localDate = new Date();
+    const year = localDate.getFullYear();
+    const month = String(localDate.getMonth() + 1).padStart(2, '0');
+    const day = String(localDate.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
     return cleanDateStr <= todayStr;
   } catch {
     return false;
@@ -47,6 +51,8 @@ export default function PriestBookingDetails(): React.JSX.Element {
       queryClient.invalidateQueries({ queryKey: ['priestCalendarBookings'] });
       queryClient.invalidateQueries({ queryKey: ['priestBookingDetail', bookingId] });
       queryClient.invalidateQueries({ queryKey: ['priestDashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['priestEarnings'] });
+      queryClient.invalidateQueries({ queryKey: ['priestTransactions'] });
       Alert.alert('Ceremony Completed! ✓', `₹${booking.basePrice.toLocaleString('en-IN')} has been credited to your wallet.`, [{ text: 'Great!' }]);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to complete booking.');

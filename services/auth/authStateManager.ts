@@ -5,6 +5,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { router } from 'expo-router';
 
 import { auth } from '@/config/firebase';
 import { ONBOARDING_STORAGE_KEY } from '@/constants/config';
@@ -84,12 +85,10 @@ export async function fetchUserProfile(
  *
  * @param profile - The user profile structure.
  * @param priestState - Priest onboarding status, if applicable.
- * @param router - Expo Router instance.
  */
 export function routeAuthenticatedUser(
   profile: UserProfile,
-  priestState: PriestAuthState | undefined,
-  router: any
+  priestState: PriestAuthState | undefined
 ): void {
   console.log(`[DEBUG] routeAuthenticatedUser: profile userType = ${profile.userType}`);
 
@@ -112,8 +111,7 @@ export function routeAuthenticatedUser(
     }
 
     // Onboarding is complete — route based on verificationStatus
-    const isVerified = priestState?.verificationStatus === 'verified' || (priestState?.verificationStatus as string) === 'approved';
-    if (isVerified) {
+    if ((priestState?.verificationStatus as string) === 'approved') {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
     } else if (priestState?.verificationStatus === 'pending') {
@@ -137,9 +135,8 @@ export function routeAuthenticatedUser(
  * Determines and executes the navigation path for unauthenticated sessions.
  *
  * @param isFirstLaunch - Flag indicating whether it's the first time launch.
- * @param router - Expo Router instance.
  */
-export function routeUnauthenticatedUser(isFirstLaunch: boolean, router: any): void {
+export function routeUnauthenticatedUser(isFirstLaunch: boolean): void {
   console.log(`[DEBUG] routeUnauthenticatedUser: isFirstLaunch = ${isFirstLaunch}`);
   if (isFirstLaunch) {
     console.log('[DEBUG] routeUnauthenticatedUser: Redirecting to /onboarding');
@@ -154,26 +151,23 @@ export function routeUnauthenticatedUser(isFirstLaunch: boolean, router: any): v
  * Handles errors occurring during authentication listener updates.
  *
  * @param error - The encountered error object.
- * @param router - Expo Router instance.
  */
-export function handleAuthError(error: any, router: any): void {
+export function handleAuthError(error: any): void {
   console.log('[DEBUG] handleAuthError: Auth listener failed, redirecting to /login. Error:', error);
   logger.error('Authentication listener error occurred', error);
   router.replace('/login');
 }
 
-/** Reference to the active Firebase Auth unsubscribe handler to prevent multiple observers. */
-let activeUnsubscribe: (() => void) | null = null;
+/** State to prevent registering multiple firebase auth observers. */
+let isListenerInitialized = false;
 
 /**
  * Processes Firebase Auth state changes and routes the user accordingly.
  *
  * @param firebaseUser - The active Firebase User session object or null.
- * @param router - Expo Router instance.
  */
 async function handleAuthStateChange(
-  firebaseUser: FirebaseUser | null,
-  router: any
+  firebaseUser: FirebaseUser | null
 ): Promise<void> {
   try {
     console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
@@ -182,27 +176,16 @@ async function handleAuthStateChange(
       const profileWithState = await fetchUserProfile(firebaseUser);
       routeAuthenticatedUser(
         profileWithState,
-        profileWithState.priestState,
-        router
+        profileWithState.priestState
       );
     } else {
       console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
       const firstLaunch = await checkFirstLaunch();
-      routeUnauthenticatedUser(firstLaunch, router);
+      routeUnauthenticatedUser(firstLaunch);
     }
   } catch (err: any) {
     console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);
-    if (
-      err.status === 400 ||
-      err.status === 404 ||
-      err.message?.includes('400') ||
-      err.message?.includes('404')
-    ) {
-      console.log('[DEBUG] onAuthStateChanged: Backend has no record for this Firebase user. Redirecting to role selection.');
-      router.replace('/role-selection');
-      return;
-    }
-    handleAuthError(err, router);
+    handleAuthError(err);
   }
 }
 
@@ -210,32 +193,36 @@ async function handleAuthStateChange(
  * Initializes the Firebase Auth observer, populating Redux and routing the
  * application based on the user's credentials and launch history.
  *
- * Must only be called ONCE (from splash.tsx). All login flows rely on the
+ * Must only be called ONCE (typically from the root layout). All login flows rely on the
  * existing subscription firing when Firebase auth state changes.
  *
- * @param router - Expo Router instance.
  * @returns The unsubscribe function for the auth listener.
  */
-export function initializeAuthListener(router: any): () => void {
-  if (activeUnsubscribe) {
-    console.log('[DEBUG] initializeAuthListener: Unsubscribing previous listener before re-initialization.');
-    activeUnsubscribe();
-    activeUnsubscribe = null;
+export function initializeAuthListener(): () => void {
+  if (isListenerInitialized) {
+    console.log('[DEBUG] initializeAuthListener: Listener already active, skipping re-initialization.');
+    return () => {
+      console.log('[DEBUG] initializeAuthListener: Unsubscribe called on duplicate (no-op)');
+    };
   }
 
+  isListenerInitialized = true;
   console.log('[DEBUG] initializeAuthListener: Subscribing to Firebase Auth changes...');
 
   const unsubscribe = onAuthStateChanged(
     auth,
     (user) => {
-      handleAuthStateChange(user, router);
+      handleAuthStateChange(user);
     },
     (error) => {
       console.log('[DEBUG] onAuthStateChanged: Firebase observer error event:', error);
-      handleAuthError(error, router);
+      handleAuthError(error);
     }
   );
 
-  activeUnsubscribe = unsubscribe;
-  return unsubscribe;
+  return () => {
+    console.log('[DEBUG] initializeAuthListener: Unsubscribing from global listener...');
+    unsubscribe();
+    isListenerInitialized = false;
+  };
 }

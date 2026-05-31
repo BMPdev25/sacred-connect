@@ -40,7 +40,7 @@ export default function RequestDetails(): React.JSX.Element {
   });
 
   const handleAccept = async () => {
-    if (!bookingId) return;
+    if (!bookingId || isProcessing) return;
     setIsProcessing(true);
     try {
       await PriestRequestsService.acceptRequest(bookingId);
@@ -63,7 +63,7 @@ export default function RequestDetails(): React.JSX.Element {
   };
 
   const confirmDecline = async () => {
-    if (!bookingId) return;
+    if (!bookingId || isProcessing) return;
     setIsProcessing(true);
     try {
       await PriestRequestsService.declineRequest(bookingId);

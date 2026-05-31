@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { store } from '@/redux/store';
 import { queryClient } from '@/lib/queryClient';
 import { THEME } from '@/constants/theme';
+import { initializeAuthListener } from '@/services/auth/authStateManager';
 
 /**
  * Root Stack component. Applies safe area top padding dynamically 
@@ -15,6 +16,15 @@ import { THEME } from '@/constants/theme';
  */
 function RootStack(): React.JSX.Element {
   const insets = useSafeAreaInsets();
+
+  useEffect(() => {
+    console.log('[DEBUG] RootStack: Subscribing to auth state change observer...');
+    const unsubscribe = initializeAuthListener();
+    return () => {
+      console.log('[DEBUG] RootStack: Cleaning up auth state observer...');
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>

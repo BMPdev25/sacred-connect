@@ -26,7 +26,7 @@ const HERO_HEIGHT = 340;
  * and upcoming availability slots.
  */
 export default function PriestDetailsScreen() {
-  const { id: priestProfileId } = useLocalSearchParams<{ id: string }>();
+  const { id: priestProfileId, userId } = useLocalSearchParams<{ id: string; userId?: string }>();
   const router = useRouter();
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -44,7 +44,7 @@ export default function PriestDetailsScreen() {
       pathname: '/devotee/(screens)/BookCeremony' as any,
       params: {
         priestId: priestProfileId,
-        priestUserId: priest.userId,
+        priestUserId: userId || priest?.userId || '',
       }
     });
   };
@@ -54,7 +54,7 @@ export default function PriestDetailsScreen() {
       pathname: '/devotee/(screens)/BookCeremony' as any,
       params: {
         priestId: priestProfileId,
-        priestUserId: priest.userId,
+        priestUserId: userId || priest?.userId || '',
         serviceId,
         ceremonyName,
       }

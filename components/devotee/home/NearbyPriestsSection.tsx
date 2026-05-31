@@ -105,7 +105,7 @@ export default function NearbyPriestsSection({
           onPress={() =>
             router.push({
               pathname: '/devotee/(screens)/PriestDetails' as any,
-              params: { id: item._id },
+              params: { id: item._id, userId: item.userId },
             })
           }
         />

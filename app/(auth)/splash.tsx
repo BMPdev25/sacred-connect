@@ -8,12 +8,10 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
 import Logo from '@/components/shared/Logo';
 import { THEME } from '@/constants/theme';
-import { initializeAuthListener } from '@/services/auth/authStateManager';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -46,43 +44,16 @@ function useSplashAnimation(): Animated.Value {
   return opacity;
 }
 
-/**
- * Initializes the auth listener after the fade animation completes,
- * storing and cleaning up the unsubscribe handle.
- *
- * @param opacity - The opacity Animated.Value to wait on before subscribing.
- */
-function useAuthInitialization(opacity: Animated.Value): void {
-  const router = useRouter();
-
-  useEffect(() => {
-    let unsubscribe: (() => void) | null = null;
-
-    console.log('[DEBUG] Splash Screen mounted. Starting auth listener initialization timer...');
-    const animationDelay = setTimeout(() => {
-      console.log('[DEBUG] Splash Screen: Initializing auth state observer listener...');
-      unsubscribe = initializeAuthListener(router);
-    }, FADE_DURATION_MS);
-
-    return () => {
-      clearTimeout(animationDelay);
-      if (unsubscribe) unsubscribe();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-}
-
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
 /**
  * SplashScreen — full-screen branded loading state.
- * Fades in, then hands off control to the auth state listener.
+ * Fades in and displays branding while the root layout resolves the auth session.
  */
 export default function SplashScreen(): React.ReactElement {
   const opacity = useSplashAnimation();
-  useAuthInitialization(opacity);
 
   return (
     <LinearGradient

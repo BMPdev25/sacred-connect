@@ -1,3 +1,4 @@
+/*priestDetailsService.ts */
 import api from '@/api/index';
 import { PublicPriestProfile, ReviewsPage } from '@/types/priestDetails.types';
 import { logger } from '@/utils/logger';

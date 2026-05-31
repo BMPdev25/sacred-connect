@@ -35,7 +35,8 @@
       "package": "com.anonymous.bookmypujari",
       "googleServicesFile": "./google-services.json",
       "permissions": [
-        "android.permission.READ_PHONE_STATE"
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.CALL_PHONE"
       ]
     },
     "web": {

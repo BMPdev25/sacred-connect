@@ -5,6 +5,8 @@ import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-cont
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 import { store } from '@/redux/store';
 import { queryClient } from '@/lib/queryClient';
 import { THEME } from '@/constants/theme';
@@ -48,17 +50,22 @@ function RootStack(): React.JSX.Element {
  */
 export default function RootLayout(): React.JSX.Element {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <SafeAreaProvider>
-          <RootStack />
-        </SafeAreaProvider>
-      </QueryClientProvider>
-    </Provider>
+    <GestureHandlerRootView style={styles.root}>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <RootStack />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: THEME.colors.background,

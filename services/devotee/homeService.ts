@@ -184,10 +184,13 @@ export async function fetchNearbyPriests(
     if (!ceremonyId) {
       return await fallbackFetchAllPriests();
     }
+    // Workaround: Remote backend throws 500 on geo queries due to a countDocuments index/sorting issue.
+    // Omit lat/lng to prevent server-side MongoServerError.
     const response = await api.get<{ pujaris: any[] }>('/priest/available', {
-      params: { lat: latitude, lng: longitude, limit, ceremonyId },
+      params: { limit, ceremonyId },
     });
-    const list = response.data?.pujaris;
+    // The backend /priest/available response is wrapped in `data`. Access it correctly:
+    const list = (response.data as any)?.data?.pujaris || (response.data as any)?.pujaris;
     if (Array.isArray(list)) {
       return list.map(mapPujariToNearbyPriest);
     }

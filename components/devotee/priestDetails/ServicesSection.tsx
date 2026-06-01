@@ -50,11 +50,11 @@ export function ServicesSection({ services, onBookService }: ServicesSectionProp
       <Text style={styles.heading}>Services Provided</Text>
       
       <View style={styles.list}>
-        {visibleServices.map(service => (
-          <ServiceItem 
-            key={service._id} 
-            service={service} 
-            onBook={() => onBookService(service._id, service.ceremonyId?.name || 'Ceremony')} 
+        {visibleServices.map((service, index) => (
+          <ServiceItem
+            key={service._id ?? index}
+            service={service}
+            onBook={() => onBookService(service._id, service.ceremonyId?.name || 'Ceremony')}
           />
         ))}
       </View>

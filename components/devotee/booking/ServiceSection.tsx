@@ -27,16 +27,16 @@ export function ServiceSection({ priestProfileId }: ServiceSectionProps) {
     return (
       <View style={styles.container}>
         <Text style={styles.sectionLabelActive}>SELECT SERVICE</Text>
-        {priest?.services?.map((service) => (
+        {priest?.services?.map((service, index) => (
           <TouchableOpacity
-            key={service._id}
+            key={service._id ?? index}
             style={styles.pickerCard}
             onPress={() =>
               dispatch(
                 setSelectedService({
                   serviceId: service._id,
-                  ceremonyId: service.ceremonyId._id,
-                  ceremonyName: service.ceremonyId.name,
+                  ceremonyId: service.ceremonyId?._id,
+                  ceremonyName: service.ceremonyId?.name ?? 'Ceremony',
                   durationMinutes: service.durationMinutes,
                   basePrice: service.price,
                 })
@@ -44,7 +44,7 @@ export function ServiceSection({ priestProfileId }: ServiceSectionProps) {
             }
           >
             <View style={styles.pickerRow}>
-              <Text style={styles.serviceName}>{service.ceremonyId.name}</Text>
+              <Text style={styles.serviceName}>{service.ceremonyId?.name ?? 'Ceremony'}</Text>
               <Text style={styles.servicePrice}>₹{service.price}</Text>
             </View>
             <View style={styles.durationRow}>

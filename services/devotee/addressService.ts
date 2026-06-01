@@ -13,18 +13,17 @@ function mapBackendToDevoteeAddress(addr: any): DevoteeAddress {
     throw new Error('Invalid address object');
   }
 
-  const streetStr = addr.street || '';
-  const commaIndex = streetStr.indexOf(',');
-  const houseNo = commaIndex !== -1 ? streetStr.substring(0, commaIndex).trim() : '';
-  const street = commaIndex !== -1 ? streetStr.substring(commaIndex + 1).trim() : streetStr;
+  const houseNo = addr.houseNo || '';
+  const street = addr.street || '';
 
   const parts = [
-    addr.street,
+    houseNo,
+    street,
     addr.area,
     addr.landmark ? `Near ${addr.landmark}` : null,
     addr.city,
     addr.state,
-    addr.zip ? `Pincode: ${addr.zip}` : null,
+    (addr.pincode || addr.zip) ? `Pincode: ${addr.pincode || addr.zip}` : null,
   ].filter(Boolean);
   const fullAddress = parts.join(', ');
 
@@ -36,7 +35,7 @@ function mapBackendToDevoteeAddress(addr: any): DevoteeAddress {
     landmark: addr.landmark || undefined,
     city: addr.city || '',
     state: addr.state || '',
-    pincode: addr.zip || '',
+    pincode: addr.pincode || addr.zip || '',
     fullAddress,
     isDefault: !!addr.isDefault,
   };
@@ -72,13 +71,13 @@ export async function saveAddress(
 ): Promise<DevoteeAddress> {
   try {
     const payload = {
-      type: address.label === 'Office' || address.label === 'Work' ? 'Work' : (address.label === 'Home' ? 'Home' : 'Other'),
-      street: address.houseNo ? `${address.houseNo}, ${address.street}` : address.street,
-      area: '',
+      houseNo: address.houseNo,
+      street: address.street,
       city: address.city,
       state: address.state,
-      zip: address.pincode,
+      pincode: address.pincode,
       landmark: address.landmark || '',
+      type: address.label === 'Office' || address.label === 'Work' ? 'Work' : (address.label === 'Home' ? 'Home' : 'Other'),
       isDefault: false,
     };
 
@@ -117,14 +116,11 @@ export async function updateAddress(
     if (updates.label !== undefined) {
       payload.type = updates.label === 'Office' || updates.label === 'Work' ? 'Work' : (updates.label === 'Home' ? 'Home' : 'Other');
     }
-    if (updates.houseNo !== undefined || updates.street !== undefined) {
-      const houseNo = updates.houseNo || '';
-      const street = updates.street || '';
-      payload.street = houseNo ? `${houseNo}, ${street}` : street;
-    }
+    if (updates.houseNo !== undefined) payload.houseNo = updates.houseNo;
+    if (updates.street !== undefined) payload.street = updates.street;
     if (updates.city !== undefined) payload.city = updates.city;
     if (updates.state !== undefined) payload.state = updates.state;
-    if (updates.pincode !== undefined) payload.zip = updates.pincode;
+    if (updates.pincode !== undefined) payload.pincode = updates.pincode;
     if (updates.landmark !== undefined) payload.landmark = updates.landmark || '';
     if (updates.isDefault !== undefined) payload.isDefault = updates.isDefault;
 

@@ -6,6 +6,17 @@
  * @param fallback The fallback URL to return if imageField is invalid
  * @returns A URI string or the fallback
  */
+/**
+ * Normalizes a profilePicture field that may be a string URL or an object with a `url` property.
+ * Returns a plain string URL or undefined.
+ */
+export function normalizeProfilePicture(pic: any): string | undefined {
+  if (!pic) return undefined;
+  if (typeof pic === 'string') return pic.trim() || undefined;
+  if (typeof pic === 'object' && typeof pic.url === 'string') return pic.url.trim() || undefined;
+  return undefined;
+}
+
 export function getImageUri(imageField: any, fallback: string = "https://via.placeholder.com/150"): string {
   if (!imageField) return fallback;
 

@@ -1,6 +1,7 @@
 import api from '@/api/index';
 import { DashboardStats, PriestOnlineStatus, TodayBooking } from '@/types/priest.dashboard.types';
 import { logger } from '@/utils/logger';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 /**
  * Checks if a given date string corresponds to today's local date.
@@ -87,7 +88,7 @@ export async function fetchTodayBookings(): Promise<TodayBooking[]> {
         devoteeId: {
           _id: booking.devoteeId?._id || booking.devoteeId,
           name: booking.devoteeId?.name || 'Devotee',
-          profilePicture: booking.devoteeId?.profilePicture,
+          profilePicture: normalizeProfilePicture(booking.devoteeId?.profilePicture),
         },
       }));
 

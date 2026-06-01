@@ -2,6 +2,7 @@ import api from '@/api/index';
 import { ApiResponse } from '@/types/api.types';
 import { Banner, CeremonyCategory, NearbyPriest, Festival, FestivalParsed } from '@/types/home.types';
 import { logger } from '@/utils/logger';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -118,7 +119,7 @@ function mapPujariToNearbyPriest(p: any): NearbyPriest {
     _id: p._id,
     userId: typeof p.userId === 'object' ? (p.userId?._id || '') : (p.userId || ''),
     name: p.name || (typeof p.userId === 'object' && p.userId?.name) || 'Unknown Priest',
-    profilePicture: p.profilePicture || undefined,
+    profilePicture: normalizeProfilePicture(p.profilePicture),
     primarySpecialization: spec,
     rating: typeof ratings.average === 'number' ? ratings.average : 4.5,
     reviewCount: typeof ratings.count === 'number' ? ratings.count : 5,

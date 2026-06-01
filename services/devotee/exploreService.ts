@@ -2,6 +2,7 @@ import api from '@/api/index';
 import { ExploreFilters, PaginatedPriests, SearchSuggestion, SortOption } from '@/types/explore.types';
 import { NearbyPriest } from '@/types/home.types';
 import { logger } from '@/utils/logger';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -27,7 +28,7 @@ function mapBackendPriestToNearbyPriest(p: any): NearbyPriest {
     _id: p._id || p.id || '',
     userId: typeof p.userId === 'object' ? (p.userId?._id || '') : (p.userId || ''),
     name: p.name || 'Unknown Priest',
-    profilePicture: p.profilePicture || undefined,
+    profilePicture: normalizeProfilePicture(p.profilePicture),
     primarySpecialization: spec,
     rating: typeof ratings.average === 'number' ? ratings.average : (typeof p.rating === 'number' ? p.rating : 4.5),
     reviewCount: typeof ratings.count === 'number' ? ratings.count : (typeof p.reviewCount === 'number' ? p.reviewCount : 5),

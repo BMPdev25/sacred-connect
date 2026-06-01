@@ -2,6 +2,7 @@ import api from '@/api/index';
   import { THEME } from '@/constants/theme';
   import { logger } from '@/utils/logger';
   import { CalendarBooking, MarkedDatesMap } from '@/types/priest.calendar.types';
+  import { normalizeProfilePicture } from '@/utils/imageUtils';
 
   /**
    * Safe mapping from raw booking API payload to CalendarBooking type.
@@ -28,7 +29,7 @@ import api from '@/api/index';
       devoteeId: {
         _id: booking.devoteeId?._id || booking.devoteeId || '',
         name: booking.devoteeId?.name || 'Devotee',
-        profilePicture: booking.devoteeId?.profilePicture,
+        profilePicture: normalizeProfilePicture(booking.devoteeId?.profilePicture),
         phone: booking.devoteeId?.phone,
         createdAt: booking.devoteeId?.createdAt,
       },

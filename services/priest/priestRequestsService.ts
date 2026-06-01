@@ -2,6 +2,7 @@ import api from '@/api/index';
 import { BookingRequest, BookingRequestDetail } from '@/types/priest.dashboard.types';
 import { logger } from '@/utils/logger';
 import { extractCity } from '@/utils/priestUtils';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 /**
  * Helper to sort booking requests by their creation date descending (newest first).
@@ -36,7 +37,7 @@ function mapToBookingRequest(booking: any): BookingRequest {
     devoteeId: {
       _id: booking.devoteeId?._id || booking.devoteeId || '',
       name: booking.devoteeId?.name || 'Devotee',
-      profilePicture: booking.devoteeId?.profilePicture,
+      profilePicture: normalizeProfilePicture(booking.devoteeId?.profilePicture),
       createdAt: booking.devoteeId?.createdAt || new Date().toISOString(),
     },
     createdAt: booking.createdAt || new Date().toISOString(),

@@ -50,7 +50,7 @@ export async function uploadProfilePicture(
   imageUri: string,
   fileName: string,
   mimeType: string
-): Promise<{ profilePicture: string }> {
+): Promise<{ profilePicture: { url: string; uploadedAt: string } | string }> {
   try {
     const formData = new FormData();
     const filePayload = {
@@ -59,8 +59,6 @@ export async function uploadProfilePicture(
       type: mimeType,
     } as any;
 
-    // Append both to satisfy instruction definition and backend multer field expectation
-    formData.append('document', filePayload);
     formData.append('profilePicture', filePayload);
 
     const response = await api.post('/users/profile/picture', formData, {
@@ -69,9 +67,10 @@ export async function uploadProfilePicture(
       },
     });
     return response.data.data;
-  } catch (err: unknown) {
+  } catch (err: any) {
     logger.error('uploadProfilePicture service call failed', err);
-    throw new Error('Failed to upload photo.');
+    const errMsg = err?.response?.data?.message || err?.message || 'Failed to upload photo.';
+    throw new Error(errMsg);
   }
 }
 

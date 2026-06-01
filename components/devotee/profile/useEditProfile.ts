@@ -29,7 +29,7 @@ export function useEditProfile() {
   const handlePhotoChange = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ImagePicker.MediaType.Images,
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -49,7 +49,11 @@ export function useEditProfile() {
         asset.mimeType ?? 'image/jpeg'
       );
 
-      dispatch(updateUserProfile({ profilePicture: response.profilePicture }));
+      const picUrl =
+        typeof response.profilePicture === 'string'
+          ? response.profilePicture
+          : (response.profilePicture as any)?.url || '';
+      dispatch(updateUserProfile({ profilePicture: picUrl }));
 
       if (Platform.OS === 'android') {
         ToastAndroid.show('Profile picture updated', ToastAndroid.SHORT);

@@ -1,24 +1,44 @@
 import { useEffect, useState } from 'react';
-import { Alert } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
 
 import { DevoteeAddress } from '@/types/booking.types';
 import * as addressService from '@/services/devotee/addressService';
 
 interface UseAddressFormProps {
-  /** The existing address to edit, or null if adding a new address */
   existingAddress: DevoteeAddress | null;
-  /** Callback fired after successfully saving the address */
   onSaved: (address: DevoteeAddress) => void;
-  /** Callback fired to close the sheet */
   onClose: () => void;
-  /** Visibility status of the form */
   isVisible: boolean;
 }
 
-/**
- * Custom hook managing the devotee saved address add/edit form states and async save actions.
- */
+interface FieldErrors {
+  houseNo?: string;
+  street?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+}
+
+function validate(fields: {
+  houseNo: string;
+  street: string;
+  city: string;
+  state: string;
+  pincode: string;
+}): FieldErrors {
+  const errors: FieldErrors = {};
+  if (!fields.houseNo.trim()) errors.houseNo = 'House / flat number is required';
+  if (!fields.street.trim()) errors.street = 'Street is required';
+  if (!fields.city.trim()) errors.city = 'City is required';
+  if (!fields.state.trim()) errors.state = 'State is required';
+  if (!fields.pincode.trim()) {
+    errors.pincode = 'Pincode is required';
+  } else if (!/^\d{6}$/.test(fields.pincode.trim())) {
+    errors.pincode = 'Pincode must be exactly 6 digits';
+  }
+  return errors;
+}
+
 export function useAddressForm({
   existingAddress,
   onSaved,
@@ -36,6 +56,8 @@ export function useAddressForm({
   const [pincode, setPincode] = useState('');
   const [isDefault, setIsDefault] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const isEditMode = existingAddress !== null;
 
@@ -49,11 +71,21 @@ export function useAddressForm({
       setState(existingAddress?.state || '');
       setPincode(existingAddress?.pincode || '');
       setIsDefault(existingAddress?.isDefault || false);
+      setFieldErrors({});
+      setSubmitError(null);
     }
   }, [existingAddress, isVisible]);
 
   const handleSave = async () => {
+    const errors = validate({ houseNo, street, city, state, pincode });
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+    setFieldErrors({});
+    setSubmitError(null);
     setIsSaving(true);
+
     const addressData = {
       label: label.trim() || undefined,
       houseNo: houseNo.trim(),
@@ -75,39 +107,32 @@ export function useAddressForm({
       } else {
         savedAddress = await addressService.saveAddress(addressData);
       }
-
       queryClient.invalidateQueries({ queryKey: ['devoteeAddresses'] });
       onSaved(savedAddress);
       onClose();
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to save address.');
+      setSubmitError(error.message || 'Failed to save address. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const isSaveDisabled = !houseNo.trim() || !street.trim() || !city.trim() || !pincode.trim();
+  const isSaveDisabled = isSaving;
 
   return {
-    label,
-    setLabel,
-    houseNo,
-    setHouseNo,
-    street,
-    setStreet,
-    landmark,
-    setLandmark,
-    city,
-    setCity,
-    state,
-    setState,
-    pincode,
-    setPincode,
-    isDefault,
-    setIsDefault,
+    label, setLabel,
+    houseNo, setHouseNo,
+    street, setStreet,
+    landmark, setLandmark,
+    city, setCity,
+    state, setState,
+    pincode, setPincode,
+    isDefault, setIsDefault,
     isSaving,
     isEditMode,
     handleSave,
     isSaveDisabled,
+    fieldErrors,
+    submitError,
   };
 }

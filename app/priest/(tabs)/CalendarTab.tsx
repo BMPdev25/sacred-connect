@@ -5,6 +5,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { THEME } from '@/constants/theme';
 import { CalendarBooking } from '@/types/priest.calendar.types';
 import { CalendarService } from '@/services/priest/calendarService';
@@ -100,7 +102,8 @@ export default function CalendarTab(): React.JSX.Element {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <ScrollView contentContainerStyle={styles.content}>
       <Text style={styles.headerTitle}>My Calendar</Text>
 
       <Calendar
@@ -149,6 +152,7 @@ export default function CalendarTab(): React.JSX.Element {
         )}
       </View>
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

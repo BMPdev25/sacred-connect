@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Stack } from 'expo-router';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Provider } from 'react-redux';
 import { QueryClientProvider } from '@tanstack/react-query';
@@ -12,13 +12,7 @@ import { queryClient } from '@/lib/queryClient';
 import { THEME } from '@/constants/theme';
 import { initializeAuthListener } from '@/services/auth/authStateManager';
 
-/**
- * Root Stack component. Applies safe area top padding dynamically 
- * to shift all navigation screens below the phone's top status bar/notch.
- */
 function RootStack(): React.JSX.Element {
-  const insets = useSafeAreaInsets();
-
   useEffect(() => {
     console.log('[DEBUG] RootStack: Subscribing to auth state change observer...');
     const unsubscribe = initializeAuthListener();
@@ -29,7 +23,7 @@ function RootStack(): React.JSX.Element {
   }, []);
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View style={styles.container}>
       <StatusBar style="dark" />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />

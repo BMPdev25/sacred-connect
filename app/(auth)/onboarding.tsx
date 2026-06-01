@@ -21,6 +21,7 @@ import {
 
 import { Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { THEME } from '@/constants/theme';
@@ -239,6 +240,7 @@ export default function OnboardingScreen(): React.ReactElement {
     slides.length
   );
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const isLastSlide = currentIndex === slides.length - 1;
 
   function renderSlide({ item }: ListRenderItemInfo<OnboardingSlide>): React.ReactElement {
@@ -250,7 +252,7 @@ export default function OnboardingScreen(): React.ReactElement {
       {/* Skip button — hidden on last slide */}
       {!isLastSlide && (
         <TouchableOpacity
-          style={styles.skipBtn}
+          style={[styles.skipBtn, { top: insets.top + SKIP_TOP }]}
           onPress={handleSkip}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
@@ -381,7 +383,6 @@ const styles = StyleSheet.create({
   },
   skipBtn: {
     position: 'absolute',
-    top: SKIP_TOP,
     right: SKIP_RIGHT,
     zIndex: 10,
   },

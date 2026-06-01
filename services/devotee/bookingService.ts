@@ -25,6 +25,7 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
       endTime: draft.selectedTimeSlot.endTime,
       location: {
         address: draft.selectedAddress.fullAddress,
+        city: draft.selectedAddress.city,
         coordinates: draft.selectedAddress.coordinates,
       },
       basePrice: draft.pricing.basePrice,

@@ -93,7 +93,9 @@ export async function saveAddress(
     return mapBackendToDevoteeAddress(savedBackendAddress);
   } catch (err: any) {
     logger.error('saveAddress failed', err);
-    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    const errors = err?.response?.data?.errors;
+    const fieldErrors = Array.isArray(errors) ? errors.map((e: any) => `${e.field}: ${e.message}`).join(', ') : null;
+    const errMsg = fieldErrors || err?.response?.data?.message || err?.response?.data?.error || err.message;
     throw new Error(errMsg || 'Failed to save address.');
   }
 }
@@ -135,7 +137,9 @@ export async function updateAddress(
     return mapBackendToDevoteeAddress(updatedBackendAddress);
   } catch (err: any) {
     logger.error('updateAddress failed', err);
-    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    const errors = err?.response?.data?.errors;
+    const fieldErrors = Array.isArray(errors) ? errors.map((e: any) => `${e.field}: ${e.message}`).join(', ') : null;
+    const errMsg = fieldErrors || err?.response?.data?.message || err?.response?.data?.error || err.message;
     throw new Error(errMsg || 'Failed to update address.');
   }
 }

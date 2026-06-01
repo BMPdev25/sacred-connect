@@ -39,7 +39,7 @@ export default function RoleSelectionScreen(): React.ReactElement {
     <View style={[styles.screen, { paddingBottom: insets.bottom + THEME.spacing.lg }]}>
 
       {/* Header: logo accent + headings */}
-      <View style={[styles.header, { paddingTop: HEADER_PADDING_TOP }]}>
+      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
         <View style={styles.logoRow}>
           <Logo variant="icon-only" size="sm" />
           <View style={styles.headerLine} />

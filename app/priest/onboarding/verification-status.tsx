@@ -78,7 +78,7 @@ export default function VerificationStatusScreen() {
 
   if (loading) {
     return (
-      <View style={[styles.container, styles.centered]}>
+      <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
         <ActivityIndicator size="large" color={THEME.colors.primary} />
       </View>
     );
@@ -88,7 +88,7 @@ export default function VerificationStatusScreen() {
 
   if (isRejected) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Top Section — Rejection Icon */}
           <View style={styles.rejectedIconContainer}>
@@ -138,7 +138,7 @@ export default function VerificationStatusScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Top Section — Illustration */}
         <View style={styles.illustrationContainer}>

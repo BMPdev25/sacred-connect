@@ -4,6 +4,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 import { THEME } from '@/constants/theme';
 import { EarningsService } from '@/services/priest/earningsService';
 import { PriestTransaction } from '@/types/priest.earnings.types';
@@ -50,8 +52,8 @@ export default function EarningsTab(): React.JSX.Element {
   };
 
   return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
     <ScrollView
-      style={styles.container}
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={THEME.colors.primary} />}
     >
@@ -106,6 +108,7 @@ export default function EarningsTab(): React.JSX.Element {
         </View>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 

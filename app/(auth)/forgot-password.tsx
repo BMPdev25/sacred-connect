@@ -62,7 +62,7 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + THEME.spacing.xl }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + THEME.spacing.lg, paddingBottom: insets.bottom + THEME.spacing.xl }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
@@ -102,7 +102,6 @@ const styles = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     paddingHorizontal: THEME.spacing.lg,
-    paddingTop: THEME.spacing.lg,
   },
   container: {
     flex: 1,

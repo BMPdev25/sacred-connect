@@ -9,20 +9,12 @@ import PrimaryButton from '@/components/shared/PrimaryButton';
 import { useAddressForm } from './useAddressForm';
 
 interface AddressFormProps {
-  /** The existing address to edit, or null if adding a new address */
   existingAddress: DevoteeAddress | null;
-  /** Callback fired after successfully saving the address */
   onSaved: (address: DevoteeAddress) => void;
-  /** Callback fired to close the sheet */
   onClose: () => void;
-  /** Visibility status of the form */
   isVisible: boolean;
 }
 
-/**
- * Encapsulated Address Input Form containing fields for house no, street,
- * landmark, city, state, pincode, and default toggle.
- */
 export function AddressForm({
   existingAddress,
   onSaved,
@@ -43,69 +35,9 @@ export function AddressForm({
     isEditMode,
     handleSave,
     isSaveDisabled,
+    fieldErrors,
+    submitError,
   } = useAddressForm({ existingAddress, onSaved, onClose, isVisible });
-
-  const renderInputs = () => (
-    <>
-      <FloatingInput
-        label="Label (e.g. Home, Office)"
-        value={label}
-        onChangeText={setLabel}
-      />
-      <FloatingInput
-        label="House / Flat No."
-        value={houseNo}
-        onChangeText={setHouseNo}
-      />
-      <FloatingInput
-        label="Street, Area"
-        value={street}
-        onChangeText={setStreet}
-      />
-      <FloatingInput
-        label="Landmark (optional)"
-        value={landmark}
-        onChangeText={setLandmark}
-      />
-      <FloatingInput
-        label="City"
-        value={city}
-        onChangeText={setCity}
-      />
-    </>
-  );
-
-  const renderStateZip = () => (
-    <View style={styles.rowFields}>
-      <View style={styles.flexField}>
-        <FloatingInput
-          label="State"
-          value={state}
-          onChangeText={setState}
-        />
-      </View>
-      <View style={styles.flexField}>
-        <FloatingInput
-          label="Pincode"
-          value={pincode}
-          onChangeText={setPincode}
-          keyboardType="numeric"
-        />
-      </View>
-    </View>
-  );
-
-  const renderToggle = () => (
-    <View style={styles.toggleRow}>
-      <Text style={styles.toggleText}>Set as default address</Text>
-      <Switch
-        value={isDefault}
-        onValueChange={setIsDefault}
-        trackColor={{ true: THEME.colors.primary, false: THEME.colors.border }}
-        thumbColor={Platform.OS === 'android' ? (isDefault ? THEME.colors.primary : '#f4f3f4') : undefined}
-      />
-    </View>
-  );
 
   return (
     <View style={styles.formContainer}>
@@ -114,9 +46,68 @@ export function AddressForm({
       </Text>
 
       <View style={styles.formFields}>
-        {renderInputs()}
-        {renderStateZip()}
-        {renderToggle()}
+        <FloatingInput
+          label="Label (e.g. Home, Office)"
+          value={label}
+          onChangeText={setLabel}
+        />
+        <FloatingInput
+          label="House / Flat No. *"
+          value={houseNo}
+          onChangeText={setHouseNo}
+          error={fieldErrors.houseNo}
+        />
+        <FloatingInput
+          label="Street, Area *"
+          value={street}
+          onChangeText={setStreet}
+          error={fieldErrors.street}
+        />
+        <FloatingInput
+          label="Landmark (optional)"
+          value={landmark}
+          onChangeText={setLandmark}
+        />
+        <FloatingInput
+          label="City *"
+          value={city}
+          onChangeText={setCity}
+          error={fieldErrors.city}
+        />
+
+        <View style={styles.rowFields}>
+          <View style={styles.flexField}>
+            <FloatingInput
+              label="State *"
+              value={state}
+              onChangeText={setState}
+              error={fieldErrors.state}
+            />
+          </View>
+          <View style={styles.flexField}>
+            <FloatingInput
+              label="Pincode *"
+              value={pincode}
+              onChangeText={setPincode}
+              keyboardType="numeric"
+              error={fieldErrors.pincode}
+            />
+          </View>
+        </View>
+
+        <View style={styles.toggleRow}>
+          <Text style={styles.toggleText}>Set as default address</Text>
+          <Switch
+            value={isDefault}
+            onValueChange={setIsDefault}
+            trackColor={{ true: THEME.colors.primary, false: THEME.colors.border }}
+            thumbColor={Platform.OS === 'android' ? (isDefault ? THEME.colors.primary : '#f4f3f4') : undefined}
+          />
+        </View>
+
+        {submitError ? (
+          <Text style={styles.submitError}>{submitError}</Text>
+        ) : null}
       </View>
 
       <View style={[styles.btnWrapper, { marginBottom: safeArea.bottom + THEME.spacing.md }]}>
@@ -164,6 +155,12 @@ const styles = StyleSheet.create({
     fontSize: THEME.typography.body,
     color: THEME.colors.textPrimary,
     flex: 1,
+  },
+  submitError: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.error,
+    textAlign: 'center',
+    marginBottom: THEME.spacing.sm,
   },
   btnWrapper: {
     marginTop: THEME.spacing.md,

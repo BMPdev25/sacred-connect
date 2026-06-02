@@ -230,6 +230,23 @@ export const onboardingSlice = createSlice({
     },
 
     /**
+     * Updates the address and coordinates for Step 4 (address-form flow).
+     */
+    updateStep4Address(
+      state,
+      action: PayloadAction<{
+        address: NonNullable<OnboardingState['step4']['address']>;
+        coordinates: { lat: number; lng: number };
+      }>
+    ) {
+      state.step4.address = action.payload.address;
+      state.step4.location = {
+        latitude: action.payload.coordinates.lat,
+        longitude: action.payload.coordinates.lng,
+      };
+    },
+
+    /**
      * Sets the weekly availability schedule (Step 5).
      */
     updateStep5Schedule(state, action: PayloadAction<WeeklySchedule>) {
@@ -434,6 +451,7 @@ export const {
   updateStep2Data,
   updateStep3Services,
   updateStep4Location,
+  updateStep4Address,
   updateStep5Schedule,
   updateStep6Document,
   resetOnboarding,

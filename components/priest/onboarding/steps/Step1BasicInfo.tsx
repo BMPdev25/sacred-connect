@@ -1,11 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useDispatch, useSelector } from 'react-redux';
 
 import ChipSelector from '@/components/priest/onboarding/ChipSelector';
@@ -87,11 +87,14 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
   const bioLength = (step1.bio || '').length;
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
       style={styles.scroll}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
+      enableOnAndroid={true}
+      enableAutomaticScroll={true}
+      extraScrollHeight={80}
     >
       {/* Section 1 — Profile Display Card (read-only) */}
       <ProfileCard name={user.name} email={user.email} phone={user.phone} />
@@ -138,7 +141,7 @@ export const Step1BasicInfo = forwardRef<StepRef, {}>((_, ref) => {
       {errors.map((err) => (
         <Text key={err} style={styles.errorText}>{err}</Text>
       ))}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 });
 

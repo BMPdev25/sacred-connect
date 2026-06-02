@@ -5,6 +5,7 @@
 
 import {
   createUserWithEmailAndPassword,
+  deleteUser,
   sendPasswordResetEmail,
   signInWithCustomToken,
   signInWithEmailAndPassword,
@@ -18,6 +19,7 @@ import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { AuthSyncPayload, SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
 import { getReadableErrorMessage } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
+import { setSignupInProgress } from './signupState';
 
 /** Helper to construct a typed UserProfile from backend response data. */
 function mapToUserProfile(data: any): UserProfile {
@@ -97,23 +99,42 @@ export async function syncWithBackend(
 
 /**
  * Creates a Firebase auth user and registers their profile with the backend.
+ * Sets the signup semaphore before creating the Firebase account so that the
+ * onAuthStateChanged listener does not race ahead and redirect to /role-selection
+ * before the backend registration call completes.
  */
 export async function registerUser(payload: SignupDevoteePayload | SignupPriestPayload): Promise<UserProfile> {
+  if (!payload.password) throw new Error('Password is required for registration');
+
+  setSignupInProgress(true);
+
   try {
-    if (!payload.password) throw new Error('Password is required for registration');
-    
+    // Step 1: Create Firebase account — onAuthStateChanged fires here but listener is paused.
     const credential = await createUserWithEmailAndPassword(auth, payload.email, payload.password);
     const firebaseToken = await credential.user.getIdToken();
-    
+
+    // Step 2: Register with MongoDB backend (creates the user record).
     const profile = await syncWithBackend(firebaseToken, {
       userType: payload.role,
       name: payload.name,
       phone: payload.phone,
     });
+
     return profile;
   } catch (err: any) {
+    // If backend registration fails after Firebase account was created, delete
+    // the Firebase account so the user isn't stuck with an orphaned credential.
+    try {
+      const currentUser = auth.currentUser;
+      if (currentUser) await deleteUser(currentUser);
+    } catch (deleteErr: any) {
+      logger.warn('Firebase account cleanup after failed registration failed', deleteErr.message);
+    }
     logger.error('Registration failed', err);
     throw new Error(getReadableErrorMessage(err));
+  } finally {
+    // Always re-enable the listener whether registration succeeded or failed.
+    setSignupInProgress(false);
   }
 }
 

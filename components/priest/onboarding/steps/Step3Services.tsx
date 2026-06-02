@@ -1,5 +1,6 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
-import { FlatList, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -156,8 +157,18 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
 
   const selectedDurationLabel = DURATION_OPTIONS.find((o) => o.value === formValues.durationMinutes)?.label ?? '';
 
+  const addedCeremonyIds = services.map((s) => s.ceremonyId);
+  const filteredCeremonies = availableCeremonies.filter((c) => !addedCeremonyIds.includes(c._id));
+
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAwareScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+      enableOnAndroid={true}
+      enableAutomaticScroll={true}
+      extraScrollHeight={80}
+    >
 
       {ceremoniesError && !isFormOpen ? (
         <View style={styles.bannerError}>
@@ -183,7 +194,13 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
 
       {stepErrors.map((err) => <Text key={err} style={styles.stepError}>{err}</Text>)}
 
-      {!isFormOpen && (
+      {!isFormOpen && filteredCeremonies.length === 0 && services.length > 0 && !ceremoniesError ? (
+        <View style={styles.allAddedBanner}>
+          <Text style={styles.allAddedText}>All services added</Text>
+        </View>
+      ) : null}
+
+      {!isFormOpen && (filteredCeremonies.length > 0 || ceremoniesError) && (
         <TouchableOpacity
           style={[styles.addBtn, ceremoniesError ? styles.disabledBtn : null]}
           onPress={ceremoniesError ? undefined : openAddForm}
@@ -212,9 +229,9 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
         />
       )}
 
-      <CeremonyModal visible={isCeremonyModalOpen} ceremonies={availableCeremonies} onSelect={handleCeremonySelect} onClose={() => setIsCeremonyModalOpen(false)} />
+      <CeremonyModal visible={isCeremonyModalOpen} ceremonies={filteredCeremonies} onSelect={handleCeremonySelect} onClose={() => setIsCeremonyModalOpen(false)} />
       <DurationModal visible={isDurationModalOpen} options={DURATION_OPTIONS} onSelect={handleDurationSelect} onClose={() => setIsDurationModalOpen(false)} />
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 });
 
@@ -263,6 +280,15 @@ const styles = StyleSheet.create({
   },
   disabledBtnText: {
     color: THEME.colors.disabled,
+  },
+  allAddedBanner: {
+    alignItems: 'center',
+    paddingVertical: THEME.spacing.sm,
+  },
+  allAddedText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textMuted,
+    fontStyle: 'italic',
   },
 });
 

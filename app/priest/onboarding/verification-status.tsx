@@ -1,47 +1,51 @@
 import React, { useEffect, useState } from 'react';
 import {
-  Dimensions,
-  Image,
+  ActivityIndicator,
   Linking,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { signOut } from 'firebase/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useDispatch, useSelector } from 'react-redux';
 
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { THEME } from '@/constants/theme';
+import { auth } from '@/config/firebase';
+import { clearUserSession } from '@/redux/slices/userSlice';
+import { RootState } from '@/redux/store';
 import { useVerificationPolling } from '@/hooks/useVerificationPolling';
-import { AssetService } from '@/services/assets/AssetService';
 import api from '@/api/index';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
 // ---------------------------------------------------------------------------
-// Subcomponents
+// Step indicator sub-component
 // ---------------------------------------------------------------------------
 
-interface VerificationStepProps {
+interface StepItemProps {
   number: number;
-  text: string;
+  title: string;
+  description: string;
   isLast?: boolean;
 }
 
-function VerificationStep({ number, text, isLast = false }: VerificationStepProps) {
+function StepItem({ number, title, description, isLast = false }: StepItemProps) {
   return (
-    <View style={styles.stepContainer}>
+    <View style={styles.stepRow}>
       <View style={styles.stepLeftCol}>
         <View style={styles.stepCircle}>
           <Text style={styles.stepCircleText}>{number}</Text>
         </View>
         {!isLast && <View style={styles.stepDashedLine} />}
       </View>
-      <Text style={styles.stepText}>{text}</Text>
+      <View style={styles.stepBody}>
+        <Text style={styles.stepTitle}>{title}</Text>
+        <Text style={styles.stepDescription}>{description}</Text>
+      </View>
     </View>
   );
 }
@@ -52,14 +56,17 @@ function VerificationStep({ number, text, isLast = false }: VerificationStepProp
 
 export default function VerificationStatusScreen() {
   const router = useRouter();
+  const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
+  const userEmail = useSelector((state: RootState) => state.user.email);
+
   const [loading, setLoading] = useState(true);
   const [priestProfile, setPriestProfile] = useState<{
     verificationStatus: 'pending' | 'verified' | 'approved' | 'rejected';
+    isVerified?: boolean;
     rejectionReason?: string;
   } | null>(null);
 
-  // Start polling in the background without UI blocking
   useVerificationPolling(30000);
 
   useEffect(() => {
@@ -76,6 +83,23 @@ export default function VerificationStatusScreen() {
     loadStatus();
   }, []);
 
+  // Auto-redirect approved priests
+  useEffect(() => {
+    if (priestProfile?.isVerified || priestProfile?.verificationStatus === 'approved' || priestProfile?.verificationStatus === 'verified') {
+      router.replace('/priest' as any);
+    }
+  }, [priestProfile]);
+
+  async function handleBackToLogin(): Promise<void> {
+    try {
+      await signOut(auth);
+    } catch (e) {
+      // best-effort sign-out
+    }
+    dispatch(clearUserSession());
+    router.replace('/(auth)/login' as any);
+  }
+
   if (loading) {
     return (
       <View style={[styles.container, styles.centered, { paddingTop: insets.top }]}>
@@ -86,41 +110,37 @@ export default function VerificationStatusScreen() {
 
   const isRejected = priestProfile?.verificationStatus === 'rejected';
 
+  // -------------------------------------------------------------------------
+  // REJECTED STATE
+  // -------------------------------------------------------------------------
+
   if (isRejected) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Top Section — Rejection Icon */}
-          <View style={styles.rejectedIconContainer}>
+          <View style={styles.iconContainer}>
             <Ionicons name="close-circle-outline" size={64} color="#EF4444" />
           </View>
 
-          {/* Heading */}
           <View style={styles.statusContainer}>
             <Text style={[styles.statusHeading, { color: THEME.colors.textPrimary }]}>
               Verification Unsuccessful
             </Text>
-            {priestProfile?.rejectionReason ? (
-              <Text style={styles.rejectionReasonText}>
-                Reason: {priestProfile.rejectionReason}
-              </Text>
-            ) : (
-              <Text style={styles.rejectionReasonText}>
-                Your documents could not be verified.
-              </Text>
-            )}
+            <Text style={styles.bodySecondary}>
+              {priestProfile?.rejectionReason
+                ? `Reason: ${priestProfile.rejectionReason}`
+                : 'Your documents could not be verified.'}
+            </Text>
           </View>
 
-          {/* What to do next */}
-          <View style={styles.nextStepsContainer}>
-            <Text style={styles.nextStepsHeading}>What to do next:</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardHeading}>What to do next:</Text>
             <Text style={styles.bulletPoint}>• Review your uploaded documents</Text>
             <Text style={styles.bulletPoint}>• Ensure ID is clearly visible and not expired</Text>
             <Text style={styles.bulletPoint}>• Re-upload if needed from Edit Profile</Text>
           </View>
         </ScrollView>
 
-        {/* Buttons footer */}
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
           <PrimaryButton
             title="Edit Documents"
@@ -137,50 +157,82 @@ export default function VerificationStatusScreen() {
     );
   }
 
+  // -------------------------------------------------------------------------
+  // PENDING STATE
+  // -------------------------------------------------------------------------
+
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Top Section — Illustration */}
-        <View style={styles.illustrationContainer}>
-          <Image
-            source={AssetService.getImage('auth.forgotSuccess') as any}
-            style={styles.illustration}
-            resizeMode="contain"
+        {/* Icon */}
+        <View style={styles.iconContainer}>
+          <View style={styles.iconCircle}>
+            <Ionicons name="time-outline" size={44} color={THEME.colors.primary} />
+          </View>
+        </View>
+
+        {/* Heading */}
+        <View style={styles.statusContainer}>
+          <Text style={styles.statusHeading}>Profile Submitted! 🙏</Text>
+          <Text style={styles.bodySecondary}>Your pandit profile is under review</Text>
+        </View>
+
+        {/* What happens next card */}
+        <View style={styles.card}>
+          <Text style={styles.cardHeading}>What happens next?</Text>
+
+          <StepItem
+            number={1}
+            title="Review"
+            description="Our team reviews your profile and documents."
+          />
+          <StepItem
+            number={2}
+            title="Email notification"
+            description={`You will receive an email at ${userEmail || 'your email'} once your profile is approved or if any changes are needed.`}
+          />
+          <StepItem
+            number={3}
+            title="Start earning"
+            description="Once approved, log in to go online and start receiving bookings."
+            isLast
           />
         </View>
 
-        {/* Middle Section — Status */}
-        <View style={styles.statusContainer}>
-          <Text style={styles.statusHeading}>Profile submitted!</Text>
-          <Text style={styles.statusSubheading}>Under review</Text>
+        {/* Timeline card */}
+        <View style={styles.infoCard}>
+          <Ionicons name="time-outline" size={20} color={THEME.colors.primary} />
+          <Text style={styles.infoCardText}>Typical review time: 24–48 hours</Text>
         </View>
 
-        {/* Steps Card */}
-        <View style={styles.card}>
-          <VerificationStep number={1} text="Our team verifies your documents" />
-          <VerificationStep number={2} text="Background check completion (24–48 hrs)" />
-          <VerificationStep number={3} text="Profile goes live for devotees" isLast={true} />
-        </View>
-
-        {/* Support Line */}
-        <View style={styles.supportContainer}>
-          <Text style={styles.supportText}>Need help? Contact </Text>
-          <TouchableOpacity onPress={() => Linking.openURL('mailto:support@sacredconnect.in')}>
-            <Text style={styles.supportLink}>support@sacredconnect.in</Text>
+        {/* Contact card */}
+        <View style={styles.infoCard}>
+          <Text style={styles.infoCardMuted}>Need help?</Text>
+          <TouchableOpacity
+            style={styles.mailRow}
+            onPress={() => Linking.openURL('mailto:support@sacredconnect.in')}
+          >
+            <Ionicons name="mail-outline" size={16} color={THEME.colors.primary} />
+            <Text style={styles.mailText}>support@sacredconnect.in</Text>
           </TouchableOpacity>
         </View>
+
+        <View style={{ height: THEME.spacing.xl }} />
       </ScrollView>
 
-      {/* Go to Dashboard Button */}
-      {(priestProfile?.verificationStatus === 'approved' || priestProfile?.verificationStatus === 'verified') && (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
-          <PrimaryButton
-            variant="outline"
-            title="Go to Dashboard"
-            onPress={() => router.replace('/priest' as any)}
-          />
-        </View>
-      )}
+      {/* Buttons footer */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
+        <PrimaryButton
+          title="Back to Login"
+          onPress={handleBackToLogin}
+          style={{ marginBottom: THEME.spacing.sm }}
+        />
+        <PrimaryButton
+          variant="outline"
+          title="Check Status Later"
+          onPress={handleBackToLogin}
+        />
+      </View>
     </View>
   );
 }
@@ -200,23 +252,25 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingHorizontal: THEME.spacing.md,
+    paddingTop: THEME.spacing.xl,
   },
-  illustrationContainer: {
+  iconContainer: {
     alignItems: 'center',
-    paddingTop: THEME.spacing.xxl,
+    marginBottom: THEME.spacing.lg,
   },
-  illustration: {
-    width: SCREEN_WIDTH * 0.7,
-    height: SCREEN_WIDTH * 0.7,
-  },
-  rejectedIconContainer: {
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: '#FFF7ED',
     alignItems: 'center',
-    paddingTop: THEME.spacing.xxl,
-    marginBottom: THEME.spacing.md,
+    justifyContent: 'center',
   },
   statusContainer: {
     alignItems: 'center',
-    marginTop: THEME.spacing.md,
+    marginBottom: THEME.spacing.lg,
+    gap: THEME.spacing.xs,
   },
   statusHeading: {
     fontSize: THEME.typography.displayMedium,
@@ -224,96 +278,109 @@ const styles = StyleSheet.create({
     color: THEME.colors.maroon,
     textAlign: 'center',
   },
-  statusSubheading: {
-    fontSize: THEME.typography.subheading,
-    color: THEME.colors.primary,
-    textAlign: 'center',
-    marginTop: THEME.spacing.xs,
-  },
-  rejectionReasonText: {
+  bodySecondary: {
     fontSize: THEME.typography.body,
     color: THEME.colors.textSecondary,
     textAlign: 'center',
-    marginTop: THEME.spacing.sm,
-    paddingHorizontal: THEME.spacing.lg,
+    paddingHorizontal: THEME.spacing.md,
   },
-  nextStepsContainer: {
-    paddingHorizontal: THEME.spacing.xl,
-    marginTop: THEME.spacing.lg,
+  card: {
+    backgroundColor: THEME.colors.surface,
+    borderRadius: THEME.borderRadius.lg,
+    padding: THEME.spacing.lg,
+    marginBottom: THEME.spacing.sm,
+    ...THEME.shadow.card,
   },
-  nextStepsHeading: {
-    fontSize: THEME.typography.body,
+  cardHeading: {
+    fontSize: THEME.typography.subheading,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
-    marginBottom: THEME.spacing.sm,
+    marginBottom: THEME.spacing.md,
   },
   bulletPoint: {
     fontSize: THEME.typography.body,
     color: THEME.colors.textSecondary,
     marginBottom: THEME.spacing.xs,
   },
-  card: {
-    backgroundColor: THEME.colors.surface,
-    borderRadius: THEME.borderRadius.lg,
-    padding: THEME.spacing.lg,
-    marginHorizontal: THEME.spacing.lg,
-    marginTop: THEME.spacing.xl,
-    ...THEME.shadow.card,
-  },
-  stepContainer: {
+  stepRow: {
     flexDirection: 'row',
+    marginBottom: THEME.spacing.sm,
   },
   stepLeftCol: {
     alignItems: 'center',
-    width: 40,
+    width: 36,
+    marginRight: THEME.spacing.md,
   },
   stepCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#C9A84C', // Gold
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: THEME.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepCircleText: {
     color: THEME.colors.surface,
     fontWeight: '700',
-    fontSize: THEME.typography.body,
+    fontSize: THEME.typography.bodySmall,
   },
   stepDashedLine: {
-    height: 24,
+    flex: 1,
     width: 1.5,
     backgroundColor: 'transparent',
     borderColor: THEME.colors.border,
     borderWidth: 1,
     borderStyle: 'dashed',
+    marginTop: 4,
+    marginBottom: 2,
   },
-  stepText: {
+  stepBody: {
     flex: 1,
+    paddingBottom: THEME.spacing.sm,
+  },
+  stepTitle: {
+    fontSize: THEME.typography.body,
+    fontWeight: '600',
+    color: THEME.colors.textPrimary,
+    marginBottom: 2,
+  },
+  stepDescription: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
+    lineHeight: 18,
+  },
+  infoCard: {
+    backgroundColor: THEME.colors.surface,
+    borderRadius: THEME.borderRadius.lg,
+    padding: THEME.spacing.md,
+    marginBottom: THEME.spacing.sm,
+    gap: THEME.spacing.xs,
+    ...THEME.shadow.card,
+  },
+  infoCardText: {
     fontSize: THEME.typography.body,
     color: THEME.colors.textPrimary,
-    marginLeft: THEME.spacing.md,
-    marginTop: 8, // align with center of circle
+    flex: 1,
   },
-  supportContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: THEME.spacing.xl,
-    marginBottom: THEME.spacing.xl,
-  },
-  supportText: {
+  infoCardMuted: {
     fontSize: THEME.typography.bodySmall,
     color: THEME.colors.textMuted,
   },
-  supportLink: {
-    fontSize: THEME.typography.bodySmall,
+  mailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.xs,
+  },
+  mailText: {
+    fontSize: THEME.typography.body,
     color: THEME.colors.primary,
     fontWeight: '500',
-    textDecorationLine: 'underline',
   },
   footer: {
-    paddingHorizontal: THEME.spacing.lg,
+    paddingHorizontal: THEME.spacing.md,
     paddingTop: THEME.spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: THEME.colors.border,
+    backgroundColor: THEME.colors.background,
   },
 });

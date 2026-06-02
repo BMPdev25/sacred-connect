@@ -110,6 +110,16 @@ export interface OnboardingState {
     };
     /** Maximum radius in kilometers they are willing to travel for services. */
     serviceRadiusKm: number;
+    /** Optional structured address entered or confirmed by the priest. */
+    address?: {
+      buildingName: string;
+      streetArea: string;
+      landmark: string;
+      city: string;
+      state: string;
+      pincode: string;
+      fullAddress: string;
+    };
   };
   /** Step 5: Regular weekly availability schedule. */
   step5: {

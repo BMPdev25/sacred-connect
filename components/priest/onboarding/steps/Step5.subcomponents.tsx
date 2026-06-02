@@ -149,16 +149,22 @@ export function DayRow({ dayName, schedule, onToggle, onTimePress, isLast = fals
         </Text>
         
         {schedule.isAvailable ? (
-          <TouchableOpacity 
-            style={styles.timeWrapper} 
-            onPress={() => onTimePress(dayName, 'start')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
+          <View style={styles.timeWrapper}>
             <Ionicons name="time-outline" size={14} color={THEME.colors.primary} />
-            <Text style={styles.timeText}>
-              {formatTimeForDisplay(schedule.startTime)} – {formatTimeForDisplay(schedule.endTime)}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => onTimePress(dayName, 'start')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.timeText}>{formatTimeForDisplay(schedule.startTime)}</Text>
+            </TouchableOpacity>
+            <Text style={styles.timeSeparator}> – </Text>
+            <TouchableOpacity
+              onPress={() => onTimePress(dayName, 'end')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.timeText}>{formatTimeForDisplay(schedule.endTime)}</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <Text style={styles.unavailableText}>Unavailable</Text>
         )}
@@ -210,6 +216,11 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: THEME.typography.bodySmall,
     color: THEME.colors.primary,
+    textDecorationLine: 'underline',
+  },
+  timeSeparator: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textMuted,
   },
   unavailableText: {
     fontSize: THEME.typography.bodySmall,

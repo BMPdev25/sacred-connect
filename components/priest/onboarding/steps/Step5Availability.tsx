@@ -1,11 +1,11 @@
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
   Platform,
-  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useDispatch, useSelector } from 'react-redux';
 
@@ -94,8 +94,16 @@ export const Step5Availability = forwardRef<StepRef, {}>((_, ref) => {
   function handleApplyToAll(): void {
     const firstEnabledDay = DAYS_OF_WEEK.find((d) => schedule[d].isAvailable);
     if (!firstEnabledDay) return;
-    
-    const updated = applyScheduleToAll(schedule[firstEnabledDay], schedule);
+
+    const source = schedule[firstEnabledDay];
+    const updated: typeof schedule = {} as typeof schedule;
+    DAYS_OF_WEEK.forEach((day) => {
+      updated[day] = {
+        isAvailable: source.isAvailable,
+        startTime: source.startTime,
+        endTime: source.endTime,
+      };
+    });
     dispatch(updateStep5Schedule(updated));
   }
 
@@ -115,7 +123,13 @@ export const Step5Availability = forwardRef<StepRef, {}>((_, ref) => {
   const hasEnabledDay = Object.values(schedule).some((day) => day.isAvailable);
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <KeyboardAwareScrollView
+      style={styles.scroll}
+      contentContainerStyle={styles.content}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      enableOnAndroid={true}
+    >
       {/* Validation Errors */}
       {stepErrors.map((err) => <Text key={err} style={styles.stepError}>{err}</Text>)}
 
@@ -161,7 +175,7 @@ export const Step5Availability = forwardRef<StepRef, {}>((_, ref) => {
           <Text style={styles.iosCloseBtnText}>Done</Text>
         </TouchableOpacity>
       )}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 });
 

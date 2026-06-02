@@ -15,6 +15,7 @@ import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
 import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
 import { refreshToken, syncWithBackend } from './authService';
+import { getIsSignupInProgress } from './signupState';
 import * as Notifications from 'expo-notifications';
 import { setupPushNotifications } from '@/services/notifications/pushService';
 import { drainPendingNotification } from '@/services/notifications/pendingNotification';
@@ -78,6 +79,16 @@ export async function fetchUserProfile(
         throw new Error('SESSION_EXPIRED');
       }
     }
+
+    // Firebase user exists but has no backend record — needs registration
+    const isNoAccount =
+      err.status === 404 ||
+      err.message?.toLowerCase().includes('no account found') ||
+      err.message?.toLowerCase().includes('usertype is required');
+    if (isNoAccount) {
+      throw new Error('NO_ACCOUNT');
+    }
+
     throw err;
   }
 }
@@ -184,9 +195,19 @@ export function routeUnauthenticatedUser(isFirstLaunch: boolean): void {
  * @param error - The encountered error object.
  */
 export function handleAuthError(error: any): void {
-  console.log('[DEBUG] handleAuthError: Auth listener failed, redirecting to /login. Error:', error);
+  console.log('[DEBUG] handleAuthError: Auth listener failed. Error:', error);
   logger.error('Authentication listener error occurred', error);
-  router.replace('/login');
+  if (error?.message === 'NO_ACCOUNT') {
+    if (getIsSignupInProgress()) {
+      console.log('[Auth] NO_ACCOUNT during signup — ignoring, signup will complete registration');
+      return;
+    }
+    console.log('[DEBUG] handleAuthError: Firebase user has no backend record. Redirecting to /role-selection.');
+    router.replace('/role-selection');
+  } else {
+    console.log('[DEBUG] handleAuthError: Redirecting to /login.');
+    router.replace('/login');
+  }
 }
 
 /** State to prevent registering multiple firebase auth observers. */
@@ -200,6 +221,10 @@ let isListenerInitialized = false;
 async function handleAuthStateChange(
   firebaseUser: FirebaseUser | null
 ): Promise<void> {
+  if (getIsSignupInProgress()) {
+    console.log('[Auth] Listener skipped — signup in progress');
+    return;
+  }
   try {
     console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
     if (firebaseUser) {

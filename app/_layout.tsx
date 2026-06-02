@@ -12,6 +12,7 @@ import { store } from '@/redux/store';
 import { queryClient } from '@/lib/queryClient';
 import { THEME } from '@/constants/theme';
 import { initializeAuthListener } from '@/services/auth/authStateManager';
+import { pendingNotificationRef } from '@/services/notifications/pendingNotification';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -22,47 +23,6 @@ Notifications.setNotificationHandler({
     shouldShowList: true,
   }),
 });
-
-/** Holds a notification tap that arrived before auth routing settled (Bug 2 fix). */
-const pendingNotificationRef = { data: null as { screen?: string; bookingId?: string } | null };
-
-/**
- * Called by authStateManager after router.replace() so any pending notification
- * tap recorded before auth routing settled is applied to the final screen.
- */
-export function drainPendingNotification(): void {
-  const data = pendingNotificationRef.data;
-  pendingNotificationRef.data = null;
-  if (data) {
-    handleNotificationTapGlobal(data);
-  }
-}
-
-/** Routes to the screen referenced in push notification data. */
-function handleNotificationTapGlobal(data: { screen?: string; bookingId?: string }): void {
-  if (!data.screen) return;
-
-  const routes: Record<string, string> = {
-    RequestsTab: '/priest/(tabs)/RequestsTab',
-    CalendarTab: '/priest/(tabs)/CalendarTab',
-    EarningsTab: '/priest/(tabs)/EarningsTab',
-    BookingsTab: '/devotee/(tabs)/BookingsTab',
-    ExploreTab: '/devotee/(tabs)/ExploreTab',
-    BookingDetails: '/devotee/(screens)/BookingDetails',
-  };
-
-  const route = routes[data.screen];
-  if (!route) return;
-
-  if (data.screen === 'BookingDetails' && data.bookingId) {
-    router.push({
-      pathname: route as any,
-      params: { bookingId: data.bookingId },
-    });
-  } else {
-    router.push(route as any);
-  }
-}
 
 function RootStack(): React.JSX.Element {
   const notificationListener = useRef<any>(null);

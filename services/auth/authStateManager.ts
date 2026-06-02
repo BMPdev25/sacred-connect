@@ -15,8 +15,9 @@ import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
 import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
 import { refreshToken, syncWithBackend } from './authService';
+import * as Notifications from 'expo-notifications';
 import { setupPushNotifications } from '@/services/notifications/pushService';
-import { drainPendingNotification } from '@/app/_layout';
+import { drainPendingNotification } from '@/services/notifications/pendingNotification';
 
 // ---------------------------------------------------------------------------
 // Helpers (extracted named functions)
@@ -89,7 +90,7 @@ export async function fetchUserProfile(
  */
 async function registerPushTokenIfPermitted(): Promise<void> {
   try {
-    const { status } = await (await import('expo-notifications')).getPermissionsAsync();
+    const { status } = await Notifications.getPermissionsAsync();
     if (status === 'granted') {
       await setupPushNotifications();
     }

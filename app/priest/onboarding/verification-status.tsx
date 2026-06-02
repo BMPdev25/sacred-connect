@@ -124,7 +124,7 @@ export default function VerificationStatusScreen() {
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
           <PrimaryButton
             title="Edit Documents"
-            onPress={() => router.push('/(priest)/screens/EditPriestProfile' as any)}
+            onPress={() => router.push('/priest/(screens)/EditPriestProfile' as any)}
             style={{ marginBottom: THEME.spacing.sm }}
           />
           <PrimaryButton

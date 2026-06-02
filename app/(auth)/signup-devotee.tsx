@@ -127,7 +127,7 @@ export default function SignupDevoteeScreen(): React.ReactElement {
         {/* Footer */}
         <TouchableOpacity
           style={styles.loginRow}
-          onPress={() => router.push('/login')}
+          onPress={() => router.push('/(auth)/login' as any)}
         >
           <Text style={styles.loginPrompt}>Already have an account? </Text>
           <Text style={styles.loginLink}>Login</Text>

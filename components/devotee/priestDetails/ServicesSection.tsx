@@ -116,16 +116,17 @@ const styles = StyleSheet.create({
   },
   serviceRight: {
     alignItems: 'flex-end',
+    gap: 6,
   },
   servicePrice: {
     fontSize: THEME.typography.body,
     fontWeight: '700',
     color: THEME.colors.gold,
-    marginBottom: 8,
   },
   bookButton: {
     height: 32,
-    width: 80,
+    minWidth: 80,
+    paddingHorizontal: 16,
   },
   expandButton: {
     flexDirection: 'row',

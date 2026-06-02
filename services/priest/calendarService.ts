@@ -129,16 +129,14 @@ import api from '@/api/index';
    */
   export async function markBookingComplete(bookingId: string): Promise<void> {
     try {
-      await api.post(`/bookings/${bookingId}/complete`, {});
-    } catch (err: any) {
-      logger.warn('Failed completing via standard endpoint, trying priest path', err);
-      try {
-        await api.post(`/priest/bookings/${bookingId}/complete`, {});
-      } catch (fallbackErr: any) {
-        logger.error('Failed completing via priest endpoint', fallbackErr);
-        const errMsg = fallbackErr?.response?.data?.message || fallbackErr?.response?.data?.error || fallbackErr.message;
-        throw new Error(errMsg || 'Failed to mark the booking as completed.');
+      const response = await api.post(`/priest/bookings/${bookingId}/complete`, {});
+      if (!response.data?.success) {
+        throw new Error('Server rejected the completion request');
       }
+    } catch (err: any) {
+      logger.error('Failed completing via priest endpoint', err);
+      const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+      throw new Error(errMsg || 'Failed to mark the booking as completed.');
     }
   }
 

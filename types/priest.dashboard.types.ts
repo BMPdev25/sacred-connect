@@ -78,6 +78,8 @@ export interface BookingRequest {
     /** Devotee registration creation timestamp. */
     createdAt: string;
   };
+  /** Status of the booking request. */
+  status: string;
   /** Request creation timestamp. */
   createdAt: string;
 }

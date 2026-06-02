@@ -20,8 +20,23 @@ export async function fetchPriestProfile(priestProfileId: string): Promise<Publi
     }
     return response.data.data;
   } catch (err: any) {
-    logger.error(`fetchPriestProfile failed for ID ${priestProfileId}`, err);
+    logger.warn(`fetchPriestProfile failed for ID ${priestProfileId}, trying User ID resolution fallback...`);
     if (err?.response?.status === 404) {
+      try {
+        const resolveRes = await api.get<any>(`/devotee/priests/${priestProfileId}`);
+        const resolvedId = resolveRes.data?._id;
+        if (resolvedId && resolvedId !== priestProfileId) {
+          logger.log(`Resolved User ID ${priestProfileId} to PriestProfile ID ${resolvedId}`);
+          const secondResponse = await api.get<{ success: boolean; data: PublicPriestProfile }>(
+            `/priest/public/${resolvedId}`
+          );
+          if (secondResponse.data?.success && secondResponse.data.data) {
+            return secondResponse.data.data;
+          }
+        }
+      } catch (fallbackErr) {
+        logger.error(`Fallback profile resolution failed for ID ${priestProfileId}`, fallbackErr);
+      }
       throw new Error("This pandit's profile is no longer available");
     }
     throw new Error("Unable to load profile. Please try again.");

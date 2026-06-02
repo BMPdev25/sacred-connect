@@ -52,13 +52,11 @@ export default function BookingsTab(): React.JSX.Element {
         });
         break;
       case 'cancelled':
-        // Note: priestId here is User._id — need PriestProfile._id
-        // For now: navigate to Explore as fallback
-        // TODO: resolve PriestProfile._id from priestId
-        router.push('/devotee/(tabs)/ExploreTab' as any);
-        break;
       case 'rejected':
-        router.push('/devotee/(tabs)/ExploreTab' as any);
+        router.push({
+          pathname: '/devotee/(screens)/PriestDetails' as any,
+          params: { id: booking.priestId._id, userId: booking.priestId._id },
+        });
         break;
     }
   };

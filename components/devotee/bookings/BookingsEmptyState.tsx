@@ -60,7 +60,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: THEME.spacing.xl,
+    paddingHorizontal: 32,
+    paddingBottom: 80,
   },
   illustration: {
     width: 200,

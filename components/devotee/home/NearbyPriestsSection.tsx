@@ -123,7 +123,7 @@ export default function NearbyPriestsSection({
 
 const styles = StyleSheet.create({
   listContent: {
-    paddingRight: THEME.spacing.md,
+    paddingHorizontal: THEME.spacing.md,
   },
   blockedContainer: {
     alignItems: 'center',

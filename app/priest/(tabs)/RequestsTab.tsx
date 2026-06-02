@@ -102,7 +102,7 @@ export default function RequestsTab(): React.JSX.Element {
 
   const handleViewDetails = (requestId: string) => {
     router.push({
-      pathname: '/(priest)/screens/RequestDetails' as any,
+      pathname: '/priest/(screens)/RequestDetails' as any,
       params: { bookingId: requestId }
     });
   };

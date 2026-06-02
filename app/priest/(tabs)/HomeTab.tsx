@@ -226,12 +226,12 @@ export default function HomeTab(): React.JSX.Element {
   };
 
   const handleNotificationPress = () => {
-    router.push('/(priest)/screens/NotificationCenter' as any);
+    router.push('/priest/(screens)/NotificationCenter' as any);
   };
 
   const handleBookingPress = (bookingId: string) => {
     router.push({
-      pathname: '/(priest)/screens/PriestBookingDetails',
+      pathname: '/priest/(screens)/PriestBookingDetails',
       params: { bookingId },
     } as any);
   };
@@ -255,7 +255,7 @@ export default function HomeTab(): React.JSX.Element {
           {pendingRequestsCount > 0 && (
             <View style={styles.notificationBadge}>
               <Text style={styles.notificationBadgeText}>
-                {pendingRequestsCount > 99 ? '99+' : pendingRequestsCount}
+                {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
               </Text>
             </View>
           )}

@@ -65,7 +65,7 @@ export default function PaymentScreen(): React.ReactElement {
         razorpayOrderId: paymentData.razorpay_order_id,
         bookingReference: reference,
       }));
-      router.replace('/devotee/BookingConfirmation' as any);
+      router.replace('/devotee/(screens)/BookingConfirmation' as any);
     } catch (error: any) {
       setErrorMessage(
         'Payment was received but verification failed. ' +

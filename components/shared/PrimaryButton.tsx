@@ -75,7 +75,7 @@ function renderContent(
   return (
     <View style={styles.contentRow}>
       {leftIcon && <View style={styles.iconWrap}>{leftIcon}</View>}
-      <Text style={[styles.label, textStyle]}>{title}</Text>
+      <Text style={[styles.label, textStyle]} numberOfLines={1}>{title}</Text>
     </View>
   );
 }

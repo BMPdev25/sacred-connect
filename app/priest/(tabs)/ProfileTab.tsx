@@ -90,7 +90,7 @@ export default function ProfileTab(): React.JSX.Element {
         
         {/* IDENTITY SECTION */}
         <View style={styles.identitySection}>
-          <TouchableOpacity style={styles.avatarContainer} onPress={() => router.push('/(priest)/screens/EditPriestProfile' as any)} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.avatarContainer} onPress={() => router.push('/priest/(screens)/EditPriestProfile' as any)} activeOpacity={0.8}>
             <Image source={avatar} style={styles.avatar} />
             <View style={styles.cameraBadge}><Ionicons name="camera-outline" size={14} color="#FFFFFF" /></View>
           </TouchableOpacity>
@@ -118,9 +118,9 @@ export default function ProfileTab(): React.JSX.Element {
         {/* MENU SECTIONS */}
         <MenuSectionLabel label="PROFILE" />
         <MenuCard>
-          <MenuRow iconName="person-outline" label="Edit Profile" onPress={() => router.push('/(priest)/screens/EditPriestProfile' as any)} hasDivider />
-          <MenuRow iconName="list-outline" label="Edit Services" onPress={() => router.push('/(priest)/screens/EditServices' as any)} hasDivider />
-          <MenuRow iconName="calendar-outline" label="Edit Availability" onPress={() => router.push('/(priest)/screens/EditAvailability' as any)} hasDivider />
+          <MenuRow iconName="person-outline" label="Edit Profile" onPress={() => router.push('/priest/(screens)/EditPriestProfile' as any)} hasDivider />
+          <MenuRow iconName="list-outline" label="Edit Services" onPress={() => router.push('/priest/(screens)/EditServices' as any)} hasDivider />
+          <MenuRow iconName="calendar-outline" label="Edit Availability" onPress={() => router.push('/priest/(screens)/EditAvailability' as any)} hasDivider />
           <MenuRow iconName="shield-outline" label="Verification Status" onPress={handleVerificationStatus} />
         </MenuCard>
 

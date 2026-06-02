@@ -101,6 +101,30 @@ export async function saveAddress(
 }
 
 /**
+ * Helper to build the backend address payload from updates and existing details.
+ *
+ * @param existing - Existing address details.
+ * @param updates - Target partial updates.
+ * @returns Formatted backend payload object.
+ */
+function buildAddressPayload(
+  existing: DevoteeAddress,
+  updates: Partial<Omit<DevoteeAddress, '_id'>>
+): Record<string, any> {
+  const label = updates.label !== undefined ? updates.label : existing.label;
+  return {
+    houseNo: updates.houseNo !== undefined ? updates.houseNo : existing.houseNo,
+    street: updates.street !== undefined ? updates.street : existing.street,
+    city: updates.city !== undefined ? updates.city : existing.city,
+    state: updates.state !== undefined ? updates.state : existing.state,
+    pincode: updates.pincode !== undefined ? updates.pincode : existing.pincode,
+    landmark: updates.landmark !== undefined ? (updates.landmark || '') : (existing.landmark || ''),
+    type: label === 'Office' || label === 'Work' ? 'Work' : (label === 'Home' ? 'Home' : 'Other'),
+    isDefault: updates.isDefault !== undefined ? updates.isDefault : existing.isDefault,
+  };
+}
+
+/**
  * Updates an existing address on the devotee's backend profile.
  * Maps the address fields to the backend structure and returns the updated address.
  *
@@ -114,18 +138,13 @@ export async function updateAddress(
   updates: Partial<Omit<DevoteeAddress, '_id'>>
 ): Promise<DevoteeAddress> {
   try {
-    const payload: any = {};
-    if (updates.label !== undefined) {
-      payload.type = updates.label === 'Office' || updates.label === 'Work' ? 'Work' : (updates.label === 'Home' ? 'Home' : 'Other');
+    const addresses = await fetchSavedAddresses();
+    const existing = addresses.find((addr) => addr._id === addressId);
+    if (!existing) {
+      throw new Error('Address not found in saved list.');
     }
-    if (updates.houseNo !== undefined) payload.houseNo = updates.houseNo;
-    if (updates.street !== undefined) payload.street = updates.street;
-    if (updates.city !== undefined) payload.city = updates.city;
-    if (updates.state !== undefined) payload.state = updates.state;
-    if (updates.pincode !== undefined) payload.pincode = updates.pincode;
-    if (updates.landmark !== undefined) payload.landmark = updates.landmark || '';
-    if (updates.isDefault !== undefined) payload.isDefault = updates.isDefault;
 
+    const payload = buildAddressPayload(existing, updates);
     const response = await api.put(`/devotee/addresses/${addressId}`, payload);
     const data = Array.isArray(response.data) ? response.data : (response.data?.data || []);
     
@@ -169,7 +188,14 @@ export async function deleteAddress(addressId: string): Promise<void> {
  */
 export async function setDefaultAddress(addressId: string): Promise<void> {
   try {
-    await api.put(`/devotee/addresses/${addressId}`, { isDefault: true });
+    const addresses = await fetchSavedAddresses();
+    const existing = addresses.find((addr) => addr._id === addressId);
+    if (!existing) {
+      throw new Error('Address not found in saved list.');
+    }
+
+    const payload = buildAddressPayload(existing, { isDefault: true });
+    await api.put(`/devotee/addresses/${addressId}`, payload);
   } catch (err: any) {
     logger.error('setDefaultAddress failed', err);
     const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;

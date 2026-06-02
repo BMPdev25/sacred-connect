@@ -96,7 +96,7 @@ export default function CalendarTab(): React.JSX.Element {
 
   const handleBookingPress = (bookingId: string) => {
     router.push({
-      pathname: '/(priest)/screens/PriestBookingDetails',
+      pathname: '/priest/(screens)/PriestBookingDetails',
       params: { bookingId },
     } as any);
   };

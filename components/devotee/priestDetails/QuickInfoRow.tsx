@@ -8,7 +8,13 @@ export interface QuickInfoRowProps {
   religiousTradition: string;
 }
 
+const isObjectId = (val: string) => /^[a-f\d]{24}$/i.test(val);
+
+const displayLanguages = (langs: string[]) =>
+  langs.filter((lang) => lang && !isObjectId(lang));
+
 export function QuickInfoRow({ languages, religiousTradition }: QuickInfoRowProps) {
+  const filteredLanguages = displayLanguages(languages ?? []);
   return (
     <View style={styles.container}>
       <View style={styles.infoBlock}>
@@ -18,7 +24,7 @@ export function QuickInfoRow({ languages, religiousTradition }: QuickInfoRowProp
         <View style={styles.textContainer}>
           <Text style={styles.label}>Languages</Text>
           <Text style={styles.value} numberOfLines={1}>
-            {languages?.length ? languages.join(', ') : 'Not specified'}
+            {filteredLanguages.length ? filteredLanguages.join(', ') : 'Not specified'}
           </Text>
         </View>
       </View>

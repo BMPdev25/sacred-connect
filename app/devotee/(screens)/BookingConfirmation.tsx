@@ -8,12 +8,13 @@ import * as Calendar from 'expo-calendar';
 
 import { RootState } from '@/redux/store';
 import { clearBookingDraft } from '@/redux/slices/bookingSlice';
-import * as bookingService from '@/services/devotee/bookingService';
+import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
 import { THEME } from '@/constants/theme';
 import { AssetService } from '@/services/assets/AssetService';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { formatDisplayDate, formatTime12Hour } from '@/utils/bookingUtils';
 import { BackendBooking, BookingDraft } from '@/types/booking.types';
+import { BookingListItem } from '@/types/bookingManagement.types';
 
 const handleAddToCalendar = async (draft: BookingDraft) => {
   const { status } = await Calendar.requestCalendarPermissionsAsync();
@@ -72,7 +73,7 @@ function CeremonyDetailsCard({ draft }: { draft: BookingDraft }) {
   );
 }
 
-function PanditContactCard({ draft, confirmedBooking }: { draft: BookingDraft, confirmedBooking: BackendBooking | null }) {
+function PanditContactCard({ draft, confirmedBooking }: { draft: BookingDraft, confirmedBooking: BookingListItem | null }) {
   const priestPhone = (confirmedBooking as any)?.priestPhone || 'Phone not available';
   const avatarSource = draft.priestProfilePicture 
     ? { uri: draft.priestProfilePicture }
@@ -104,7 +105,7 @@ export default function BookingConfirmationScreen() {
   const dispatch = useDispatch();
   const insets = useSafeAreaInsets();
   const draft = useSelector((state: RootState) => state.booking);
-  const [confirmedBooking, setConfirmedBooking] = useState<BackendBooking | null>(null);
+  const [confirmedBooking, setConfirmedBooking] = useState<BookingListItem | null>(null);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
@@ -113,7 +114,7 @@ export default function BookingConfirmationScreen() {
 
   useEffect(() => {
     if (draft.createdBookingId) {
-      bookingService.fetchBookingDetails(draft.createdBookingId).then(setConfirmedBooking).catch(() => {});
+      fetchBookingDetails(draft.createdBookingId).then(setConfirmedBooking).catch(() => {});
     }
   }, [draft.createdBookingId]);
 

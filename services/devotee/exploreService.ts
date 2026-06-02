@@ -88,10 +88,8 @@ export async function fetchPriests(params: {
       sort: params.sort,
       radius: filters.maxDistanceKm,
     };
-    // Workaround: Remote backend throws 500 on geo queries due to a countDocuments index/sorting issue.
-    // Omit lat/lng to prevent server-side MongoServerError.
-    // if (params.lat !== null) queryParams.lat = params.lat;
-    // if (params.lng !== null) queryParams.lng = params.lng;
+    if (params.lat !== null) queryParams.lat = params.lat;
+    if (params.lng !== null) queryParams.lng = params.lng;
     if (filters.minRating !== null) queryParams.minRating = filters.minRating;
     if (filters.minPrice > 0) queryParams.minPrice = filters.minPrice;
     if (filters.maxPrice < 10000) queryParams.maxPrice = filters.maxPrice;

@@ -40,6 +40,7 @@ function mapToBookingRequest(booking: any): BookingRequest {
       profilePicture: normalizeProfilePicture(booking.devoteeId?.profilePicture),
       createdAt: booking.devoteeId?.createdAt || new Date().toISOString(),
     },
+    status: booking.status || 'pending',
     createdAt: booking.createdAt || new Date().toISOString(),
   };
 }
@@ -70,8 +71,8 @@ function calculateDurationMinutes(startTime: string, endTime: string): number {
  */
 export async function fetchPendingRequests(): Promise<BookingRequest[]> {
   try {
-    const response = await api.get('/priest/bookings/pending-actions');
-    const rawList: any[] = response.data?.data || response.data || [];
+    const response = await api.get('/priest/bookings?status=pending');
+    const rawList: any[] = response.data?.data?.all || response.data?.data || response.data || [];
     
     const mappedRequests = rawList.map(mapToBookingRequest);
     return mappedRequests.sort(sortRequestsByCreatedAtDesc);

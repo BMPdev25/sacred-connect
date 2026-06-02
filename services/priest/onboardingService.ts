@@ -368,10 +368,6 @@ export async function saveStepData(step: number, data: Record<string, unknown>):
     };
     await api.put('/priest/profile', payload);
 
-    if (step === 1 && typeof data.name === 'string' && data.name.trim()) {
-      await api.put('/users/profile', { name: data.name.trim() });
-    }
-
     // Dispatch appropriate actions based on step
     if (step === 1) {
       store.dispatch(updateStep1Data(data as any));

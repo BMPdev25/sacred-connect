@@ -18,7 +18,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": ["remote-notification"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -35,6 +38,8 @@
       "package": "com.anonymous.bookmypujari",
       "googleServicesFile": "./google-services.json",
       "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
         "android.permission.READ_PHONE_STATE",
         "android.permission.CALL_PHONE"
       ]
@@ -55,9 +60,8 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
-          "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": false
+          "color": "#FF9933",
+          "sounds": []
         }
       ],
       "@react-native-community/datetimepicker",

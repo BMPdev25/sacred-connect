@@ -285,7 +285,10 @@ export const onboardingSlice = createSlice({
       state.isCompleted = profile.onboardingCompleted || false;
 
       // Step 1
-      state.step1.languages = profile.languages || [];
+      const isObjectId = (val: string) => /^[a-f\d]{24}$/i.test(val);
+      state.step1.languages = (profile.languages || []).filter(
+        (lang) => lang && !isObjectId(lang),
+      );
       state.step1.experienceYears = profile.experience || 0;
       state.step1.bio = profile.description || '';
 

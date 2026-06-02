@@ -180,9 +180,6 @@ export default function BookingDetails() {
                 <View style={styles.ratingRow}>
                   <Text style={styles.ratingLabel}>You rated this booking</Text>
                   <StarDisplay rating={existingRating.rating} size={16} />
-                  <TouchableOpacity onPress={handleRateNow}>
-                    <Text style={styles.editRatingText}>Edit your rating →</Text>
-                  </TouchableOpacity>
                 </View>
               )}
             </>

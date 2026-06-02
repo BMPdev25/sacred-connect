@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import { fetchBookingDetails } from '@/services/devotee/bookingService';
+import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
 
 /**
  * Periodically polls the booking details from backend server.

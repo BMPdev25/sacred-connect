@@ -33,11 +33,11 @@ export async function fetchEarningsSummary(): Promise<EarningsSummary> {
     const data = response.data?.data || response.data || {};
 
     return {
-      walletBalance: data.wallet?.currentBalance ?? data.availableBalance ?? data.walletBalance ?? 0,
-      pendingPayments: data.earnings?.pendingPayments ?? data.pendingPayments ?? data.pendingPayout ?? 0,
-      thisMonth: data.earnings?.thisMonth ?? data.thisMonth ?? 0,
-      totalEarnings: data.earnings?.totalEarnings ?? data.totalEarnings ?? data.totalCredited ?? 0,
-      ceremonyCount: data.ceremonyCount ?? data.totalBookings ?? data.pujasCompleted ?? 0,
+      walletBalance: data.wallet?.currentBalance ?? 0,
+      pendingPayments: data.earnings?.pendingPayments ?? 0,
+      thisMonth: data.earnings?.thisMonth ?? 0,
+      totalEarnings: data.earnings?.totalEarnings ?? 0,
+      ceremonyCount: data.ceremonyCount ?? 0,
     };
   } catch (err) {
     logger.error('Failed to fetch earnings summary', err);
@@ -88,7 +88,7 @@ export async function fetchTransactions(
 
     return {
       transactions: mapped,
-      hasMore: mapped.length >= 10,
+      hasMore: mapped.length === 10,
     };
   } catch (err) {
     logger.error('Failed to fetch transactions', err);
@@ -96,11 +96,13 @@ export async function fetchTransactions(
   }
 }
 
+
+
 /**
  * Exported EarningsService containing earnings and transaction actions.
  */
 export const EarningsService = {
   parseCeremonyFromDescription,
   fetchEarningsSummary,
-  fetchTransactions,
+    fetchTransactions,
 };

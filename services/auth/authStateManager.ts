@@ -15,6 +15,8 @@ import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
 import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
 import { refreshToken, syncWithBackend } from './authService';
+import { setupPushNotifications } from '@/services/notifications/pushService';
+import { drainPendingNotification } from '@/app/_layout';
 
 // ---------------------------------------------------------------------------
 // Helpers (extracted named functions)
@@ -80,6 +82,23 @@ export async function fetchUserProfile(
 }
 
 /**
+ * Registers the push token silently if the user has already granted permission.
+ * Never calls requestPermissionsAsync — that is deferred to the first time the
+ * user lands on the main screen (Bug 4 fix: no repeated OS permission dialogs
+ * on cold-start session restores).
+ */
+async function registerPushTokenIfPermitted(): Promise<void> {
+  try {
+    const { status } = await (await import('expo-notifications')).getPermissionsAsync();
+    if (status === 'granted') {
+      await setupPushNotifications();
+    }
+  } catch (err) {
+    logger.warn('registerPushTokenIfPermitted failed silently', err);
+  }
+}
+
+/**
  * Determines and executes the navigation path for authenticated users.
  * Always dispatches the user session to Redux via the global store.
  *
@@ -94,10 +113,14 @@ export function routeAuthenticatedUser(
 
   // Always populate Redux with the authenticated user's data
   store.dispatch(setUserSession({ user: profile, priestState }));
+  // Bug 4 fix: only register token if permission already granted — never re-prompt.
+  registerPushTokenIfPermitted();
 
   if (profile.userType === 'devotee') {
     console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Devotee Dashboard (/devotee)');
     router.replace('/devotee');
+    // Bug 2 fix: apply any queued notification tap after routing settles.
+    setTimeout(drainPendingNotification, 300);
   } else if (profile.userType === 'priest') {
     const completed = hasPriestCompletedOnboarding(
       priestState?.onboardingCompleted,
@@ -107,6 +130,8 @@ export function routeAuthenticatedUser(
     if (!completed) {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Onboarding Wizard (/priest/onboarding)');
       router.replace('/priest/onboarding');
+      // Onboarding screens don't expect notification deep-links; drain silently.
+      setTimeout(drainPendingNotification, 300);
       return;
     }
 
@@ -114,20 +139,25 @@ export function routeAuthenticatedUser(
     if ((priestState?.verificationStatus as string) === 'approved') {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
+      setTimeout(drainPendingNotification, 300);
     } else if (priestState?.verificationStatus === 'pending') {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Verification Status (/priest/onboarding/verification-status)');
       router.replace('/priest/onboarding/verification-status');
+      setTimeout(drainPendingNotification, 300);
     } else if (priestState?.verificationStatus === 'rejected') {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Verification Status (/priest/onboarding/verification-status) - Rejected');
       router.replace('/priest/onboarding/verification-status');
+      setTimeout(drainPendingNotification, 300);
     } else {
       console.log('[DEBUG] routeAuthenticatedUser: Fallback - Redirecting to Priest Onboarding Wizard (/priest/onboarding)');
       router.replace('/priest/onboarding');
+      setTimeout(drainPendingNotification, 300);
     }
   } else {
     logger.warn('Unknown userType encountered. Routing to auth selection', profile.userType);
     console.log('[DEBUG] routeAuthenticatedUser: Unknown userType. Redirecting to /role-selection');
     router.replace('/role-selection');
+    setTimeout(drainPendingNotification, 300);
   }
 }
 

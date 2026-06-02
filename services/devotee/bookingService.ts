@@ -112,27 +112,3 @@ export async function verifyPayment(params: {
   }
 }
 
-/**
- * Fetches booking details from the backend.
- *
- * @param bookingId - The identifier of the booking record to retrieve.
- * @returns A promise that resolves to the retrieved BackendBooking details.
- * @throws An error if request fails or record is not found.
- */
-export async function fetchBookingDetails(bookingId: string): Promise<BackendBooking> {
-  try {
-    const response = await api.get<{ success: boolean; data: BackendBooking }>(
-      `/bookings/${bookingId}`
-    );
-
-    if (!response.data || !response.data.success) {
-      throw new Error('Failed to retrieve booking details');
-    }
-
-    return response.data.data;
-  } catch (err: any) {
-    logger.error('fetchBookingDetails failed', err);
-    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
-    throw new Error(errMsg || 'Failed to fetch booking details.');
-  }
-}

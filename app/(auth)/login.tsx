@@ -33,10 +33,13 @@ import {
 } from '@/handlers/auth/login.handlers';
 
 /** LoginScreen — email/password and phone OTP login with Google OAuth stub. */
+const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_ENABLED === 'true';
+
 export default function LoginScreen(): React.ReactElement {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // When OTP is disabled the tab is always 'email' and cannot be changed.
   const [activeTab, setActiveTab] = useState<LoginTab>('email');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -86,12 +89,22 @@ export default function LoginScreen(): React.ReactElement {
         <Text style={styles.heading}>Welcome back!</Text>
         <Text style={styles.subtext}>Login to continue your spiritual journey</Text>
 
-        {/* Tab switcher */}
-        <TabControl activeTab={activeTab} onTabChange={setActiveTab} />
+        {/* Tab switcher — hidden when OTP_ENABLED is false */}
+        <TabControl activeTab={activeTab} onTabChange={setActiveTab} otpEnabled={OTP_ENABLED} />
 
         {/* Form fields */}
         <View style={styles.formArea}>
-          {activeTab === 'email' ? (
+          {/* Phone tab only reachable when OTP_ENABLED=true and tab is 'phone' */}
+          {OTP_ENABLED && activeTab === 'phone' ? (
+            <FloatingInput
+              label="Phone Number"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              leftIcon={<Text style={styles.dialCode}>+91</Text>}
+              testID="login-phone-input"
+            />
+          ) : (
             <>
               <EmailForm
                 email={email} password={password} showPassword={showPassword}
@@ -105,22 +118,13 @@ export default function LoginScreen(): React.ReactElement {
                 <Text style={styles.forgotText}>Forgot Password?</Text>
               </TouchableOpacity>
             </>
-          ) : (
-            <FloatingInput
-              label="Phone Number"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              leftIcon={<Text style={styles.dialCode}>+91</Text>}
-              testID="login-phone-input"
-            />
           )}
 
           {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
 
           <View style={styles.ctaWrap}>
             <PrimaryButton
-              title={activeTab === 'email' ? 'Login' : 'Send OTP'}
+              title={OTP_ENABLED && activeTab === 'phone' ? 'Send OTP' : 'Login'}
               onPress={onPrimaryPress}
               loading={loading}
               testID="login-primary-btn"

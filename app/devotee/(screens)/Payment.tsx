@@ -74,10 +74,16 @@ export default function PaymentScreen(): React.ReactElement {
       }));
       router.replace('/devotee/(screens)/BookingConfirmation' as any);
     } catch (error: any) {
-      setErrorMessage(
-        'Payment was received but verification failed. ' +
-        'If amount was deducted, contact support@sacredconnect.in'
-      );
+      if ((error as any).code === 'PAYMENT_SESSION_EXPIRED') {
+        // Backend rejected verification because the 30-min payment window expired.
+        // The user may have already been charged — surface the support contact clearly.
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage(
+          'Payment was received but verification failed. ' +
+          'If amount was deducted, contact support@sacredconnect.in'
+        );
+      }
       setScreenState('failed');
     }
   };
@@ -153,6 +159,12 @@ export default function PaymentScreen(): React.ReactElement {
       setErrorMessage('');
       setTimeout(() => launchRazorpay(), 100);
     } catch (err: any) {
+      if ((err as any).code === 'ALREADY_PAID') {
+        // Booking was already paid (e.g. user hit retry on an already-completed booking).
+        // Navigate to confirmation instead of showing an error.
+        router.replace('/devotee/(screens)/BookingConfirmation' as any);
+        return;
+      }
       Alert.alert('Retry Failed', err.message || 'Could not retry payment');
     } finally {
       setIsRetrying(false);

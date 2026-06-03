@@ -85,6 +85,12 @@ export async function createPaymentOrder(
     return response.data.data;
   } catch (err: any) {
     logger.error('createPaymentOrder failed', err);
+    const status = err?.response?.status;
+    if (status === 409) {
+      const e = new Error('This booking has already been paid for.');
+      (e as any).code = 'ALREADY_PAID';
+      throw e;
+    }
     throw new Error('Failed to initiate payment. Please try again.');
   }
 }
@@ -115,6 +121,13 @@ export async function verifyPayment(params: {
     return response.data.data;
   } catch (err: any) {
     logger.error('verifyPayment failed', err);
+    if (err?.response?.status === 410) {
+      const e = new Error(
+        'Your payment session expired. If your card was charged, please contact support@sacredconnect.in'
+      );
+      (e as any).code = 'PAYMENT_SESSION_EXPIRED';
+      throw e;
+    }
     throw new Error('Payment verification failed. Contact support if amount was deducted.');
   }
 }

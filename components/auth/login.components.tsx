@@ -22,12 +22,18 @@ export interface TabControlProps {
   activeTab: LoginTab;
   /** Called when user taps a tab. */
   onTabChange: (tab: LoginTab) => void;
+  /** When false the Phone tab is hidden (OTP not yet configured). */
+  otpEnabled?: boolean;
 }
 
 /**
  * Segmented control toggling between Email and Phone login methods.
+ * The Phone tab is only rendered when otpEnabled is true.
  */
-export function TabControl({ activeTab, onTabChange }: TabControlProps): React.ReactElement {
+export function TabControl({ activeTab, onTabChange, otpEnabled = false }: TabControlProps): React.ReactElement | null {
+  // If OTP is disabled there is nothing to toggle — hide the whole control.
+  if (!otpEnabled) return null;
+
   return (
     <View style={styles.segmented}>
       {(['email', 'phone'] as LoginTab[]).map((tab) => (

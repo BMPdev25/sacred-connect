@@ -95,6 +95,7 @@ export async function fetchPriests(params: {
     if (filters.maxPrice < 10000) queryParams.maxPrice = filters.maxPrice;
     if (filters.languages.length > 0) queryParams.languages = filters.languages;
     if (filters.ceremonyTypes.length > 0) queryParams.ceremonyId = filters.ceremonyTypes[0];
+    if (filters.city && filters.city.trim()) queryParams.city = filters.city.trim();
 
     const response = await api.get<{ success: boolean; data: PaginatedPriests }>(
       '/priest/available',

@@ -120,8 +120,13 @@ export async function acceptRequest(bookingId: string): Promise<void> {
   } catch (err: any) {
     logger.error('acceptRequest failed', err);
     const status = err?.response?.status;
-    if (status === 404 || status === 409) {
+    if (status === 404) {
       throw new Error('This request is no longer available.');
+    }
+    if (status === 409) {
+      throw new Error(
+        'You already have a confirmed booking at this time. Please check your schedule before accepting.'
+      );
     }
     const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
     throw new Error(errMsg || 'Failed to accept booking request.');

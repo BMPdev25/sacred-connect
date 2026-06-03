@@ -16,6 +16,8 @@ export interface ExploreFilters {
   maxPrice: number;
   /** Maximum distance in kilometers from devotee location. */
   maxDistanceKm: number;
+  /** City/town name to filter priests by location (matches PriestProfile address). */
+  city?: string;
 }
 
 /**

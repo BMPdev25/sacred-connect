@@ -23,7 +23,7 @@ import {
   submitForReview,
 } from '@/services/priest/onboardingService';
 import { OnboardingState } from '@/types/priest.types';
-import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
+import { hasPriestCompletedOnboarding, isPriestVerified } from '@/utils/priestUtils';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -72,7 +72,7 @@ export default function PriestOnboardingWizard(): React.JSX.Element {
     
     if (alreadySubmitted) {
       // Priest should not be here — redirect immediately
-      if ((userPriestState?.verificationStatus as string) === 'approved') {
+      if (isPriestVerified(userPriestState?.verificationStatus)) {
         router.replace('/priest');
       } else {
         router.replace('/priest/onboarding/verification-status');
@@ -86,27 +86,36 @@ export default function PriestOnboardingWizard(): React.JSX.Element {
   /**
    * Handles forward wizard navigation, validating the active step before
    * saving data to the backend database.
+   * Uses an optimistic Redux update (steps 1–5) so the UI advances immediately,
+   * with a rollback if the API call fails.
    */
   const handleContinue = async (): Promise<void> => {
     if (stepRef.current && !stepRef.current.validate()) {
       return;
     }
 
+    const previousStep = currentStep; // save for rollback
     setLoading(true);
+
+    // Optimistic advance for steps 1–5 so the UI doesn't feel stuck
+    if (currentStep < 6) {
+      dispatch(setCurrentStep(currentStep + 1));
+    }
+
     try {
       const state = store.getState();
       const stepKey = `step${currentStep}` as keyof OnboardingState;
       const stepData = state.onboarding[stepKey] || {};
-      
+
       await saveStepData(currentStep, stepData as Record<string, unknown>);
 
-      if (currentStep < 6) {
-        dispatch(setCurrentStep(currentStep + 1));
-      } else if (currentStep === 6) {
+      if (currentStep === 6) {
         await submitForReview();
         router.replace('/priest/onboarding/verification-status' as any);
       }
     } catch (error: any) {
+      // Rollback the optimistic step advance so the user can retry from the correct step
+      dispatch(setCurrentStep(previousStep));
       console.error('Navigation step saving failed:', error);
       Alert.alert('Save Failed', error.message || 'Failed to save progress. Please try again.');
     } finally {

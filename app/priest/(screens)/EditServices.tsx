@@ -86,6 +86,10 @@ export default function EditServices(): React.JSX.Element {
 
       await CalendarService.updatePriestProfile(payload);
       queryClient.invalidateQueries({ queryKey: ['myPriestProfile'] });
+      // Invalidate public-facing caches so devotees see updated services/prices immediately
+      queryClient.invalidateQueries({ queryKey: ['priestProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['availablePriests'] });
+      queryClient.invalidateQueries({ queryKey: ['nearbyPriests'] });
 
       if (Platform.OS === 'android') {
         ToastAndroid.show('Services updated successfully', ToastAndroid.SHORT);

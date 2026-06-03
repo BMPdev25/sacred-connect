@@ -133,6 +133,23 @@ export function useEditAvailability() {
   };
 
   const handleSave = async () => {
+    // Validate that endTime > startTime for every enabled day before hitting the API
+    const days = Object.keys(weeklySchedule) as (keyof WeeklySchedule)[];
+    for (const day of days) {
+      const schedule = weeklySchedule[day];
+      if (schedule.isAvailable) {
+        const [startH, startM] = schedule.startTime.split(':').map(Number);
+        const [endH, endM] = schedule.endTime.split(':').map(Number);
+        const startMins = startH * 60 + startM;
+        const endMins = endH * 60 + endM;
+        if (endMins <= startMins) {
+          const label = day.charAt(0).toUpperCase() + day.slice(1);
+          Alert.alert('Invalid Time', `${label}: end time must be after start time.`);
+          return;
+        }
+      }
+    }
+
     const errs = validateStep5Schedule(weeklySchedule);
     if (errs.length > 0) {
       Alert.alert('Error', errs.join('\n'));

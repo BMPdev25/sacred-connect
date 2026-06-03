@@ -42,6 +42,12 @@ export async function handleVerify(
     // Firebase onAuthStateChanged on the splash listener handles routing automatically
   } catch (err: any) {
     logger.error('OTP verification failed', err);
+    // 429 = too many wrong attempts — lock input and prompt resend
+    if (err?.response?.status === 429 || err?.message?.includes('429')) {
+      setError('Too many incorrect attempts. Please request a new OTP.');
+      triggerShake();
+      return;
+    }
     setError(err.message || 'Incorrect code. Please try again.');
     triggerShake();
   } finally {

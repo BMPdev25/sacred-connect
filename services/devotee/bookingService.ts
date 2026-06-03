@@ -35,7 +35,8 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
 
     const response = await api.post<{ success: boolean; data: BackendBooking }>(
       '/bookings',
-      payload
+      payload,
+      { timeout: 15000 } // fail fast — 15 s instead of the 30 s axios default
     );
 
     if (!response.data || !response.data.success) {
@@ -45,6 +46,9 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
     return response.data.data;
   } catch (err: any) {
     logger.error('createBooking failed', err);
+    if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+      throw new Error('Booking request timed out. Please check your connection and try again.');
+    }
     if (err?.response?.status === 429) {
       throw new Error('Too many booking attempts. Please try again in a few minutes.');
     }
@@ -65,6 +69,9 @@ export async function createPaymentOrder(
   bookingId: string,
   totalAmount: number
 ): Promise<PaymentOrder> {
+  if (!bookingId || !totalAmount || totalAmount <= 0) {
+    throw new Error('Invalid booking amount. Please select a service and try again.');
+  }
   try {
     const response = await api.post<{ success: boolean; data: PaymentOrder }>(
       '/bookings/payment/order',

@@ -20,12 +20,20 @@ export function useBookingPolling(bookingId: string | undefined, isActive: boole
     isActiveRef.current = true;
 
     const checkStatus = async () => {
+      // Guard: bail out immediately if component already unmounted
+      if (!isActiveRef.current) return;
       try {
         const res = await fetchBookingDetails(bookingId);
-        if (res.status === 'confirmed' || res.paymentStatus === 'completed') {
+        // Handle both wrapped { data: booking } and unwrapped booking responses
+        const booking = (res as any).data || res;
+        const isComplete =
+          booking.status === 'confirmed' || booking.paymentStatus === 'completed';
+        // Re-check isActiveRef after the await — component may have unmounted
+        if (isComplete && isActiveRef.current) {
           isActiveRef.current = false;
           if (intervalRef.current) {
             clearTimeout(intervalRef.current);
+            intervalRef.current = null;
           }
           router.replace('/devotee/(screens)/BookingConfirmation' as any);
         }
@@ -50,6 +58,7 @@ export function useBookingPolling(bookingId: string | undefined, isActive: boole
       isActiveRef.current = false;
       if (intervalRef.current) {
         clearTimeout(intervalRef.current);
+        intervalRef.current = null;
       }
     };
   }, [bookingId, isActive, router]);

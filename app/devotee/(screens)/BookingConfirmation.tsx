@@ -8,6 +8,7 @@ import * as Calendar from 'expo-calendar';
 
 import { RootState } from '@/redux/store';
 import { clearBookingDraft } from '@/redux/slices/bookingSlice';
+import { getProfilePicSource } from '@/utils/imageUtils';
 import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
 import { THEME } from '@/constants/theme';
 import { AssetService } from '@/services/assets/AssetService';
@@ -74,10 +75,12 @@ function CeremonyDetailsCard({ draft }: { draft: BookingDraft }) {
 }
 
 function PanditContactCard({ draft, confirmedBooking }: { draft: BookingDraft, confirmedBooking: BookingListItem | null }) {
-  const priestPhone = (confirmedBooking as any)?.priestPhone || 'Phone not available';
-  const avatarSource = draft.priestProfilePicture 
-    ? { uri: draft.priestProfilePicture }
-    : AssetService.getImage('shared.avatarPlaceholder');
+  const priestPhone = (confirmedBooking as any)?.priestPhone || 'Phone will be shared before the ceremony';
+  // Use getProfilePicSource to safely handle string, object {url}, or null
+  const avatarSource = getProfilePicSource(
+    draft.priestProfilePicture,
+    AssetService.getImage('shared.avatarPlaceholder')
+  );
 
   return (
     <View style={styles.card}>
@@ -108,7 +111,10 @@ export default function BookingConfirmationScreen() {
   const [confirmedBooking, setConfirmedBooking] = useState<BookingListItem | null>(null);
 
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => true);
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      Alert.alert('Booking Confirmed', 'Your booking is confirmed. Use the buttons below to continue.');
+      return true; // block navigation
+    });
     return () => sub.remove();
   }, []);
 

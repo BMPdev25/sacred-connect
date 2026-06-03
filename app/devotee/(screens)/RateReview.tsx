@@ -93,6 +93,14 @@ export default function RateReview() {
       queryClient.invalidateQueries({ queryKey: ['priestProfile'] });
       queryClient.invalidateQueries({ queryKey: ['priestReviews'] });
 
+      // Reset all rating state so the screen is clean if user re-enters
+      setOverallRating(5);
+      setPunctuality(5);
+      setKnowledge(5);
+      setBehavior(5);
+      setReviewText('');
+      setExistingRatingId(null);
+
       Alert.alert(
         'Thank you! 🙏',
         'Your review helps other devotees find the right pandit.',

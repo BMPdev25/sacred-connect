@@ -3,11 +3,12 @@ import { View, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
+import { useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import RazorpayCheckout from 'react-native-razorpay';
 
 import { RootState } from '@/redux/store';
-import { setCreatedBooking } from '@/redux/slices/bookingSlice';
+import { setCreatedBooking, clearBookingDraft } from '@/redux/slices/bookingSlice';
 import * as bookingService from '@/services/devotee/bookingService';
 import { THEME } from '@/constants/theme';
 import { formatBookingReference } from '@/utils/bookingUtils';
@@ -21,6 +22,7 @@ import { useBookingPolling } from '@/components/devotee/payment/useBookingPollin
 export default function PaymentScreen(): React.ReactElement {
   const router = useRouter();
   const dispatch = useDispatch();
+  const queryClient = useQueryClient();
   const params = useLocalSearchParams<{
     bookingId: string;
     razorpayOrderId: string;
@@ -34,12 +36,12 @@ export default function PaymentScreen(): React.ReactElement {
   const [screenState, setScreenState] = useState<'initiating' | 'processing' | 'failed' | 'timeout'>('initiating');
   const [errorMessage, setErrorMessage] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
-  const [hasTimedOutTotal, setHasTimedOutTotal] = useState(false);
 
-  const timeout12sRef = useRef<any>(null);
-  const timeout60sRef = useRef<any>(null);
+  // Single 90-second absolute deadline — replaces the old 12s + 60s dual timers
+  const PAYMENT_DEADLINE_MS = 90_000;
+  const deadlineRef = useRef<any>(null);
 
-  const isPollingActive = (screenState === 'timeout' || screenState === 'processing') && !hasTimedOutTotal;
+  const isPollingActive = screenState === 'timeout' || screenState === 'processing';
 
   useBookingPolling(params.bookingId, isPollingActive);
 
@@ -52,8 +54,13 @@ export default function PaymentScreen(): React.ReactElement {
         rzpSignature: paymentData.razorpay_signature,
       });
 
-      clearTimeout(timeout12sRef.current);
-      clearTimeout(timeout60sRef.current);
+      clearTimeout(deadlineRef.current);
+      deadlineRef.current = null;
+
+      // Invalidate booking caches so Bookings tab shows the new entry immediately
+      queryClient.invalidateQueries({ queryKey: ['upcomingBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['pastBookings'] });
+      queryClient.invalidateQueries({ queryKey: ['bookingDetail'] });
 
       const reference = formatBookingReference(
         booking.paymentDetails?.receiptNumber,
@@ -95,16 +102,12 @@ export default function PaymentScreen(): React.ReactElement {
     try {
       const paymentData = await RazorpayCheckout.open(options);
       setScreenState('processing');
-      
-      timeout12sRef.current = setTimeout(() => {
-        setScreenState('timeout');
-      }, 12000);
 
-      timeout60sRef.current = setTimeout(() => {
-        setHasTimedOutTotal(true);
-        setErrorMessage('Verification timed out. Please contact support.');
-        setScreenState('failed');
-      }, 60000);
+      // Single 90-second deadline — if the component is still mounted, verification hasn't
+      // completed (router.replace would have unmounted it), so show the timeout screen.
+      deadlineRef.current = setTimeout(() => {
+        setScreenState('timeout');
+      }, PAYMENT_DEADLINE_MS);
 
       await handleVerifyPayment(paymentData);
 
@@ -121,36 +124,44 @@ export default function PaymentScreen(): React.ReactElement {
   useEffect(() => {
     launchRazorpay();
     return () => {
-      clearTimeout(timeout12sRef.current);
-      clearTimeout(timeout60sRef.current);
+      clearTimeout(deadlineRef.current);
     };
   }, []);
 
   const handleRetryPayment = async () => {
     setIsRetrying(true);
     try {
-      const order = await bookingService.createPaymentOrder(params.bookingId || '', draft.pricing?.totalAmount || 0);
-      dispatch(setCreatedBooking({
-        bookingId: params.bookingId || '',
-        razorpayOrderId: order.id,
-        bookingReference: formatBookingReference(order.receipt || order.id, params.bookingId || '', draft.selectedDate || ''),
-      }));
-      router.setParams({
-        razorpayOrderId: order.id,
-        amount: order.amount.toString(),
-      });
+      // Reuse existing Razorpay order if it was just created — avoids duplicate orders on backend.
+      // Only create a new order if we somehow have no orderId (edge case).
+      if (!params.razorpayOrderId) {
+        const order = await bookingService.createPaymentOrder(
+          params.bookingId || '',
+          draft.pricing?.totalAmount || 0
+        );
+        dispatch(setCreatedBooking({
+          bookingId: params.bookingId || '',
+          razorpayOrderId: order.id,
+          bookingReference: formatBookingReference(
+            order.receipt || order.id,
+            params.bookingId || '',
+            draft.selectedDate || ''
+          ),
+        }));
+        router.setParams({ razorpayOrderId: order.id, amount: order.amount.toString() });
+      }
       setScreenState('initiating');
-      setHasTimedOutTotal(false);
       setErrorMessage('');
       setTimeout(() => launchRazorpay(), 100);
     } catch (err: any) {
-      Alert.alert('Retry Failed', err.message || 'Could not recreate order');
+      Alert.alert('Retry Failed', err.message || 'Could not retry payment');
     } finally {
       setIsRetrying(false);
     }
   };
 
   const handleCancelPayment = () => {
+    // User is explicitly abandoning the payment — clear draft so next booking starts fresh
+    dispatch(clearBookingDraft());
     router.replace('/devotee/(tabs)/HomeTab' as any);
   };
 
@@ -169,7 +180,7 @@ export default function PaymentScreen(): React.ReactElement {
       )}
       {screenState === 'timeout' && (
         <TimeoutView
-          hasTimedOutTotal={hasTimedOutTotal}
+          hasTimedOutTotal={true}
           onGoHome={handleCancelPayment}
         />
       )}

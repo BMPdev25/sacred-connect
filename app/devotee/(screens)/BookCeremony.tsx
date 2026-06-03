@@ -41,7 +41,9 @@ export default function BookCeremonyScreen() {
   const dispatch = useDispatch();
   const draft = useSelector((state: RootState) => state.booking);
   const scrollRef = useRef<ScrollView>(null);
-  
+  // Tracks whether service pre-selection has fired to prevent re-running on cache refresh
+  const hasPreSelectedRef = useRef(false);
+
   const { data: cachedPriestData } = usePriestProfile(params.priestId || '');
   const { offsets, onLayoutSection } = useSectionOffsets();
 
@@ -60,7 +62,7 @@ export default function BookCeremonyScreen() {
   };
 
   // Effect 1: Runs ONCE on mount only (empty dependency array).
-  // Sets priest identifiers. Never resets selections.
+  // Sets priest identifiers only — service pre-selection waits for real price data in Effect 2.
   useEffect(() => {
     dispatch(
       initBookingFlow({
@@ -68,25 +70,10 @@ export default function BookCeremonyScreen() {
         priestUserId: params.priestUserId || '',
       })
     );
-
-    // Pre-select service if passed as param
-    if (params.serviceId && params.ceremonyName) {
-      const selected = cachedPriestData?.services?.find(s => s._id === params.serviceId);
-      dispatch(
-        setSelectedService({
-          serviceId: params.serviceId,
-          ceremonyId: (selected?.ceremonyId as any)?._id || selected?.ceremonyId || params.serviceId,
-          ceremonyName: params.ceremonyName,
-          durationMinutes: selected?.durationMinutes || 60,
-          basePrice: selected?.price || 1500,
-        })
-      );
-    }
   }, []);
 
   // Effect 2: Runs when cachedPriestData resolves.
-  // Only updates priest display info (name, photo, rating).
-  // NEVER touches selections.
+  // Updates priest display info AND handles service pre-selection (once) with real pricing.
   useEffect(() => {
     if (!cachedPriestData) return;
     dispatch(
@@ -96,6 +83,30 @@ export default function BookCeremonyScreen() {
         priestRating: cachedPriestData.ratings?.average,
       })
     );
+
+    // Pre-select service with real price from loaded profile — only fires once
+    if (params.serviceId && params.ceremonyName && !hasPreSelectedRef.current) {
+      hasPreSelectedRef.current = true;
+      const actualService = (cachedPriestData.services as any[])?.find(
+        (s: any) =>
+          s.ceremonyId?._id === params.serviceId ||
+          s.ceremonyId === params.serviceId ||
+          s._id === params.serviceId
+      );
+      dispatch(
+        setSelectedService({
+          serviceId: params.serviceId,
+          ceremonyId:
+            (actualService?.ceremonyId as any)?._id ||
+            actualService?.ceremonyId ||
+            params.serviceId,
+          ceremonyName:
+            (actualService?.ceremonyId as any)?.name || params.ceremonyName,
+          durationMinutes: actualService?.durationMinutes || 60,
+          basePrice: actualService?.price || 1500,
+        })
+      );
+    }
   }, [cachedPriestData]);
 
   const getStepStatus = (section: 'service' | 'date' | 'time' | 'address') => {

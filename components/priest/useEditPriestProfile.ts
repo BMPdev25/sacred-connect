@@ -188,6 +188,10 @@ export function useEditPriestProfile() {
       await Promise.all(promises);
 
       queryClient.invalidateQueries({ queryKey: ['myPriestProfile'] });
+      // Invalidate public-facing caches so devotees see updated prices/details immediately
+      queryClient.invalidateQueries({ queryKey: ['priestProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['availablePriests'] });
+      queryClient.invalidateQueries({ queryKey: ['nearbyPriests'] });
       dispatch(updateUserProfile({ name: name.trim(), phone }));
 
       showToast('Profile updated successfully');

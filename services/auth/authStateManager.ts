@@ -11,9 +11,12 @@ import { auth } from '@/config/firebase';
 import { ONBOARDING_STORAGE_KEY } from '@/constants/config';
 import { store } from '@/redux/store';
 import { setUserSession } from '@/redux/slices/userSlice';
+import { resetFilters } from '@/redux/slices/exploreSlice';
+import { clearBookingDraft } from '@/redux/slices/bookingSlice';
+import { SocketManager } from '@/services/priest/socketManager';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
-import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
+import { hasPriestCompletedOnboarding, isPriestVerified } from '@/utils/priestUtils';
 import { refreshToken, syncWithBackend } from './authService';
 import { getIsSignupInProgress } from './signupState';
 import * as Notifications from 'expo-notifications';
@@ -148,7 +151,7 @@ export function routeAuthenticatedUser(
     }
 
     // Onboarding is complete — route based on verificationStatus
-    if ((priestState?.verificationStatus as string) === 'approved') {
+    if (isPriestVerified(priestState?.verificationStatus)) {
       console.log('[DEBUG] routeAuthenticatedUser: Redirecting to Priest Dashboard (/priest)');
       router.replace('/priest');
       setTimeout(drainPendingNotification, 300);
@@ -236,6 +239,12 @@ async function handleAuthStateChange(
       );
     } else {
       console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
+      // Clean up priest socket connection to stop receiving ghost notifications after logout
+      SocketManager.disconnectSocket();
+      // Reset explore filters so the next session starts with clean search state
+      store.dispatch(resetFilters());
+      // Clear any in-progress booking draft
+      store.dispatch(clearBookingDraft());
       const firstLaunch = await checkFirstLaunch();
       routeUnauthenticatedUser(firstLaunch);
     }

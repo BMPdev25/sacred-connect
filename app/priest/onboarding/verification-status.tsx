@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Linking,
@@ -19,7 +19,8 @@ import { THEME } from '@/constants/theme';
 import { auth } from '@/config/firebase';
 import { clearUserSession } from '@/redux/slices/userSlice';
 import { RootState } from '@/redux/store';
-import { useVerificationPolling } from '@/hooks/useVerificationPolling';
+import { useVerificationPolling, VerificationStatus } from '@/hooks/useVerificationPolling';
+import { isPriestVerified, normalizeVerificationStatus } from '@/utils/priestUtils';
 import api from '@/api/index';
 
 // ---------------------------------------------------------------------------
@@ -62,30 +63,41 @@ export default function VerificationStatusScreen() {
 
   const [loading, setLoading] = useState(true);
   const [priestProfile, setPriestProfile] = useState<{
-    verificationStatus: 'pending' | 'verified' | 'approved' | 'rejected';
+    verificationStatus: 'pending' | 'verified' | 'rejected';
     isVerified?: boolean;
     rejectionReason?: string;
   } | null>(null);
 
-  useVerificationPolling(30000);
+  const loadStatus = useCallback(async () => {
+    try {
+      const response = await api.get('/priest/profile');
+      const data = response.data;
+      if (data?.verificationStatus) {
+        data.verificationStatus = normalizeVerificationStatus(data.verificationStatus);
+      }
+      setPriestProfile(data);
+    } catch (error) {
+      console.error('Error fetching verification profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Re-fetch the full profile (including rejectionReason) whenever the
+  // polling hook detects a status transition while the screen is open.
+  const handleStatusChange = useCallback((_status: VerificationStatus) => {
+    loadStatus();
+  }, [loadStatus]);
+
+  useVerificationPolling(30000, handleStatusChange);
 
   useEffect(() => {
-    async function loadStatus() {
-      try {
-        const response = await api.get('/priest/profile');
-        setPriestProfile(response.data);
-      } catch (error) {
-        console.error('Error fetching verification profile:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadStatus();
-  }, []);
+  }, [loadStatus]);
 
   // Auto-redirect approved priests
   useEffect(() => {
-    if (priestProfile?.isVerified || priestProfile?.verificationStatus === 'approved' || priestProfile?.verificationStatus === 'verified') {
+    if (isPriestVerified(priestProfile?.verificationStatus)) {
       router.replace('/priest' as any);
     }
   }, [priestProfile]);
@@ -143,8 +155,13 @@ export default function VerificationStatusScreen() {
 
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, THEME.spacing.lg) }]}>
           <PrimaryButton
-            title="Edit Documents"
-            onPress={() => router.push('/priest/(screens)/EditPriestProfile' as any)}
+            title="Fix & Resubmit"
+            onPress={() =>
+              router.push({
+                pathname: '/priest/onboarding/resubmit',
+                params: { reason: priestProfile?.rejectionReason || '' },
+              } as any)
+            }
             style={{ marginBottom: THEME.spacing.sm }}
           />
           <PrimaryButton

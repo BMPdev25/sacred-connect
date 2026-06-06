@@ -3,7 +3,7 @@ import { Tabs, useRouter } from 'expo-router';
 import { useSelector } from 'react-redux';
 import PriestTabBar from '@/components/shared/PriestTabBar';
 import { RootState } from '@/redux/store';
-import { hasPriestCompletedOnboarding } from '@/utils/priestUtils';
+import { hasPriestCompletedOnboarding, isPriestVerified } from '@/utils/priestUtils';
 
 export default function PriestTabsLayout() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function PriestTabsLayout() {
       return;
     }
 
-    if ((priestState.verificationStatus as string) !== 'approved' && priestState.verificationStatus !== 'verified') {
+    if (!isPriestVerified(priestState.verificationStatus)) {
       router.replace('/priest/onboarding/verification-status' as any);
     }
   }, [priestState, router]);

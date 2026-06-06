@@ -19,6 +19,7 @@ import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { AuthSyncPayload, SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
 import { getReadableErrorMessage } from '@/utils/errorHandler';
 import { logger } from '@/utils/logger';
+import { normalizeVerificationStatus } from '@/utils/priestUtils';
 import { setSignupInProgress } from './signupState';
 
 /** Helper to construct a typed UserProfile from backend response data. */
@@ -42,11 +43,7 @@ function mapToUserProfile(data: any): UserProfile {
 /** Builds PriestAuthState from a priest profile API response (GET /priest/profile). */
 function mapToPriestStateFromProfile(profileData: any): PriestAuthState {
   const rawStatus = profileData.verificationStatus || 'incomplete';
-  // Map backend 'incomplete' to frontend 'pending' (not in VerificationStatus union)
-  const verificationStatus: PriestAuthState['verificationStatus'] =
-    rawStatus === 'approved' ? 'verified'
-    : rawStatus === 'rejected' ? 'rejected'
-    : 'pending';
+  const verificationStatus = normalizeVerificationStatus(rawStatus);
   return {
     verificationStatus,
     onboardingCompleted: profileData.onboardingCompleted === true,

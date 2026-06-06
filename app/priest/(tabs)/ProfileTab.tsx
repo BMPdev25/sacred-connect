@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 
 import { THEME } from '@/constants/theme';
 import { RootState } from '@/redux/store';
+import { isPriestVerified } from '@/utils/priestUtils';
 import { AssetService } from '@/services/assets/AssetService';
 import { CalendarService } from '@/services/priest/calendarService';
 import { logout } from '@/services/auth/authService';
@@ -20,7 +21,7 @@ function getVerificationMessage(profile: any): { title: string; message: string 
   const status = profile?.verificationStatus;
   const isVerified = profile?.isVerified === true;
 
-  if (isVerified || status === 'approved' || status === 'verified') {
+  if (isVerified || isPriestVerified(status)) {
     return { title: 'Verified ✓', message: 'Your profile is verified and live on the platform.' };
   }
   if (status === 'pending') {

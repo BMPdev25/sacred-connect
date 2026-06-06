@@ -17,12 +17,38 @@ export { formatTime12Hour };
  * @param verificationStatus - The registration verification status from the profile.
  * @returns True if onboarding is complete or profile was submitted, otherwise false.
  */
+/**
+ * Normalizes the raw backend verificationStatus string to the canonical
+ * frontend value. The backend sends 'approved'; everywhere in the frontend
+ * we use 'verified'. All raw API responses must pass through this before use.
+ *
+ * Raw backend → Frontend
+ *   'approved'            → 'verified'
+ *   'rejected'            → 'rejected'
+ *   anything else         → 'pending'
+ */
+export function normalizeVerificationStatus(
+  rawStatus: string | undefined
+): 'verified' | 'rejected' | 'pending' {
+  if (rawStatus === 'approved' || rawStatus === 'verified') return 'verified';
+  if (rawStatus === 'rejected') return 'rejected';
+  return 'pending';
+}
+
+/**
+ * Single source of truth for checking if a priest is verified.
+ * Always compare against the normalized frontend value 'verified'.
+ */
+export function isPriestVerified(status: string | undefined): boolean {
+  return status === 'verified';
+}
+
 export function hasPriestCompletedOnboarding(
   onboardingCompleted: boolean | undefined,
   verificationStatus: string | undefined
 ): boolean {
   if (onboardingCompleted === true) return true;
-  const submittedStatuses = ['pending', 'approved', 'rejected'];
+  const submittedStatuses = ['pending', 'verified', 'rejected'];
   if (verificationStatus && submittedStatuses.includes(verificationStatus)) {
     return true;
   }

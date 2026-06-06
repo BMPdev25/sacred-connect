@@ -3,6 +3,7 @@ import api from '@/api/index';
   import { logger } from '@/utils/logger';
   import { CalendarBooking, MarkedDatesMap } from '@/types/priest.calendar.types';
   import { normalizeProfilePicture } from '@/utils/imageUtils';
+  import { normalizeVerificationStatus } from '@/utils/priestUtils';
 
   /**
    * Safe mapping from raw booking API payload to CalendarBooking type.
@@ -164,7 +165,11 @@ import api from '@/api/index';
   export async function fetchPriestProfile(): Promise<any> {
     try {
       const response = await api.get('/priest/profile');
-      return response.data;
+      const data = response.data;
+      if (data?.verificationStatus) {
+        data.verificationStatus = normalizeVerificationStatus(data.verificationStatus);
+      }
+      return data;
     } catch (err) {
       logger.error('Failed to fetch priest profile', err);
       throw err;

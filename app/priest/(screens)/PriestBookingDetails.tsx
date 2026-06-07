@@ -126,6 +126,7 @@ export default function PriestBookingDetails(): React.JSX.Element {
   }
 
   const { bg: statusBg, text: statusText } = getStatusStyle(booking.status ?? 'pending');
+  const isPaid = (booking as any).paymentStatus === 'completed';
 
   return (
     <View style={styles.container}>
@@ -183,21 +184,39 @@ export default function PriestBookingDetails(): React.JSX.Element {
             ₹{booking.basePrice.toLocaleString('en-IN')}
           </Text>
           <Text style={styles.earningsNote}>Credited to wallet on completion</Text>
+
+          {/* Payment status — devotee pays after acceptance in the instant flow,
+              so a confirmed booking can still be awaiting payment. */}
+          {isPaid ? (
+            <View style={[styles.paymentBanner, styles.paymentPaid]}>
+              <Ionicons name="checkmark-circle" size={16} color="#166534" />
+              <Text style={[styles.paymentText, { color: '#166534' }]}>Payment received</Text>
+            </View>
+          ) : (
+            <View style={[styles.paymentBanner, styles.paymentPending]}>
+              <Ionicons name="time-outline" size={16} color="#92400E" />
+              <Text style={[styles.paymentText, { color: '#92400E' }]}>
+                Payment pending from devotee
+              </Text>
+            </View>
+          )}
         </View>
 
-        {/* Action: Mark Complete (only for confirmed bookings) */}
+        {/* Action: Mark Complete (only for confirmed + paid bookings) */}
         {(booking as any).status === 'confirmed' && (
           <TouchableOpacity
-            style={[styles.completeBtn, isCompleting && styles.disabledBtn]}
+            style={[styles.completeBtn, (isCompleting || !isPaid) && styles.disabledBtn]}
             onPress={handleMarkComplete}
-            disabled={isCompleting}
+            disabled={isCompleting || !isPaid}
           >
             {isCompleting ? (
               <ActivityIndicator size="small" color="#FFFFFF" />
             ) : (
               <>
                 <Ionicons name="checkmark-circle-outline" size={20} color="#FFFFFF" />
-                <Text style={styles.completeBtnText}>Mark as Completed</Text>
+                <Text style={styles.completeBtnText}>
+                  {isPaid ? 'Mark as Completed' : 'Awaiting payment'}
+                </Text>
               </>
             )}
           </TouchableOpacity>
@@ -210,6 +229,18 @@ export default function PriestBookingDetails(): React.JSX.Element {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: THEME.colors.background, position: 'relative' },
   centered: { justifyContent: 'center', alignItems: 'center' },
+  paymentBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+  },
+  paymentPending: { backgroundColor: '#FEF3C7' },
+  paymentPaid: { backgroundColor: '#DCFCE7' },
+  paymentText: { fontSize: 13, fontWeight: '600' },
   backIcon: { position: 'absolute', left: 16, zIndex: 10, padding: 8 },
   scrollContent: { paddingHorizontal: 16 },
   screenTitle: {

@@ -58,6 +58,63 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
 }
 
 /**
+ * Creates an INSTANT booking (accept-then-pay flow).
+ *
+ * Unlike createBooking, no priest is chosen and NO payment is taken now — the
+ * request is broadcast to verified priests and returns a booking in 'searching'
+ * status. The devotee pays only after a priest accepts (see the Payment screen
+ * triggered by the acceptance notification).
+ *
+ * @param draft - The active booking draft (priest fields are ignored).
+ * @returns A promise resolving to the created BackendBooking (status 'searching').
+ */
+export async function createInstantBooking(draft: BookingDraft): Promise<BackendBooking> {
+  try {
+    if (!draft.selectedService || !draft.selectedDate || !draft.selectedTimeSlot || !draft.selectedAddress || !draft.pricing) {
+      throw new Error('Incomplete booking draft details');
+    }
+
+    const payload = {
+      ceremonyType: draft.selectedService.ceremonyName,
+      ceremonyId: draft.selectedService.ceremonyId,
+      date: draft.selectedDate,
+      startTime: draft.selectedTimeSlot.startTime,
+      endTime: draft.selectedTimeSlot.endTime,
+      location: {
+        address: draft.selectedAddress.fullAddress,
+        city: draft.selectedAddress.city,
+        coordinates: draft.selectedAddress.coordinates,
+      },
+      basePrice: draft.pricing.basePrice,
+      platformFee: draft.pricing.platformFee,
+      totalAmount: draft.pricing.totalAmount,
+    };
+
+    const response = await api.post<{ success: boolean; data: BackendBooking }>(
+      '/bookings/instant',
+      payload,
+      { timeout: 15000 }
+    );
+
+    if (!response.data || !response.data.success) {
+      throw new Error('Failed to create instant booking on backend');
+    }
+
+    return response.data.data;
+  } catch (err: any) {
+    logger.error('createInstantBooking failed', err);
+    if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
+      throw new Error('Request timed out. Please check your connection and try again.');
+    }
+    if (err?.response?.status === 429) {
+      throw new Error('Too many booking attempts. Please try again in a few minutes.');
+    }
+    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    throw new Error(errMsg || 'Failed to create instant booking.');
+  }
+}
+
+/**
  * Initiates a Razorpay payment order for the specified booking.
  *
  * @param bookingId - The identifier of the created booking record.

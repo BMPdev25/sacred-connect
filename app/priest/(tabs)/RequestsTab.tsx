@@ -26,13 +26,24 @@ export default function RequestsTab(): React.JSX.Element {
   
   const { currentStatus } = useSelector((state: RootState) => state.priestDashboard);
 
-  // Data fetching
-  const { data: requests = [], isLoading } = useQuery<BookingRequest[]>({
+  // Data fetching — the priest's own pending requests…
+  const { data: pendingRequests = [], isLoading } = useQuery<BookingRequest[]>({
     queryKey: ['priestPendingRequests'],
     queryFn: PriestRequestsService.fetchPendingRequests,
     staleTime: 0,
     refetchInterval: 30 * 1000,
   });
+
+  // …plus instant bookings broadcast to all priests (status 'searching').
+  const { data: instantRequests = [] } = useQuery<BookingRequest[]>({
+    queryKey: ['priestInstantAvailable'],
+    queryFn: PriestRequestsService.fetchInstantAvailable,
+    staleTime: 0,
+    refetchInterval: 15 * 1000,
+  });
+
+  // Instant requests are time-sensitive, so surface them first.
+  const requests = [...instantRequests, ...pendingRequests];
 
   // Sync count to Redux when it changes
   useEffect(() => {
@@ -54,16 +65,27 @@ export default function RequestsTab(): React.JSX.Element {
 
   const handleAccept = async (requestId: string) => {
     if (processingId !== null) return;
+    // Instant ('searching') bookings are claimed via the atomic instant endpoint;
+    // the priest's own pending requests use the normal status update.
+    const target = requests.find((r) => r._id === requestId);
+    const isInstant = target?.status === 'searching';
     setProcessingId(requestId);
     try {
-      await PriestRequestsService.acceptRequest(requestId);
+      if (isInstant) {
+        await PriestRequestsService.acceptInstantRequest(requestId);
+      } else {
+        await PriestRequestsService.acceptRequest(requestId);
+      }
       queryClient.invalidateQueries({ queryKey: ['priestPendingRequests'] });
+      queryClient.invalidateQueries({ queryKey: ['priestInstantAvailable'] });
       queryClient.invalidateQueries({ queryKey: ['priestTodayBookings'] });
       queryClient.invalidateQueries({ queryKey: ['priestCalendarBookings'] });
       queryClient.invalidateQueries({ queryKey: ['priestEarnings'] });
       dispatch(decrementPendingRequests());
       // Optional: Success toast
     } catch (error: any) {
+      // On a lost instant race, refresh so the claimed booking drops off the list.
+      queryClient.invalidateQueries({ queryKey: ['priestInstantAvailable'] });
       Alert.alert('Error', error.message || 'Failed to accept booking');
     } finally {
       setProcessingId(null);
@@ -86,15 +108,26 @@ export default function RequestsTab(): React.JSX.Element {
 
   const handleDecline = (requestId: string) => {
     if (processingId !== null) return;
+    // Instant broadcasts aren't assigned to this priest, so there's nothing to
+    // "decline" — they simply let another priest take it.
+    const target = requests.find((r) => r._id === requestId);
+    if (target?.status === 'searching') {
+      Alert.alert(
+        'Instant request',
+        'You don\'t need to decline this — just leave it and another priest can accept it.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
     Alert.alert(
       'Decline Request?',
       'The devotee will be notified.',
       [
         { text: 'Keep Request', style: 'cancel' },
-        { 
-          text: 'Decline', 
+        {
+          text: 'Decline',
           style: 'destructive',
-          onPress: () => confirmDecline(requestId) 
+          onPress: () => confirmDecline(requestId)
         }
       ]
     );

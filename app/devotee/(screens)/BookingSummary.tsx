@@ -113,7 +113,32 @@ export default function BookingSummaryScreen() {
     }
   };
 
-  const avatarSource = draft.priestProfilePicture 
+  // Instant (accept-then-pay): broadcast to priests instead of booking the
+  // selected one. No payment is taken now — the devotee pays once a priest
+  // accepts, on the SearchingForPriest → Payment path.
+  const handleInstantBooking = async () => {
+    if (!draft.selectedService || !draft.selectedDate || !draft.selectedTimeSlot || !draft.selectedAddress) {
+      Alert.alert('Missing Details', 'Please complete all fields before booking.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const booking = await bookingService.createInstantBooking(draft);
+      router.push({
+        pathname: '/devotee/(screens)/SearchingForPriest' as any,
+        params: {
+          bookingId: booking._id,
+          totalDisplay: (draft.pricing?.totalAmount || 0).toString(),
+        },
+      });
+    } catch (error: any) {
+      Alert.alert('Booking Error', error.message || 'Failed to start instant booking. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const avatarSource = draft.priestProfilePicture
     ? { uri: draft.priestProfilePicture }
     : AssetService.getImage('shared.avatarPlaceholder');
 
@@ -196,10 +221,17 @@ export default function BookingSummaryScreen() {
 
       {/* Sticky Bottom Button */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 16) }]}>
-        <PrimaryButton 
-          title={isSubmitting ? "Processing..." : "Confirm & Pay"} 
+        <PrimaryButton
+          title={isSubmitting ? "Processing..." : "Confirm & Pay"}
           onPress={handleConfirmAndPay}
           loading={isSubmitting}
+        />
+        <View style={{ height: 10 }} />
+        <PrimaryButton
+          title="Find a priest now (instant)"
+          variant="outline"
+          onPress={handleInstantBooking}
+          disabled={isSubmitting}
         />
       </View>
     </SafeAreaView>

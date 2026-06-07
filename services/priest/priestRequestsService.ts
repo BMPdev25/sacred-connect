@@ -83,6 +83,26 @@ export async function fetchPendingRequests(): Promise<BookingRequest[]> {
 }
 
 /**
+ * Fetches INSTANT bookings still awaiting a priest (status 'searching').
+ *
+ * These have no priest assigned — any verified priest may claim one. Mapped to
+ * the same BookingRequest shape as pending requests, with status 'searching' so
+ * the UI can tell them apart and route Accept to the instant-claim endpoint.
+ *
+ * @returns A promise resolving to an array of available instant BookingRequests.
+ */
+export async function fetchInstantAvailable(): Promise<BookingRequest[]> {
+  try {
+    const response = await api.get('/priest/bookings/instant-available');
+    const rawList: any[] = response.data?.data || response.data || [];
+    return rawList.map(mapToBookingRequest).sort(sortRequestsByCreatedAtDesc);
+  } catch (err) {
+    logger.error('fetchInstantAvailable failed', err);
+    return [];
+  }
+}
+
+/**
  * Fetches the full details of a specific booking request.
  *
  * @param bookingId - Unique identifier of the booking.
@@ -134,6 +154,34 @@ export async function acceptRequest(bookingId: string): Promise<void> {
 }
 
 /**
+ * Accepts an INSTANT booking broadcast (accept-then-pay flow).
+ *
+ * The first priest to accept wins; the backend assigns this priest atomically.
+ * If another priest already claimed it, the backend returns 409 and we surface a
+ * clear "someone else got it" message. On success the booking is confirmed but
+ * unpaid — the devotee is then prompted to pay.
+ *
+ * @param bookingId - Unique identifier of the instant booking.
+ */
+export async function acceptInstantRequest(bookingId: string): Promise<void> {
+  try {
+    await api.post('/priest/bookings/instant/accept', { bookingId });
+  } catch (err: any) {
+    logger.error('acceptInstantRequest failed', err);
+    const status = err?.response?.status;
+    if (status === 409) {
+      throw new Error('Another priest has already accepted this booking.');
+    }
+    if (status === 400) {
+      const msg = err?.response?.data?.message;
+      throw new Error(msg || 'This booking can no longer be accepted.');
+    }
+    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
+    throw new Error(errMsg || 'Failed to accept instant booking.');
+  }
+}
+
+/**
  * Declines a pending booking request with an optional reason.
  *
  * @param bookingId - Unique identifier of the booking.
@@ -142,8 +190,11 @@ export async function acceptRequest(bookingId: string): Promise<void> {
  */
 export async function declineRequest(bookingId: string, reason?: string): Promise<void> {
   try {
+    // A priest declining a pending *request* is a rejection (distinct from a
+    // devotee 'cancelled'). The backend allows pending → rejected and notifies
+    // the devotee their request was declined.
     await api.put(`/priest/bookings/${bookingId}/status`, {
-      status: 'cancelled',
+      status: 'rejected',
       reason: reason || 'Declined by priest',
     });
   } catch (err) {
@@ -157,7 +208,9 @@ export async function declineRequest(bookingId: string, reason?: string): Promis
  */
 export const PriestRequestsService = {
   fetchPendingRequests,
+  fetchInstantAvailable,
   fetchRequestDetail,
   acceptRequest,
+  acceptInstantRequest,
   declineRequest,
 };

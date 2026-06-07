@@ -111,6 +111,15 @@ export interface BookingDraft {
   
   /** The current active step/section in the UI booking flow */
   activeSection: 'service' | 'date' | 'time' | 'address';
+
+  /** Which booking path this draft is on: broadcast 'instant' or priest-first 'scheduled'. */
+  bookingType: 'instant' | 'scheduled';
+  /** The ceremony id (set for the ceremony-first instant flow; null otherwise). */
+  ceremonyId: string | null;
+  /** For instant started from a priest's page: that priest gets a 3-min head-start. */
+  preferredPriestId: string | null;
+  /** ISO timestamp at which an in-progress instant search expires (10-min TTL). */
+  instantExpiresAt: string | null;
 }
 
 /**

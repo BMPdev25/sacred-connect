@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: PHOTO_HEIGHT,
     position: 'relative',
+    backgroundColor: THEME.colors.border,
   },
   photo: {
     width: '100%',

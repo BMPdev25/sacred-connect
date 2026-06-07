@@ -123,7 +123,18 @@ export default function BookingSummaryScreen() {
     }
     setIsSubmitting(true);
     try {
-      const booking = await bookingService.createInstantBooking(draft);
+      const booking = await bookingService.createInstantBooking({
+        ceremonyId: draft.selectedService.ceremonyId,
+        date: draft.selectedDate,
+        startTime: draft.selectedTimeSlot.startTime,
+        endTime: draft.selectedTimeSlot.endTime,
+        location: {
+          address: draft.selectedAddress.fullAddress,
+          city: draft.selectedAddress.city,
+          coordinates: draft.selectedAddress.coordinates,
+        },
+        preferredPriestId: draft.preferredPriestId ?? null,
+      });
       router.push({
         pathname: '/devotee/(screens)/SearchingForPriest' as any,
         params: {
@@ -137,6 +148,7 @@ export default function BookingSummaryScreen() {
       setIsSubmitting(false);
     }
   };
+
 
   const avatarSource = draft.priestProfilePicture
     ? { uri: draft.priestProfilePicture }

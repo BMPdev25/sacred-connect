@@ -17,6 +17,37 @@ import { Banner } from '@/types/home.types';
 import { THEME } from '@/constants/theme';
 
 // ---------------------------------------------------------------------------
+// Fallback data shown when no banners are returned from the API
+// ---------------------------------------------------------------------------
+
+const FALLBACK_BANNERS: Banner[] = [
+  {
+    _id: 'fallback-1',
+    title: 'Book a Pandit Today',
+    subtitle: 'Experienced pandits for all ceremonies',
+    color: '#800000',
+    isActive: true,
+    order: 1,
+  },
+  {
+    _id: 'fallback-2',
+    title: 'Upcoming Navratri',
+    subtitle: 'Book your ceremony early',
+    color: '#FF9933',
+    isActive: true,
+    order: 2,
+  },
+  {
+    _id: 'fallback-3',
+    title: 'Sacred Ceremonies',
+    subtitle: 'seva · sanskriti · samarpan',
+    color: '#4A0E0E',
+    isActive: true,
+    order: 3,
+  },
+];
+
+// ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
@@ -88,7 +119,8 @@ interface HomeBannerCarouselProps {
  * Horizontally paged carousel that auto-advances every 4 seconds.
  * Loops back to the first item after the last slide.
  */
-export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps): React.JSX.Element | null {
+export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps): React.JSX.Element {
+  const displayBanners = banners.length > 0 ? banners : FALLBACK_BANNERS;
   const [activeIndex, setActiveIndex] = useState(0);
   const activeIndexRef = useRef(0);
   const listRef = useRef<FlatList<Banner>>(null);
@@ -108,26 +140,24 @@ export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps)
 
   /** Advances to the next slide using the ref — stable across re-renders. */
   const scrollToNext = useCallback(() => {
-    if (banners.length < 2) return;
-    const next = (activeIndexRef.current + 1) % banners.length;
+    if (displayBanners.length < 2) return;
+    const next = (activeIndexRef.current + 1) % displayBanners.length;
     listRef.current?.scrollToIndex({ index: next, animated: true });
-  }, [banners.length]);
+  }, [displayBanners.length]);
 
   useEffect(() => {
-    if (banners.length < 2) return;
+    if (displayBanners.length < 2) return;
     timerRef.current = setInterval(scrollToNext, AUTO_SCROLL_MS);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [scrollToNext, banners.length]);
-
-  if (banners.length === 0) return null;
+  }, [scrollToNext, displayBanners.length]);
 
   return (
     <View style={styles.container}>
       <FlatList
         ref={listRef}
-        data={banners}
+        data={displayBanners}
         keyExtractor={(item) => item._id}
         renderItem={({ item }) => <BannerSlide item={item} />}
         horizontal
@@ -141,7 +171,7 @@ export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps)
           index,
         })}
       />
-      {banners.length > 1 && <Dots count={banners.length} activeIndex={activeIndex} />}
+      {displayBanners.length > 1 && <Dots count={displayBanners.length} activeIndex={activeIndex} />}
     </View>
   );
 }
@@ -153,6 +183,7 @@ export default function HomeBannerCarousel({ banners }: HomeBannerCarouselProps)
 const styles = StyleSheet.create({
   container: {
     marginBottom: THEME.spacing.md,
+    marginHorizontal: -THEME.spacing.md,
   },
   slide: {
     width: SCREEN_WIDTH,

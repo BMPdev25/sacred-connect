@@ -57,39 +57,50 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
   }
 }
 
+/** Location payload for an instant booking. */
+export interface InstantBookingLocation {
+  /** Full street address. */
+  address: string;
+  /** City name. */
+  city: string;
+  /** Optional geographic coordinates. */
+  coordinates?: { lat: number; lng: number };
+}
+
+/** Arguments for creating an instant booking. */
+export interface CreateInstantBookingPayload {
+  /** Ceremony id (instant bookings are keyed by ceremony, not priest). */
+  ceremonyId: string;
+  /** Booking date 'YYYY-MM-DD'. */
+  date: string;
+  /** Start time 'HH:MM'. */
+  startTime: string;
+  /** End time 'HH:MM'. */
+  endTime: string;
+  /** Ceremony location. */
+  location: InstantBookingLocation;
+  /** Optional preferred priest who gets a 3-min head-start. */
+  preferredPriestId?: string | null;
+}
+
 /**
  * Creates an INSTANT booking (accept-then-pay flow).
  *
- * Unlike createBooking, no priest is chosen and NO payment is taken now — the
- * request is broadcast to verified priests and returns a booking in 'searching'
- * status. The devotee pays only after a priest accepts (see the Payment screen
- * triggered by the acceptance notification).
+ * No priest is chosen and NO payment is taken now — the request is broadcast to
+ * priests who perform the ceremony and returns a booking in 'searching' status.
+ * The devotee pays only after a priest accepts (booking → 'pending').
  *
- * @param draft - The active booking draft (priest fields are ignored).
+ * On a date outside the instant window the backend returns 400 with code
+ * 'NOT_INSTANT_WINDOW'; the thrown error carries `.code` so callers can offer
+ * to switch to scheduling.
+ *
+ * @param payload - Ceremony, date/time, location, and optional preferred priest.
  * @returns A promise resolving to the created BackendBooking (status 'searching').
  */
-export async function createInstantBooking(draft: BookingDraft): Promise<BackendBooking> {
+export async function createInstantBooking(
+  payload: CreateInstantBookingPayload
+): Promise<BackendBooking> {
   try {
-    if (!draft.selectedService || !draft.selectedDate || !draft.selectedTimeSlot || !draft.selectedAddress || !draft.pricing) {
-      throw new Error('Incomplete booking draft details');
-    }
-
-    const payload = {
-      ceremonyType: draft.selectedService.ceremonyName,
-      ceremonyId: draft.selectedService.ceremonyId,
-      date: draft.selectedDate,
-      startTime: draft.selectedTimeSlot.startTime,
-      endTime: draft.selectedTimeSlot.endTime,
-      location: {
-        address: draft.selectedAddress.fullAddress,
-        city: draft.selectedAddress.city,
-        coordinates: draft.selectedAddress.coordinates,
-      },
-      basePrice: draft.pricing.basePrice,
-      platformFee: draft.pricing.platformFee,
-      totalAmount: draft.pricing.totalAmount,
-    };
-
     const response = await api.post<{ success: boolean; data: BackendBooking }>(
       '/bookings/instant',
       payload,
@@ -103,14 +114,37 @@ export async function createInstantBooking(draft: BookingDraft): Promise<Backend
     return response.data.data;
   } catch (err: any) {
     logger.error('createInstantBooking failed', err);
+    const code = err?.response?.data?.code;
+    let message: string;
     if (err?.code === 'ECONNABORTED' || err?.message?.includes('timeout')) {
-      throw new Error('Request timed out. Please check your connection and try again.');
+      message = 'Request timed out. Please check your connection and try again.';
+    } else if (err?.response?.status === 429) {
+      message = 'Too many booking attempts. Please try again in a few minutes.';
+    } else {
+      message = err?.response?.data?.message || err?.response?.data?.error || err.message || 'Failed to create instant booking.';
     }
-    if (err?.response?.status === 429) {
-      throw new Error('Too many booking attempts. Please try again in a few minutes.');
-    }
-    const errMsg = err?.response?.data?.message || err?.response?.data?.error || err.message;
-    throw new Error(errMsg || 'Failed to create instant booking.');
+    const wrapped: any = new Error(message);
+    wrapped.code = code;
+    wrapped.response = err?.response;
+    throw wrapped;
+  }
+}
+
+/**
+ * Cancels an instant booking that is still searching for a priest.
+ *
+ * @param bookingId - The booking to cancel.
+ */
+export async function cancelInstantBooking(bookingId: string): Promise<void> {
+  try {
+    await api.put(`/bookings/${bookingId}/cancel-devotee`, {
+      reason: 'Devotee cancelled while searching',
+    });
+  } catch (err: any) {
+    logger.error('cancelInstantBooking failed', err);
+    throw new Error(
+      err?.response?.data?.message || err?.response?.data?.error || 'Failed to cancel the search.'
+    );
   }
 }
 

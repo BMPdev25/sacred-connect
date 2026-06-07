@@ -112,6 +112,7 @@ export default function NearbyPriestsSection({
       )}
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.listStyle}
       contentContainerStyle={styles.listContent}
     />
   );
@@ -122,6 +123,9 @@ export default function NearbyPriestsSection({
 // ---------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
+  listStyle: {
+    marginHorizontal: -THEME.spacing.md,
+  },
   listContent: {
     paddingHorizontal: THEME.spacing.md,
   },

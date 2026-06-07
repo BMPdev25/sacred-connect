@@ -17,6 +17,16 @@ import { useRouter } from 'expo-router';
 import { CeremonyCategory } from '@/types/home.types';
 import { THEME } from '@/constants/theme';
 
+const HARDCODED_CATEGORIES: CeremonyCategory[] = [
+  { _id: 'hc-1', name: 'All', isActive: true, order: 0, icon: 'apps-outline' },
+  { _id: 'hc-2', name: 'Weddings', isActive: true, order: 1, icon: 'heart-outline' },
+  { _id: 'hc-3', name: 'Pujas', isActive: true, order: 2, icon: 'flower-outline' },
+  { _id: 'hc-4', name: 'Homams', isActive: true, order: 3, icon: 'flame-outline' },
+  { _id: 'hc-5', name: 'Housewarming', isActive: true, order: 4, icon: 'home-outline' },
+  { _id: 'hc-6', name: 'Samskaras', isActive: true, order: 5, icon: 'sparkles-outline' },
+  { _id: 'hc-7', name: 'Ancestral', isActive: true, order: 6, icon: 'people-outline' },
+];
+
 // ---------------------------------------------------------------------------
 // Sub-component
 // ---------------------------------------------------------------------------
@@ -62,14 +72,28 @@ interface CategoryChipsProps {
 
 /**
  * Horizontal chip row for ceremony categories.
- * Each chip navigates the user to the ExploreTab.
+ *
+ * When a category has a `ceremonyId` field it navigates to CeremonyDetails
+ * (individual ceremony entry point). For category-level chips (no ceremonyId)
+ * it filters the ExploreTab by category — the standard discovery path.
+ *
+ * TODO: once the backend returns per-ceremony chips, switch all chips to the
+ * CeremonyDetails path.
  */
-export default function CategoryChips({ categories }: CategoryChipsProps): React.JSX.Element | null {
+export default function CategoryChips({ categories }: CategoryChipsProps): React.JSX.Element {
   const router = useRouter();
-
-  if (categories.length === 0) return null;
+  const displayCategories = categories.length > 0 ? categories : HARDCODED_CATEGORIES;
 
   const handleChipPress = (category: CeremonyCategory) => {
+    // If the category represents a single ceremony (has ceremonyId), go to CeremonyDetails.
+    if ((category as any).ceremonyId) {
+      router.push({
+        pathname: '/devotee/(screens)/CeremonyDetails' as any,
+        params: { ceremonyId: (category as any).ceremonyId },
+      });
+      return;
+    }
+    // Otherwise filter the Explore tab by this category.
     router.navigate({
       pathname: '/devotee/(tabs)/ExploreTab' as any,
       params: { categoryId: category._id, categoryName: category.name },
@@ -83,7 +107,7 @@ export default function CategoryChips({ categories }: CategoryChipsProps): React
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {categories.map((cat) => (
+        {displayCategories.map((cat) => (
           <Chip key={cat._id} category={cat} onPress={() => handleChipPress(cat)} />
         ))}
       </ScrollView>

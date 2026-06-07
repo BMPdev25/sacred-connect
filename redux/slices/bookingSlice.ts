@@ -51,7 +51,14 @@ const initialState: BookingDraft = {
   razorpayOrderId: null,
   bookingReference: null,
   activeSection: 'service',
+  bookingType: 'scheduled',
+  ceremonyId: null,
+  preferredPriestId: null,
+  instantExpiresAt: null,
 };
+
+/** Default ceremony duration (minutes) when a ceremony omits its own. */
+const DEFAULT_CEREMONY_DURATION_MINUTES = 60;
 
 // ---------------------------------------------------------------------------
 // Slice
@@ -198,6 +205,49 @@ export const bookingSlice = createSlice({
     },
 
     /**
+     * Sets which booking path (instant broadcast vs scheduled priest-first) the
+     * draft is on. Does not touch other selections.
+     */
+    setBookingType(state, action: PayloadAction<'instant' | 'scheduled'>) {
+      state.bookingType = action.payload;
+    },
+
+    /**
+     * Sets the ceremony context for the ceremony-first instant flow (no priest
+     * chosen). Populates the ceremony id, a synthetic service selection so the
+     * date/time steps unlock, and the price breakdown, then advances to 'date'.
+     */
+    setCeremonyContext(
+      state,
+      action: PayloadAction<{
+        ceremonyId: string;
+        ceremonyName: string;
+        basePrice: number;
+        durationMinutes?: number;
+      }>
+    ) {
+      const { ceremonyId, ceremonyName, basePrice, durationMinutes } = action.payload;
+      state.ceremonyId = ceremonyId;
+      state.selectedService = {
+        serviceId: '',
+        ceremonyId,
+        ceremonyName,
+        durationMinutes: durationMinutes ?? DEFAULT_CEREMONY_DURATION_MINUTES,
+        basePrice,
+      };
+      state.pricing = calculatePricing(basePrice);
+      state.activeSection = 'date';
+    },
+
+    /**
+     * Sets the preferred priest for a priest-triggered instant booking (head-start),
+     * or clears it for the ceremony-first flow.
+     */
+    setPreferredPriest(state, action: PayloadAction<string | null>) {
+      state.preferredPriestId = action.payload;
+    },
+
+    /**
      * Resets the active booking draft back to the initial blank state.
      */
     clearBookingDraft() {
@@ -216,6 +266,9 @@ export const {
   setCreatedBooking,
   clearBookingDraft,
   updatePriestDisplayInfo,
+  setBookingType,
+  setCeremonyContext,
+  setPreferredPriest,
 } = bookingSlice.actions;
 
 export default bookingSlice.reducer;

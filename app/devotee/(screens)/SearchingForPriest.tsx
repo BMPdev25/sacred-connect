@@ -12,8 +12,9 @@ import { logger } from '@/utils/logger';
 
 type ScreenState = 'searching' | 'connecting' | 'no_priest' | 'error';
 
-// How long to keep searching before giving up, and how often to poll.
-const SEARCH_TIMEOUT_MS = 3 * 60 * 1000;
+// How long to keep searching before giving up (matches the backend 10-min TTL),
+// and how often to poll.
+const SEARCH_TIMEOUT_MS = 10 * 60 * 1000;
 const POLL_INTERVAL_MS = 4000;
 // Statuses that mean the search is over without a priest.
 const DEAD_STATUSES = ['cancelled', 'expired', 'rejected'];
@@ -22,9 +23,12 @@ const DEAD_STATUSES = ['cancelled', 'expired', 'rejected'];
  * Devotee-facing screen for the INSTANT (accept-then-pay) flow.
  *
  * After an instant booking is created it sits in 'searching' while priests are
- * notified. This screen polls the booking until a priest accepts (status →
- * 'confirmed'), then opens the payment order and forwards to the Payment screen.
- * If no priest accepts before the timeout, it offers to go back.
+ * notified. When a priest accepts, the backend assigns the priest and moves the
+ * booking to 'pending' (awaiting payment) — NOT 'confirmed' (that happens after
+ * payment). So this screen polls until a priest is assigned (priestId present
+ * and status no longer 'searching'), then opens the payment order and forwards
+ * to the Payment screen. If no priest accepts before the timeout, it offers to
+ * go back.
  */
 export default function SearchingForPriestScreen(): React.JSX.Element {
   const router = useRouter();
@@ -76,15 +80,17 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
         const booking = (res as any)?.data || res;
         if (!activeRef.current) return;
 
-        if (booking?.status === 'confirmed') {
-          stopTimers();
-          setState('connecting');
-          await goToPayment();
-          return;
-        }
         if (DEAD_STATUSES.includes(booking?.status)) {
           stopTimers();
           setState('no_priest');
+          return;
+        }
+        // A priest has accepted once a priestId is assigned and the booking has
+        // left 'searching' (→ 'pending', awaiting payment). Hand off to payment.
+        if (booking?.priestId && booking?.status !== 'searching') {
+          stopTimers();
+          setState('connecting');
+          await goToPayment();
           return;
         }
       } catch (err) {

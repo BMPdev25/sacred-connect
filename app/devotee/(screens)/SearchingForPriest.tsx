@@ -1,54 +1,139 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { THEME } from '@/constants/theme';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import * as bookingService from '@/services/devotee/bookingService';
 import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
+import { BookingListItem } from '@/types/bookingManagement.types';
 import { logger } from '@/utils/logger';
 
-type ScreenState = 'searching' | 'connecting' | 'no_priest' | 'error';
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-// How long to keep searching before giving up (matches the backend 10-min TTL),
-// and how often to poll.
-const SEARCH_TIMEOUT_MS = 10 * 60 * 1000;
-const POLL_INTERVAL_MS = 4000;
-// Statuses that mean the search is over without a priest.
+/** Total search window in seconds (mirrors backend 10-min TTL). */
+const SEARCH_TOTAL_SECONDS = 600;
+const POLL_INTERVAL_MS = 5000;
+const FOUND_DISPLAY_MS = 2000;
 const DEAD_STATUSES = ['cancelled', 'expired', 'rejected'];
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type SearchState = 'searching' | 'found' | 'expired' | 'error';
+
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+interface CountdownRingProps {
+  secondsRemaining: number;
+}
+
 /**
- * Devotee-facing screen for the INSTANT (accept-then-pay) flow.
+ * Circular countdown ring with minutes:seconds display in the centre.
+ * Drawn with a simple SVG-style border trick using borderRadius.
+ */
+function CountdownRing({ secondsRemaining }: CountdownRingProps): React.JSX.Element {
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = secondsRemaining % 60;
+  const label = `${minutes}:${String(seconds).padStart(2, '0')}`;
+  const pct = secondsRemaining / SEARCH_TOTAL_SECONDS;
+  const isLow = secondsRemaining < 60;
+
+  return (
+    <View style={styles.ringOuter}>
+      <View style={[styles.ringTrack, isLow && styles.ringTrackLow]}>
+        <View style={styles.ringInner}>
+          <Text style={[styles.ringTime, isLow && styles.ringTimeLow]}>{label}</Text>
+          <Text style={styles.ringLabel}>remaining</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+interface BookingCardProps {
+  booking: BookingListItem;
+}
+
+/**
+ * Compact card showing ceremony, date, time and location during the search.
+ */
+function BookingCard({ booking }: BookingCardProps): React.JSX.Element {
+  return (
+    <View style={styles.bookingCard}>
+      <InfoRow icon="pricetag-outline" text={booking.ceremonyType} />
+      <InfoRow icon="calendar-outline" text={booking.date} />
+      <InfoRow icon="time-outline" text={booking.startTime} />
+      {booking.location?.address ? (
+        <InfoRow icon="location-outline" text={booking.location.address} />
+      ) : null}
+    </View>
+  );
+}
+
+interface InfoRowProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  text: string;
+}
+
+function InfoRow({ icon, text }: InfoRowProps): React.JSX.Element {
+  return (
+    <View style={styles.infoRow}>
+      <Ionicons name={icon} size={16} color={THEME.colors.textMuted} />
+      <Text style={styles.infoText} numberOfLines={1}>{text}</Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
+
+/**
+ * SearchingForPriestScreen — shown while an instant booking broadcasts to priests.
  *
- * After an instant booking is created it sits in 'searching' while priests are
- * notified. When a priest accepts, the backend assigns the priest and moves the
- * booking to 'pending' (awaiting payment) — NOT 'confirmed' (that happens after
- * payment). So this screen polls until a priest is assigned (priestId present
- * and status no longer 'searching'), then opens the payment order and forwards
- * to the Payment screen. If no priest accepts before the timeout, it offers to
- * go back.
+ * Polls every 5 s for a priest assignment (status leaves 'searching' with a
+ * priestId set). On acceptance, celebrates for 2 s then hands off to Payment.
+ * On expiry (10-min TTL) or cancellation, offers Try Again or Schedule flows.
  */
 export default function SearchingForPriestScreen(): React.JSX.Element {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ bookingId: string; totalDisplay: string }>();
+  const params = useLocalSearchParams<{
+    bookingId: string;
+    totalDisplay: string;
+    ceremonyId: string;
+  }>();
 
-  const [state, setState] = useState<ScreenState>('searching');
-  const [errorMessage, setErrorMessage] = useState('');
+  const [searchState, setSearchState] = useState<SearchState>('searching');
+  const [secondsLeft, setSecondsLeft] = useState(SEARCH_TOTAL_SECONDS);
+  const [booking, setBooking] = useState<BookingListItem | null>(null);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const activeRef = useRef(true);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const deadlineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const stopTimers = useCallback(() => {
+  const clearTimers = useCallback(() => {
     if (pollRef.current) { clearTimeout(pollRef.current); pollRef.current = null; }
-    if (deadlineRef.current) { clearTimeout(deadlineRef.current); deadlineRef.current = null; }
+    if (tickRef.current) { clearInterval(tickRef.current); tickRef.current = null; }
   }, []);
 
-  // When a priest accepts, open the payment order and hand off to Payment.
-  const goToPayment = useCallback(async () => {
+  const handleGoToPayment = useCallback(async () => {
     try {
       const total = Number(params.totalDisplay) || 0;
       const order = await bookingService.createPaymentOrder(params.bookingId, total);
@@ -63,38 +148,53 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
         },
       });
     } catch (err: any) {
-      logger.error('SearchingForPriest: failed to open payment', err);
+      logger.error('SearchingForPriest: payment order failed', err);
       if (!activeRef.current) return;
-      setErrorMessage(err?.message || 'Could not start payment. Please try again.');
-      setState('error');
+      setErrorMsg(err?.message || 'Could not start payment. Please try again.');
+      setSearchState('error');
     }
   }, [params.bookingId, params.totalDisplay, router]);
 
   useEffect(() => {
     activeRef.current = true;
 
+    // Countdown tick every second.
+    tickRef.current = setInterval(() => {
+      setSecondsLeft((s) => {
+        if (s <= 1) {
+          clearTimers();
+          setSearchState('expired');
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+
+    // Poll for priest assignment.
     const poll = async () => {
       if (!activeRef.current) return;
       try {
         const res = await fetchBookingDetails(params.bookingId);
-        const booking = (res as any)?.data || res;
+        const data = (res as any)?.data || res;
         if (!activeRef.current) return;
+        if (data) setBooking(data as BookingListItem);
 
-        if (DEAD_STATUSES.includes(booking?.status)) {
-          stopTimers();
-          setState('no_priest');
+        if (DEAD_STATUSES.includes(data?.status)) {
+          clearTimers();
+          setSearchState('expired');
           return;
         }
-        // A priest has accepted once a priestId is assigned and the booking has
-        // left 'searching' (→ 'pending', awaiting payment). Hand off to payment.
-        if (booking?.priestId && booking?.status !== 'searching') {
-          stopTimers();
-          setState('connecting');
-          await goToPayment();
+        if (data?.priestId && data?.status !== 'searching') {
+          clearTimers();
+          setSearchState('found');
+          // Short celebration then hand off to payment.
+          setTimeout(() => {
+            if (activeRef.current) handleGoToPayment();
+          }, FOUND_DISPLAY_MS);
           return;
         }
-      } catch (err) {
-        // Transient errors are ignored — keep polling until the deadline.
+      } catch {
+        // Transient — keep polling.
       }
       if (activeRef.current) {
         pollRef.current = setTimeout(poll, POLL_INTERVAL_MS);
@@ -102,104 +202,244 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
     };
 
     poll();
-    deadlineRef.current = setTimeout(() => {
-      if (!activeRef.current) return;
-      stopTimers();
-      setState('no_priest');
-    }, SEARCH_TIMEOUT_MS);
 
     return () => {
       activeRef.current = false;
-      stopTimers();
+      clearTimers();
     };
-  }, [params.bookingId, goToPayment, stopTimers]);
+  }, [params.bookingId, handleGoToPayment, clearTimers]);
 
-  const handleBack = () => {
-    activeRef.current = false;
-    stopTimers();
-    router.replace('/devotee/(tabs)/HomeTab' as any);
+  const handleCancelSearch = () => {
+    Alert.alert(
+      'Cancel Search?',
+      'Your instant booking request will be cancelled.',
+      [
+        { text: 'Keep Searching', style: 'cancel' },
+        {
+          text: 'Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            clearTimers();
+            activeRef.current = false;
+            try {
+              await bookingService.cancelInstantBooking(params.bookingId);
+            } catch (e) {
+              logger.warn('SearchingForPriest: cancel failed', e);
+            }
+            router.replace('/devotee/(tabs)/HomeTab' as any);
+          },
+        },
+      ]
+    );
   };
 
-  // ---- render states ----
-  if (state === 'no_priest' || state === 'error') {
-    const isError = state === 'error';
+  const handleTryAgain = () =>
+    router.replace({
+      pathname: '/devotee/(screens)/InstantBookingSetup' as any,
+      params: { ceremonyId: params.ceremonyId },
+    });
+
+  const handleSchedule = () =>
+    router.replace({
+      pathname: '/devotee/(tabs)/ExploreTab' as any,
+      params: { filterCeremonyId: params.ceremonyId },
+    });
+
+  if (searchState === 'found') {
     return (
-      <View style={[styles.container, { paddingTop: insets.top + 40 }]}>
+      <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.center}>
-          <Ionicons
-            name={isError ? 'alert-circle-outline' : 'time-outline'}
-            size={64}
-            color={THEME.colors.textMuted}
-          />
-          <Text style={styles.title}>
-            {isError ? 'Something went wrong' : 'No priest available right now'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {isError
-              ? errorMessage
-              : 'We could not find an available priest for your ceremony. Please try again or book a specific priest.'}
-          </Text>
-          <View style={styles.actions}>
-            <PrimaryButton title="Back to Home" onPress={handleBack} />
-          </View>
+          <Text style={styles.foundEmoji}>🎉</Text>
+          <Text style={styles.foundTitle}>Pandit Found!</Text>
+          <Text style={styles.subtitle}>Setting up your payment…</Text>
         </View>
       </View>
     );
   }
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top + 40 }]}>
-      <View style={styles.center}>
-        <ActivityIndicator size="large" color={THEME.colors.primary} />
-        <Text style={styles.title}>
-          {state === 'connecting' ? 'Priest found! Setting up payment…' : 'Finding a priest for you…'}
-        </Text>
-        <Text style={styles.subtitle}>
-          {state === 'connecting'
-            ? 'Please hold on a moment.'
-            : 'We are notifying available priests near you. This usually takes a minute.'}
-        </Text>
-      </View>
-
-      {state === 'searching' && (
-        <View style={styles.bottom}>
-          <PrimaryButton title="Cancel" variant="outline" onPress={handleBack} />
+  if (searchState === 'expired' || searchState === 'error') {
+    return (
+      <View style={[styles.container, { paddingTop: insets.top }]}>
+        <View style={[styles.center, styles.expiredCenter]}>
+          <Ionicons name="alert-circle-outline" size={64} color={THEME.colors.primary} />
+          <Text style={styles.expiredTitle}>
+            {searchState === 'error' ? 'Something went wrong' : 'No Pandit Found'}
+          </Text>
+          <Text style={styles.subtitle}>
+            {searchState === 'error'
+              ? errorMsg
+              : 'No pandits were available for your instant request.'}
+          </Text>
         </View>
-      )}
+        <View style={styles.recoveryButtons}>
+          <PrimaryButton title="Try Instant Again" onPress={handleTryAgain} />
+          <View style={styles.buttonGap} />
+          <PrimaryButton
+            title="Schedule with a Pandit"
+            variant="outline"
+            onPress={handleSchedule}
+          />
+        </View>
+      </View>
+    );
+  }
+
+  // searching state
+  return (
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.center}>
+          <CountdownRing secondsRemaining={secondsLeft} />
+          <Text style={styles.searchTitle}>Finding a Pandit…</Text>
+          <Text style={styles.subtitle}>
+            We are notifying available pandits near you
+          </Text>
+        </View>
+
+        {booking ? <BookingCard booking={booking} /> : null}
+      </ScrollView>
+
+      <View style={[styles.cancelRow, { paddingBottom: insets.bottom + 16 }]}>
+        <TouchableOpacity onPress={handleCancelSearch} style={styles.cancelBtn}>
+          <Text style={styles.cancelText}>Cancel Search</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Styles — no hardcoded colors, all tokens from THEME
+// ---------------------------------------------------------------------------
+
+const RING_SIZE = 160;
+const RING_BORDER = 8;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.colors.background,
-    paddingHorizontal: 24,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: THEME.spacing.lg,
+    paddingBottom: 80,
   },
   center: {
+    alignItems: 'center',
+    paddingVertical: THEME.spacing.xl,
+  },
+  expiredCenter: {
     flex: 1,
+    justifyContent: 'center',
+  },
+  // Countdown ring
+  ringOuter: {
+    marginBottom: THEME.spacing.lg,
+  },
+  ringTrack: {
+    width: RING_SIZE,
+    height: RING_SIZE,
+    borderRadius: RING_SIZE / 2,
+    borderWidth: RING_BORDER,
+    borderColor: THEME.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
+  ringTrackLow: {
+    borderColor: '#E65C00',
+  },
+  ringInner: {
+    alignItems: 'center',
+  },
+  ringTime: {
+    fontSize: THEME.typography.displayMedium,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+  },
+  ringTimeLow: {
+    color: '#E65C00',
+  },
+  ringLabel: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.textMuted,
+    marginTop: 2,
+  },
+  searchTitle: {
     fontSize: THEME.typography.heading,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
-    marginTop: THEME.spacing.lg,
     textAlign: 'center',
+    marginBottom: THEME.spacing.sm,
   },
   subtitle: {
     fontSize: THEME.typography.bodySmall,
     color: THEME.colors.textSecondary,
-    marginTop: THEME.spacing.sm,
     textAlign: 'center',
     lineHeight: 20,
   },
-  actions: {
-    width: '100%',
-    marginTop: THEME.spacing.xl,
+  // Booking details card
+  bookingCard: {
+    backgroundColor: THEME.colors.surface,
+    borderRadius: THEME.borderRadius.md,
+    padding: THEME.spacing.md,
+    marginTop: THEME.spacing.lg,
+    gap: THEME.spacing.sm,
+    ...THEME.shadow.card,
   },
-  bottom: {
-    paddingBottom: 32,
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.sm,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
+  },
+  // Cancel
+  cancelRow: {
+    alignItems: 'center',
+    paddingTop: THEME.spacing.sm,
+  },
+  cancelBtn: {
+    paddingVertical: THEME.spacing.sm,
+    paddingHorizontal: THEME.spacing.lg,
+  },
+  cancelText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textMuted,
+    textDecorationLine: 'underline',
+  },
+  // Found state
+  foundEmoji: {
+    fontSize: 64,
+    marginBottom: THEME.spacing.md,
+  },
+  foundTitle: {
+    fontSize: THEME.typography.displayMedium,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: THEME.spacing.sm,
+  },
+  // Expired/error state
+  expiredTitle: {
+    fontSize: THEME.typography.heading,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    textAlign: 'center',
+    marginTop: THEME.spacing.md,
+    marginBottom: THEME.spacing.sm,
+  },
+  recoveryButtons: {
+    paddingHorizontal: THEME.spacing.lg,
+    paddingBottom: THEME.spacing.xl,
+  },
+  buttonGap: {
+    height: THEME.spacing.sm,
   },
 });

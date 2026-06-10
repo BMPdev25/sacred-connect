@@ -103,5 +103,5 @@ Import useSafeAreaInsets from react-native-safe-area-context.
 - Admin panel (completely separate project)
 - Astrology consultation
 - In-app chat
-- Instant priest search (deferred to Phase 2)
+- Instant booking — IMPLEMENTED (instant/scheduled date-window split, broadcast, head-start, 10-min TTL, SearchingForPriest screen). See bookingSlice.ts and InstantBookingSetup.tsx.
 - Priest payout to bank (backend not ready)

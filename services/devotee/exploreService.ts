@@ -1,4 +1,4 @@
-import api from '@/api/index';
+﻿import api from '@/api/index';
 import { ExploreFilters, PaginatedPriests, SearchSuggestion, SortOption } from '@/types/explore.types';
 import { NearbyPriest } from '@/types/home.types';
 import { logger } from '@/utils/logger';
@@ -182,8 +182,8 @@ export async function searchAll(
     if (sort) {
       if (sort === 'rating') {
         queryParams.sortBy = 'rating';
-      } else if (sort === 'price_asc' || sort === 'price_desc') {
-        queryParams.sortBy = 'price';
+      } else if (sort === 'experience') {
+        queryParams.sortBy = 'experience';
       }
     }
 
@@ -215,5 +215,34 @@ export async function searchAll(
   } catch (err: any) {
     logger.error('searchAll failed', err);
     throw new Error(err?.response?.data?.message || err?.response?.data?.error || 'Universal search failed');
+  }
+}
+
+/**
+ * Fetch unified typeahead results (ceremonies + priests) for the search dropdown.
+ * Calls GET /api/search?q=<query>&limit=<limit>.
+ *
+ * @param query - User input string (must be >= 2 chars, enforced server-side).
+ * @param limit - Max results per section (default 5).
+ * @returns UnifiedSearchData with ceremonies and priests arrays.
+ */
+export async function fetchUnifiedSearch(
+  query: string,
+  limit: number = 5
+): Promise<import('@/types/explore.types').UnifiedSearchData> {
+  const trimmed = query.trim();
+  if (trimmed.length < 2) return { ceremonies: [], priests: [] };
+
+  try {
+    const response = await api.get<{
+      success: boolean;
+      data: import('@/types/explore.types').UnifiedSearchData;
+    }>('/search', { params: { q: trimmed, limit } });
+
+    if (!response.data?.success) return { ceremonies: [], priests: [] };
+    return response.data.data;
+  } catch (err) {
+    logger.warn('fetchUnifiedSearch failed silently', err);
+    return { ceremonies: [], priests: [] };
   }
 }

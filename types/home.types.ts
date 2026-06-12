@@ -1,4 +1,4 @@
-/**
+﻿/**
  * A promotional banner for the home screen carousel.
  */
 export interface Banner {
@@ -36,6 +36,10 @@ export interface CeremonyCategory {
   icon?: string;
   /** Alias kept for backwards compatibility. */
   iconName?: string;
+  /** URL-friendly slug (e.g. "puja", "homam"). */
+  slug?: string;
+  /** _id of a representative Ceremony in this category, provided by the backend. */
+  representativeCeremonyId?: string;
 }
 
 /**
@@ -113,3 +117,4 @@ export interface UserLocation {
   /** Timestamp indicating when the location was last fetched. */
   lastFetched: number | null;
 }
+

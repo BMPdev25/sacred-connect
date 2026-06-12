@@ -1,4 +1,4 @@
-import { NearbyPriest } from './home.types';
+﻿import { NearbyPriest } from './home.types';
 
 /**
  * Active filter state for the Explore Tab.
@@ -23,7 +23,7 @@ export interface ExploreFilters {
 /**
  * Sort options for the available priests list.
  */
-export type SortOption = 'rating' | 'distance' | 'price_asc' | 'price_desc';
+export type SortOption = 'rating' | 'distance' | 'experience';
 
 /**
  * A single autocomplete search suggestion returned as user types.
@@ -68,4 +68,33 @@ export interface ExploreUIState {
   isSuggestionOpen: boolean;
   /** Flag representing if filter settings sheet is open. */
   isFilterSheetOpen: boolean;
+}
+
+/**
+ * A ceremony result returned from the unified search endpoint.
+ */
+export interface CeremonySearchResult {
+  _id: string;
+  name: string;
+  category: string;
+  shortDescription?: string | null;
+  pricing: { basePrice: number; priceRange?: { min: number; max: number } };
+}
+
+/**
+ * A priest result returned from the unified search endpoint.
+ */
+export interface PriestSearchResult {
+  _id: string;
+  userId: { _id?: string; name: string; profilePicture?: string } | null;
+  ratings?: { average: number; count: number };
+  services?: Array<{ ceremonyId?: { name?: string } | string; price?: number }>;
+}
+
+/**
+ * Combined response shape from GET /api/search.
+ */
+export interface UnifiedSearchData {
+  ceremonies: CeremonySearchResult[];
+  priests: PriestSearchResult[];
 }

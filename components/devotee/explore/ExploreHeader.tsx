@@ -1,14 +1,14 @@
-/**
- * ExploreHeader — component combining title, search bar, and suggestions overlay.
+﻿/**
+ * ExploreHeader -- component combining title, search bar, and unified search dropdown.
  */
 
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { SearchSuggestion } from '@/types/explore.types';
 import { THEME } from '@/constants/theme';
+import { CeremonySearchResult, PriestSearchResult } from '@/types/explore.types';
 import ExploreSearchBar from './ExploreSearchBar';
-import SuggestionDropdown from './SuggestionDropdown';
+import UnifiedSearchDropdown from './UnifiedSearchDropdown';
 
 export interface ExploreHeaderProps {
   title: string;
@@ -16,12 +16,15 @@ export interface ExploreHeaderProps {
   onChangeSearchInput: (text: string) => void;
   isSuggestionOpen: boolean;
   setIsSuggestionOpen: (open: boolean) => void;
-  suggestions: SearchSuggestion[];
-  isLoadingSuggestions: boolean;
+  ceremonies: CeremonySearchResult[];
+  priests: PriestSearchResult[];
+  isLoadingSearch: boolean;
   filterCount: number;
   onFilterPress: () => void;
   autoFocus: boolean;
-  onSuggestionPress: (suggestion: SearchSuggestion) => void;
+  onCeremonyPress: (ceremonyId: string) => void;
+  onPriestPress: (priestProfileId: string, userId: string) => void;
+  onSearchAllPandits: (query: string) => void;
   onSearchSubmit: (query: string) => void;
   onSearchClear: () => void;
   onFocus?: () => void;
@@ -34,12 +37,15 @@ export function ExploreHeader({
   onChangeSearchInput,
   isSuggestionOpen,
   setIsSuggestionOpen,
-  suggestions,
-  isLoadingSuggestions,
+  ceremonies,
+  priests,
+  isLoadingSearch,
   filterCount,
   onFilterPress,
   autoFocus,
-  onSuggestionPress,
+  onCeremonyPress,
+  onPriestPress,
+  onSearchAllPandits,
   onSearchSubmit,
   onSearchClear,
   onFocus,
@@ -58,13 +64,24 @@ export function ExploreHeader({
           onFilterPress={onFilterPress}
           onFocus={onFocus}
         />
-        <SuggestionDropdown
+        <UnifiedSearchDropdown
           visible={isSuggestionOpen}
-          suggestions={suggestions}
           query={searchInput}
-          isLoading={isLoadingSuggestions}
-          onSuggestionPress={onSuggestionPress}
-          onSearchPress={onSearchSubmit}
+          ceremonies={ceremonies}
+          priests={priests}
+          isLoading={isLoadingSearch}
+          onCeremonyPress={(id) => {
+            setIsSuggestionOpen(false);
+            onCeremonyPress(id);
+          }}
+          onPriestPress={(priestId, userId) => {
+            setIsSuggestionOpen(false);
+            onPriestPress(priestId, userId);
+          }}
+          onSearchAllPandits={(q) => {
+            setIsSuggestionOpen(false);
+            onSearchAllPandits(q);
+          }}
         />
       </View>
     </View>

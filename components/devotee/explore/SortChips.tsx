@@ -29,10 +29,9 @@ interface SortChipItem {
 }
 
 const SORT_OPTIONS: SortChipItem[] = [
-  { label: 'Top Rated', value: 'rating' },
-  { label: 'Nearest',   value: 'distance' },
-  { label: 'Price: Low',  value: 'price_asc' },
-  { label: 'Price: High', value: 'price_desc' },
+  { label: 'Top Rated',       value: 'rating' },
+  { label: 'Nearest',         value: 'distance' },
+  { label: 'Most Experienced', value: 'experience' },
 ];
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-import Constants from 'expo-constants';
+﻿import Constants from 'expo-constants';
 
 /**
  * Defines the local image registry structure, mapping image keys to React Native asset sources.
@@ -21,6 +21,7 @@ const IMAGE_REGISTRY: LocalImageRegistry = {
   'shared.avatarPlaceholder': require('@/assets/images/shared/avatar-placeholder.png'),
   'booking.confirmationSuccess': require('@/assets/images/auth/forgot-password-success.png'),
   'devotee.emptyBookings': require('@/assets/images/shared/avatar-placeholder.png'),
+  'shared.ceremonyPlaceholder': require('@/assets/images/housewarming.png'),
 };
 
 /**
@@ -39,6 +40,7 @@ const IMAGE_FILENAMES: Record<string, string> = {
   'shared.avatarPlaceholder': 'shared/avatar-placeholder.png',
   'booking.confirmationSuccess': 'auth/forgot-password-success.png',
   'devotee.emptyBookings': 'shared/avatar-placeholder.png',
+  'shared.ceremonyPlaceholder': 'housewarming.png',
 };
 
 /**
@@ -115,3 +117,4 @@ export const AssetService = {
   getImage,
   getDocument,
 };
+

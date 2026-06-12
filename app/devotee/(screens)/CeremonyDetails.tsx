@@ -41,9 +41,18 @@ interface RitualStep {
   description: string;
 }
 
+interface CeremonyMaterial {
+  name: string;
+  quantity?: string;
+  isOptional?: boolean;
+  providedBy?: string;
+}
+
 interface CeremonyRequirements {
-  materials?: string[];
+  materials?: CeremonyMaterial[];
   specialInstructions?: string;
+  spaceRequirements?: string;
+  participants?: string;
 }
 
 interface CeremonyImage {
@@ -123,6 +132,17 @@ function PanditCard({ pandit, onPress }: PanditCardProps): React.JSX.Element {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/**
+ * Safely converts a requirements text field to a string.
+ * Handles legacy DB documents where the field may be an array of strings.
+ */
+function toReqString(value: unknown): string {
+  if (!value) return '';
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return (value as string[]).filter(Boolean).join(' ');
+  return '';
+}
+
 /** Extracts the string user ID regardless of populated vs plain form. */
 function getPriestUserId(userId: { _id: string } | string): string {
   if (typeof userId === 'string') return userId;
@@ -152,11 +172,14 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   const dispatch = useDispatch();
   const { ceremonyId } = useLocalSearchParams<{ ceremonyId: string }>();
 
-  const { data, isLoading, error } = useQuery<CeremonyWithPriests>({
+  const { data, isLoading, error } = useQuery<{
+    ceremony: CeremonyWithPriests;
+    priests: PanditForCeremony[];
+  }>({
     queryKey: ['ceremonyWithPriests', ceremonyId],
     queryFn: () =>
       api
-        .get<{ success: boolean; data: CeremonyWithPriests }>(
+        .get<{ success: boolean; data: { ceremony: CeremonyWithPriests; priests: PanditForCeremony[] } }>(
           `/ceremonies/${ceremonyId}/with-priests`
         )
         .then((r) => r.data.data),
@@ -165,20 +188,24 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
 
   /** Instant booking: ceremony-first, no priest chosen yet. */
   const handleInstantBook = () => {
-    if (!data) return;
+    const ceremony = data?.ceremony;
+    if (!ceremony?.pricing?.basePrice) {
+      Alert.alert('Error', 'Ceremony details are still loading. Please try again.');
+      return;
+    }
     dispatch(setBookingType('instant'));
     dispatch(
       setCeremonyContext({
-        ceremonyId: data._id,
-        ceremonyName: data.name,
-        basePrice: data.pricing.basePrice,
-        durationMinutes: data.durationMinutes,
+        ceremonyId: ceremony._id,
+        ceremonyName: ceremony.name,
+        basePrice: ceremony.pricing.basePrice,
+        durationMinutes: (ceremony as any).duration?.typical ?? ceremony.durationMinutes,
       })
     );
     dispatch(setPreferredPriest(null));
     router.push({
       pathname: '/devotee/(screens)/InstantBookingSetup' as any,
-      params: { ceremonyId: data._id },
+      params: { ceremonyId: ceremony._id },
     });
   };
 
@@ -198,7 +225,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
         id: pandit._id,
         userId: getPriestUserId(pandit.userId),
         ceremonyId,
-        ceremonyName: data?.name ?? '',
+        ceremonyName: data?.ceremony?.name ?? '',
       },
     });
   };
@@ -214,7 +241,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   }
 
   // ---- error / not found ----
-  if (error || !data) {
+  if (error || !data?.ceremony) {
     return (
       <View style={[styles.container, styles.center]}>
         <Ionicons name="alert-circle-outline" size={48} color={THEME.colors.textMuted} />
@@ -229,8 +256,10 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
     );
   }
 
+  const ceremony = data.ceremony;
   const priests = data.priests ?? [];
-  const heroImage = data.images?.[0]?.url;
+  const heroImage = ceremony.images?.[0]?.url;
+
 
   return (
     <View style={styles.container}>
@@ -261,26 +290,26 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
           <View style={styles.heroDarkOverlay} />
 
           <View style={styles.heroContent}>
-            {data.category ? (
+            {ceremony.category ? (
               <View style={styles.categoryPill}>
-                <Text style={styles.categoryPillText}>{data.category}</Text>
+                <Text style={styles.categoryPillText}>{ceremony.category}</Text>
               </View>
             ) : null}
 
-            <Text style={styles.ceremonyName}>{data.name}</Text>
+            <Text style={styles.ceremonyName}>{ceremony.name}</Text>
 
             <View style={styles.heroInfoRow}>
-              {data.durationMinutes != null && (
+              {((ceremony as any).duration?.typical ?? ceremony.durationMinutes) != null && (
                 <>
                   <Ionicons name="time-outline" size={15} color={THEME.colors.surface} />
-                  <Text style={styles.heroInfoText}>{formatDuration(data.durationMinutes)}</Text>
+                  <Text style={styles.heroInfoText}>{formatDuration((ceremony as any).duration?.typical ?? ceremony.durationMinutes)}</Text>
                 </>
               )}
-              {data.pricing?.basePrice != null && (
+              {ceremony.pricing?.basePrice != null && (
                 <>
                   <Ionicons name="cash-outline" size={15} color={THEME.colors.surface} style={styles.heroInfoIcon} />
                   <Text style={styles.heroInfoText}>
-                    From ₹{data.pricing.basePrice.toLocaleString('en-IN')}
+                    From ₹{ceremony.pricing.basePrice.toLocaleString('en-IN')}
                   </Text>
                 </>
               )}
@@ -290,18 +319,18 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
 
         <View style={styles.body}>
           {/* ── SECTION 2: About ── */}
-          {data.description ? (
+          {ceremony.description ? (
             <View style={styles.section}>
               <SectionHeading title="About this Ceremony" />
-              <Text style={styles.bodyText}>{data.description}</Text>
+              <Text style={styles.bodyText}>{ceremony.description}</Text>
             </View>
           ) : null}
 
           {/* ── SECTION 3: Ritual Steps ── */}
-          {data.ritualSteps && data.ritualSteps.length > 0 ? (
+          {ceremony.ritualSteps && ceremony.ritualSteps.length > 0 ? (
             <View style={styles.section}>
               <SectionHeading title="Ritual Steps" />
-              {data.ritualSteps.map((step, idx) => (
+              {ceremony.ritualSteps.map((step, idx) => (
                 <View key={idx} style={styles.ritualStepRow}>
                   <View style={styles.stepNumberCircle}>
                     <Text style={styles.stepNumber}>{step.order ?? idx + 1}</Text>
@@ -313,25 +342,62 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
           ) : null}
 
           {/* ── SECTION 4: Requirements ── */}
-          {data.requirements && (
+          {!!(ceremony as any).requirements && (
             <View style={styles.section}>
               <SectionHeading title="Requirements" />
-              {data.requirements.materials && data.requirements.materials.length > 0 && (
-                <View style={styles.materialsList}>
-                  {data.requirements.materials.map((item, idx) => (
-                    <View key={idx} style={styles.bulletRow}>
-                      <Text style={styles.bullet}>•</Text>
-                      <Text style={styles.bulletText}>{item}</Text>
-                    </View>
-                  ))}
+
+              {/* Materials chips */}
+              {((ceremony as any).requirements.materials ?? []).length > 0 && (
+                <>
+                  <Text style={styles.reqSubLabel}>What to Arrange</Text>
+                  <View style={styles.chipsWrap}>
+                    {((ceremony as any).requirements.materials as any[]).map((item: any, idx: number) => (
+                      <View key={idx} style={styles.materialChip}>
+                        <Ionicons name="checkmark-circle-outline" size={14} color={THEME.colors.primary} />
+                        <Text style={styles.materialChipText}>{typeof item === 'string' ? item : item.name}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </>
+              )}
+
+              {/* Who should attend */}
+              {typeof (ceremony as any).requirements.participants === 'string' &&
+                !!(ceremony as any).requirements.participants && (
+                <View style={[styles.reqInfoRow, { marginTop: THEME.spacing.md }]}>
+                  <Ionicons name="people-outline" size={18} color={THEME.colors.primary} style={styles.reqRowIcon} />
+                  <View style={styles.reqRowContent}>
+                    <Text style={styles.reqRowLabel}>Who Should Attend</Text>
+                    <Text style={styles.reqRowText}>{(ceremony as any).requirements.participants}</Text>
+                  </View>
                 </View>
               )}
-              {data.requirements.specialInstructions ? (
-                <View style={styles.infoCard}>
-                  <Ionicons name="information-circle-outline" size={18} color={THEME.colors.primary} />
-                  <Text style={styles.infoCardText}>{data.requirements.specialInstructions}</Text>
+
+              {/* Good to know / Special instructions */}
+              {!!toReqString((ceremony as any).requirements.specialInstructions) && (
+                <View style={[styles.reqInfoCard, { marginTop: THEME.spacing.md }]}>
+                  <View style={styles.reqCardHeader}>
+                    <Ionicons name="information-circle" size={18} color={THEME.colors.primary} />
+                    <Text style={styles.reqRowLabel}>Good to Know</Text>
+                  </View>
+                  <Text style={[styles.reqRowText, { marginTop: 4 }]}>
+                    {toReqString((ceremony as any).requirements.specialInstructions)}
+                  </Text>
                 </View>
-              ) : null}
+              )}
+
+              {/* Space needed */}
+              {!!toReqString((ceremony as any).requirements.spaceRequirements) && (
+                <View style={[styles.reqInfoRow, { marginTop: THEME.spacing.md }]}>
+                  <Ionicons name="resize-outline" size={18} color={THEME.colors.primary} style={styles.reqRowIcon} />
+                  <View style={styles.reqRowContent}>
+                    <Text style={styles.reqRowLabel}>Space Needed</Text>
+                    <Text style={styles.reqRowText}>
+                      {toReqString((ceremony as any).requirements.spaceRequirements)}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           )}
 
@@ -548,42 +614,66 @@ const styles = StyleSheet.create({
     paddingTop: 3,
   },
 
-  // Requirements
-  materialsList: {
+  // Requirements — chip-based layout
+  reqSubLabel: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
     marginBottom: THEME.spacing.sm,
   },
-  bulletRow: {
+  chipsWrap: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 6,
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  bullet: {
-    fontSize: THEME.typography.body,
-    color: THEME.colors.primary,
-    marginRight: 8,
-    lineHeight: 22,
-  },
-  bulletText: {
-    flex: 1,
-    fontSize: THEME.typography.body,
-    color: THEME.colors.textSecondary,
-    lineHeight: 22,
-  },
-  infoCard: {
+  materialChip: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    gap: 4,
     backgroundColor: '#FFF8EE',
-    borderRadius: THEME.borderRadius.md,
-    padding: THEME.spacing.md,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderWidth: 1,
     borderColor: '#FFE4B5',
+  },
+  materialChipText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textPrimary,
+  },
+  reqInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     gap: 10,
   },
-  infoCardText: {
+  reqRowIcon: {
+    marginTop: 2,
+  },
+  reqRowContent: {
     flex: 1,
+  },
+  reqRowLabel: {
     fontSize: THEME.typography.bodySmall,
-    color: '#8B5E00',
+    fontWeight: '600',
+    color: THEME.colors.textPrimary,
+    marginBottom: 2,
+  },
+  reqRowText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
     lineHeight: 20,
+  },
+  reqInfoCard: {
+    backgroundColor: '#FFF8EE',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#FFE4B5',
+  },
+  reqCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 2,
   },
 
   // Pandits section

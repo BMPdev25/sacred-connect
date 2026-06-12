@@ -1,5 +1,5 @@
-/**
- * ExploreEmptyState — contextual empty state for the Explore Tab.
+﻿/**
+ * ExploreEmptyState -- contextual empty state for the Explore Tab.
  * Renders different messaging and CTAs based on why there are no results.
  */
 
@@ -28,10 +28,12 @@ export type ExploreEmptyReason = 'no_results' | 'no_location' | 'search_empty' |
 export interface ExploreEmptyStateProps {
   /** Determines which messaging and CTA to display. */
   reason: ExploreEmptyReason;
-  /** Active search query — used in the search_empty message. */
+  /** Active search query -- used in the search_empty message. */
   searchQuery?: string;
   /** Called when the user taps "Clear Filters" (no_results only). */
   onClearFilters?: () => void;
+  /** Called when the user taps "Browse All Pandits" -- resets all filters and search. */
+  onBrowseAll?: () => void;
   /** Called when the user taps "Enable Location" (no_location only). */
   onEnableLocation?: () => void;
   /** Called when the user taps "Retry" after an error. */
@@ -90,7 +92,7 @@ async function openSystemSettings(): Promise<void> {
   try {
     await Linking.openSettings();
   } catch {
-    // Fail silently — nothing actionable if openSettings is unavailable
+    // Fail silently -- nothing actionable if openSettings is unavailable
   }
 }
 
@@ -105,6 +107,7 @@ export default function ExploreEmptyState({
   reason,
   searchQuery,
   onClearFilters,
+  onBrowseAll,
   onEnableLocation,
   onRetry,
 }: ExploreEmptyStateProps): React.JSX.Element {
@@ -134,6 +137,16 @@ export default function ExploreEmptyState({
             variant="outline"
             title="Clear Filters"
             onPress={onClearFilters}
+          />
+        </View>
+      )}
+
+      {reason === 'no_results' && onBrowseAll && (
+        <View style={styles.buttonWrap}>
+          <PrimaryButton
+            variant="outline"
+            title="Browse All Pandits"
+            onPress={onBrowseAll}
           />
         </View>
       )}

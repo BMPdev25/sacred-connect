@@ -1,5 +1,5 @@
-/**
- * CategoryChips — horizontal scrollable row of ceremony category pills.
+﻿/**
+ * CategoryChips â€” horizontal scrollable row of ceremony category pills.
  * Tapping a chip navigates to the ExploreTab.
  */
 
@@ -75,7 +75,7 @@ interface CategoryChipsProps {
  *
  * When a category has a `ceremonyId` field it navigates to CeremonyDetails
  * (individual ceremony entry point). For category-level chips (no ceremonyId)
- * it filters the ExploreTab by category — the standard discovery path.
+ * it filters the ExploreTab by category â€” the standard discovery path.
  *
  * TODO: once the backend returns per-ceremony chips, switch all chips to the
  * CeremonyDetails path.
@@ -85,15 +85,26 @@ export default function CategoryChips({ categories }: CategoryChipsProps): React
   const displayCategories = categories.length > 0 ? categories : HARDCODED_CATEGORIES;
 
   const handleChipPress = (category: CeremonyCategory) => {
-    // If the category represents a single ceremony (has ceremonyId), go to CeremonyDetails.
-    if ((category as any).ceremonyId) {
+    // "All" chip opens Explore with no category filter.
+    if (category.name === 'All') {
+      router.navigate({ pathname: '/devotee/(tabs)/ExploreTab' as any });
+      return;
+    }
+
+    // Navigate to the representative ceremony for this category.
+    // Backend enriches categories with representativeCeremonyId; legacy chips may use ceremonyId.
+    const ceremonyId =
+      category.representativeCeremonyId ?? (category as any).ceremonyId ?? null;
+
+    if (ceremonyId) {
       router.push({
         pathname: '/devotee/(screens)/CeremonyDetails' as any,
-        params: { ceremonyId: (category as any).ceremonyId },
+        params: { ceremonyId },
       });
       return;
     }
-    // Otherwise filter the Explore tab by this category.
+
+    // Fallback: filter Explore by category (hardcoded chips with no ceremony seeded yet).
     router.navigate({
       pathname: '/devotee/(tabs)/ExploreTab' as any,
       params: { categoryId: category._id, categoryName: category.name },
@@ -146,3 +157,4 @@ const styles = StyleSheet.create({
     color: THEME.colors.textPrimary,
   },
 });
+

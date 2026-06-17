@@ -1,4 +1,4 @@
-﻿import Constants from 'expo-constants';
+import Constants from 'expo-constants';
 
 /**
  * Defines the local image registry structure, mapping image keys to React Native asset sources.
@@ -14,14 +14,16 @@ const IMAGE_REGISTRY: LocalImageRegistry = {
   'auth.onboarding2': require('@/assets/images/auth/onboarding-slide-2.png'),
   'auth.onboarding3': require('@/assets/images/auth/onboarding-slide-3.png'),
   'auth.forgotSuccess': require('@/assets/images/auth/forgot-password-success.png'),
-  'auth.temple': require('@/assets/images/auth/temple-silhouette.png'),
+  'auth.temple': require('@/assets/images/auth/temple-silhouette.jpg'),
   'shared.logo': require('@/assets/images/logo.png'),
   'shared.logoIcon': require('@/assets/images/shared/logo-icon-diya.png'),
   'shared.logoFull': require('@/assets/images/shared/logo-full-diya.png'),
   'shared.avatarPlaceholder': require('@/assets/images/shared/avatar-placeholder.png'),
+  // Alias: components use noun-first naming (placeholderAvatar) — both keys resolve to the same asset.
+  'shared.placeholderAvatar': require('@/assets/images/shared/avatar-placeholder.png'),
   'booking.confirmationSuccess': require('@/assets/images/auth/forgot-password-success.png'),
   'devotee.emptyBookings': require('@/assets/images/shared/avatar-placeholder.png'),
-  'shared.ceremonyPlaceholder': require('@/assets/images/housewarming.png'),
+  'shared.ceremonyPlaceholder': require('@/assets/images/housewarming.jpg'),
 };
 
 /**
@@ -38,6 +40,8 @@ const IMAGE_FILENAMES: Record<string, string> = {
   'shared.logoIcon': 'shared/logo-icon-diya.png',
   'shared.logoFull': 'shared/logo-full-diya.png',
   'shared.avatarPlaceholder': 'shared/avatar-placeholder.png',
+  // Alias matching IMAGE_REGISTRY — noun-first variant used by priest components.
+  'shared.placeholderAvatar': 'shared/avatar-placeholder.png',
   'booking.confirmationSuccess': 'auth/forgot-password-success.png',
   'devotee.emptyBookings': 'shared/avatar-placeholder.png',
   'shared.ceremonyPlaceholder': 'housewarming.png',

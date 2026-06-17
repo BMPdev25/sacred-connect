@@ -108,3 +108,23 @@ export async function updateNotificationPreferences(
     logger.warn('Silent failure updating notification preferences', err);
   }
 }
+    };
+
+    const pushUpdates = {
+      bookingUpdates: prefs.bookingConfirmations,
+      reminders: prefs.upcomingReminders,
+      promotions: prefs.festivalOffers ?? prefs.newFeatures,
+    };
+
+    const body = {
+      ...prefs,
+      email: emailUpdates,
+      push: pushUpdates,
+    };
+
+    await api.put('/users/notifications', body);
+  } catch (err: unknown) {
+    // Log only — never break UI for notification preference updates
+    logger.warn('Silent failure updating notification preferences', err);
+  }
+}

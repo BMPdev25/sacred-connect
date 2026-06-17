@@ -96,11 +96,14 @@ export async function fetchInstantAvailable(): Promise<BookingRequest[]> {
     const response = await api.get('/priest/bookings/instant-available');
     const rawList: any[] = response.data?.data || response.data || [];
     return rawList.map(mapToBookingRequest).sort(sortRequestsByCreatedAtDesc);
-  } catch (err) {
-    logger.error('fetchInstantAvailable failed', err);
+  } catch (err: any) {
+    const status = err?.response?.status;
+    const body = err?.response?.data;
+    logger.error('fetchInstantAvailable failed', { status, body, message: err?.message });
     return [];
   }
 }
+
 
 /**
  * Fetches the full details of a specific booking request.

@@ -20,7 +20,9 @@
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -36,6 +38,7 @@
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.bookmypujari",
+      "usesCleartextTraffic": true,
       "googleServicesFile": "./google-services.json",
       "permissions": [
         "android.permission.RECEIVE_BOOT_COMPLETED",
@@ -73,9 +76,13 @@
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "sitemap": true
+      },
       "eas": {
-        "projectId": "1e95d30c-0c85-41f9-b010-6b96b7568116"
+        "projectId": "2f508e81-9a95-4294-82f8-d9939d1f3d64"
       }
-    }
+    },
+    "owner": "sunny302001"
   }
 }

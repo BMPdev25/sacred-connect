@@ -26,9 +26,8 @@ export default function TermsPrivacy(): React.JSX.Element {
   const sections = isTerms ? TERMS_SECTIONS : PRIVACY_SECTIONS;
 
   return (
-    <View style={styles.container}>
-      {/* ABSOLUTE NAVIGATION HEADER */}
-      <View style={[styles.headerContainer, { top: insets.top }]}>
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.headerContainer}>
         <TouchableOpacity
           onPress={() => router.back()}
           style={styles.backBtn}
@@ -46,7 +45,6 @@ export default function TermsPrivacy(): React.JSX.Element {
         contentContainerStyle={[
           styles.scrollContent,
           {
-            paddingTop: insets.top + 56,
             paddingBottom: insets.bottom + THEME.spacing.xxl,
           },
         ]}
@@ -69,12 +67,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: THEME.colors.background,
-    position: 'relative',
   },
   headerContainer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
     height: 56,
     backgroundColor: THEME.colors.surface,
     borderBottomWidth: 1,

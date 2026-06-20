@@ -135,7 +135,8 @@ function mapPujariToNearbyPriest(p: any): NearbyPriest {
  */
 async function fetchFirstCeremonyId(): Promise<string | null> {
   try {
-    const response = await api.get<{ ceremonies: any[] }>('/ceremonies');
+    const response = await api.get('/ceremonies');
+    // Backend returns { ceremonies, totalPages, currentPage, totalCeremonies } directly
     const list = response.data?.ceremonies;
     if (Array.isArray(list) && list.length > 0) {
       return list[0]._id;

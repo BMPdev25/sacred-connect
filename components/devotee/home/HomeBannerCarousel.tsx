@@ -69,7 +69,7 @@ interface BannerSlideProps {
 function BannerSlide({ item }: BannerSlideProps): React.JSX.Element {
   return (
     <View style={[styles.slide, { backgroundColor: item.color }]}>
-      {item.imageUrl ? (
+      {typeof item.imageUrl === 'string' && item.imageUrl ? (
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.slideImage}

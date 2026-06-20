@@ -31,6 +31,7 @@ import api from '@/api/index';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { setCeremonyContext, setBookingType, setPreferredPriest } from '@/redux/slices/bookingSlice';
 import { AssetService } from '@/services/assets/AssetService';
+import { getCeremonyImageSource } from '@/utils/imageUtils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -204,7 +205,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
     );
     dispatch(setPreferredPriest(null));
     router.push({
-      pathname: '/devotee/(screens)/InstantBookingSetup' as any,
+      pathname: '/devotee/InstantBookingSetup' as any,
       params: { ceremonyId: ceremony._id },
     });
   };
@@ -212,7 +213,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   /** Scheduled path: open ExploreTab filtered by this ceremony. */
   const handleSchedule = () => {
     router.push({
-      pathname: '/devotee/(tabs)/ExploreTab' as any,
+      pathname: '/devotee/ExploreTab' as any,
       params: { filterCeremonyId: ceremonyId },
     });
   };
@@ -220,7 +221,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   /** Navigate to pandit's full profile page. */
   const handlePanditPress = (pandit: PanditForCeremony) => {
     router.push({
-      pathname: '/devotee/(screens)/PriestDetails' as any,
+      pathname: '/devotee/PriestDetails' as any,
       params: {
         id: pandit._id,
         userId: getPriestUserId(pandit.userId),
@@ -258,7 +259,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
 
   const ceremony = data.ceremony;
   const priests = data.priests ?? [];
-  const heroImage = ceremony.images?.[0]?.url;
+  const heroImageSource = getCeremonyImageSource(ceremony.images);
 
 
   return (
@@ -282,11 +283,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
       >
         {/* ── SECTION 1: Hero ── */}
         <View style={styles.hero}>
-          {heroImage ? (
-            <Image source={{ uri: heroImage }} style={styles.heroImage} />
-          ) : (
-            <View style={styles.heroGradient} />
-          )}
+          <Image source={heroImageSource} style={styles.heroImage} />
           <View style={styles.heroDarkOverlay} />
 
           <View style={styles.heroContent}>

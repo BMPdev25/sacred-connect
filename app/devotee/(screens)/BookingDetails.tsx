@@ -79,7 +79,7 @@ export default function BookingDetails() {
   };
 
   const handleRateNow = () => {
-    router.push({ pathname: '/devotee/(screens)/RateReview' as any, params: { bookingId } });
+    router.push({ pathname: '/devotee/RateReview' as any, params: { bookingId } });
   };
 
   if (isLoading || !booking) {
@@ -189,7 +189,7 @@ export default function BookingDetails() {
             <PrimaryButton
               title={booking.status === 'cancelled' ? 'Book Again with this Pandit' : 'Find Another Pandit'}
               variant="outline"
-              onPress={() => router.push('/devotee/(tabs)/ExploreTab' as any)}
+              onPress={() => router.push('/devotee/ExploreTab' as any)}
             />
           )}
         </View>

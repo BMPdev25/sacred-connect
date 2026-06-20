@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { THEME } from '@/constants/theme';
 import { PublicPriestProfile } from '@/types/priestDetails.types';
 import { AssetService } from '@/services/assets/AssetService';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 interface HeaderControlsProps {
   /** Callback triggered to share priest profile */
@@ -104,13 +105,14 @@ export function HeroSection({ priest }: HeroSectionProps) {
   };
   
   const specialization = priest.specializations?.[0]?.name ?? priest.religiousTradition;
+  const priestPicUrl = normalizeProfilePicture(priest.profilePicture);
 
   return (
     <View style={styles.heroContainer}>
-      {priest.profilePicture ? (
-        <ImageBackground 
-          source={{ uri: priest.profilePicture }} 
-          style={styles.background} 
+      {priestPicUrl ? (
+        <ImageBackground
+          source={{ uri: priestPicUrl }}
+          style={styles.background}
           resizeMode="cover"
           blurRadius={10}
         />

@@ -63,7 +63,7 @@ export function BookingCard({ booking, onPress, onActionPress }: BookingCardProp
     }).start();
   };
 
-  const profileSource = booking.priestId.profilePicture
+  const profileSource = booking.priestId?.profilePicture
     ? { uri: booking.priestId.profilePicture }
     : AssetService.getImage('shared.avatarPlaceholder');
 
@@ -91,7 +91,7 @@ export function BookingCard({ booking, onPress, onActionPress }: BookingCardProp
         <View style={styles.row2}>
           <Image source={profileSource as any} style={styles.priestAvatar} />
           <Text style={styles.priestName} numberOfLines={1}>
-            {booking.priestId.name}
+            {booking.priestId?.name ?? 'Unknown Priest'}
           </Text>
         </View>
 

@@ -34,7 +34,7 @@ export default function BookingsTab(): React.JSX.Element {
 
   const handleBookingPress = (bookingId: string) => {
     router.push({
-      pathname: '/devotee/(screens)/BookingDetails' as any,
+      pathname: '/devotee/BookingDetails' as any,
       params: { bookingId },
     });
   };
@@ -47,22 +47,24 @@ export default function BookingsTab(): React.JSX.Element {
         break;
       case 'completed':
         router.push({
-          pathname: '/devotee/(screens)/RateReview' as any,
+          pathname: '/devotee/RateReview' as any,
           params: { bookingId: booking._id },
         });
         break;
       case 'cancelled':
       case 'rejected':
-        router.push({
-          pathname: '/devotee/(screens)/PriestDetails' as any,
-          params: { id: booking.priestId._id, userId: booking.priestId._id },
-        });
+        if (booking.priestId?._id) {
+          router.push({
+            pathname: '/devotee/PriestDetails' as any,
+            params: { id: booking.priestId._id, userId: booking.priestId._id },
+          });
+        }
         break;
     }
   };
 
   const handleBookNow = () => {
-    router.push('/devotee/(tabs)/HomeTab' as any);
+    router.push('/devotee/HomeTab' as any);
   };
 
   const currentData = activeTab === 'upcoming' ? upcoming : past;

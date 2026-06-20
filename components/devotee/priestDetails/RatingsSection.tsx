@@ -4,6 +4,7 @@ import { THEME } from '@/constants/theme';
 import { PriestReview } from '@/types/priestDetails.types';
 import { StarDisplay } from '@/components/shared/StarDisplay';
 import { calculateRatingBreakdown, formatReviewDate } from '@/utils/priestDetailsUtils';
+import { normalizeProfilePicture } from '@/utils/imageUtils';
 
 /** Component props for RatingBar */
 interface RatingBarProps {
@@ -32,11 +33,12 @@ interface ReviewCardProps {
 
 /** Renders an individual review card with avatar, rating, and text */
 function ReviewCard({ review, showDivider }: ReviewCardProps) {
+  const reviewerPicUrl = normalizeProfilePicture(review.userId?.profilePicture);
   return (
     <View style={styles.reviewCard}>
       <View style={styles.reviewHeader}>
-        {review.userId?.profilePicture ? (
-          <Image source={{ uri: review.userId.profilePicture }} style={styles.reviewAvatar} />
+        {reviewerPicUrl ? (
+          <Image source={{ uri: reviewerPicUrl }} style={styles.reviewAvatar} />
         ) : (
           <View style={styles.reviewAvatarFallback}>
             <Text style={styles.reviewAvatarText}>

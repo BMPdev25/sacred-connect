@@ -57,7 +57,7 @@ export default function BookCeremonyScreen() {
 
   const handleReviewPress = async () => {
     if (isBookingComplete(draft)) {
-      router.push('/devotee/(screens)/BookingSummary' as any);
+      router.push('/devotee/BookingSummary' as any);
     }
   };
 

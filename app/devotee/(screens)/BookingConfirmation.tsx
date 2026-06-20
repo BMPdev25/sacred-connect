@@ -127,9 +127,9 @@ export default function BookingConfirmationScreen() {
   const handleFinish = (target: 'home' | 'bookings') => {
     dispatch(clearBookingDraft());
     if (target === 'home') {
-      router.replace('/devotee/(tabs)/HomeTab' as any);
+      router.replace('/devotee/HomeTab' as any);
     } else {
-      router.replace('/devotee/(tabs)/BookingsTab' as any);
+      router.replace('/devotee/BookingsTab' as any);
     }
   };
 

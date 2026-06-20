@@ -139,7 +139,7 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
       const order = await bookingService.createPaymentOrder(params.bookingId, total);
       if (!activeRef.current) return;
       router.replace({
-        pathname: '/devotee/(screens)/Payment' as any,
+        pathname: '/devotee/Payment' as any,
         params: {
           bookingId: params.bookingId,
           razorpayOrderId: order.id,
@@ -226,7 +226,7 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
             } catch (e) {
               logger.warn('SearchingForPriest: cancel failed', e);
             }
-            router.replace('/devotee/(tabs)/HomeTab' as any);
+            router.replace('/devotee');
           },
         },
       ]
@@ -235,13 +235,13 @@ export default function SearchingForPriestScreen(): React.JSX.Element {
 
   const handleTryAgain = () =>
     router.replace({
-      pathname: '/devotee/(screens)/InstantBookingSetup' as any,
+      pathname: '/devotee/InstantBookingSetup' as any,
       params: { ceremonyId: params.ceremonyId },
     });
 
   const handleSchedule = () =>
     router.replace({
-      pathname: '/devotee/(tabs)/ExploreTab' as any,
+      pathname: '/devotee/ExploreTab' as any,
       params: { filterCeremonyId: params.ceremonyId },
     });
 

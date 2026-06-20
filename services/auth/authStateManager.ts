@@ -11,8 +11,6 @@ import { auth } from '@/config/firebase';
 import { ONBOARDING_STORAGE_KEY } from '@/constants/config';
 import { store } from '@/redux/store';
 import { setUserSession } from '@/redux/slices/userSlice';
-import { resetFilters } from '@/redux/slices/exploreSlice';
-import { clearBookingDraft } from '@/redux/slices/bookingSlice';
 import { SocketManager } from '@/services/priest/socketManager';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { logger } from '@/utils/logger';
@@ -241,10 +239,8 @@ async function handleAuthStateChange(
       console.log('[DEBUG] onAuthStateChanged: No user session found. Checking first launch...');
       // Clean up priest socket connection to stop receiving ghost notifications after logout
       SocketManager.disconnectSocket();
-      // Reset explore filters so the next session starts with clean search state
-      store.dispatch(resetFilters());
-      // Clear any in-progress booking draft
-      store.dispatch(clearBookingDraft());
+      // Reset all slices to initial state — prevents cross-user data bleed
+      store.dispatch({ type: 'RESET_ALL' });
       const firstLaunch = await checkFirstLaunch();
       routeUnauthenticatedUser(firstLaunch);
     }

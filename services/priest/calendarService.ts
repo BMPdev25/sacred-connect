@@ -130,7 +130,7 @@ import api from '@/api/index';
    */
   export async function markBookingComplete(bookingId: string): Promise<void> {
     try {
-      const response = await api.post(`/priest/bookings/${bookingId}/complete`, {});
+      const response = await api.post(`/bookings/${bookingId}/complete`, {});
       if (!response.data?.success) {
         throw new Error('Server rejected the completion request');
       }

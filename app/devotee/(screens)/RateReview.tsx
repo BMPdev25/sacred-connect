@@ -70,7 +70,7 @@ export default function RateReview() {
   }, [bookingId]);
 
   const handleSubmit = async () => {
-    if (!booking || !bookingId) return;
+    if (!booking || !bookingId || !booking.priestId?._id) return;
     setIsSubmitting(true);
     try {
       await submitRating({

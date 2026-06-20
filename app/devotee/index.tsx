@@ -9,7 +9,7 @@ export default function DevoteeIndex(): null {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/devotee/(tabs)/HomeTab' as any);
+    router.replace('/devotee/HomeTab' as any);
   }, [router]);
 
   return null;

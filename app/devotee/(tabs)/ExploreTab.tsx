@@ -202,7 +202,7 @@ export default function ExploreTab(): React.JSX.Element {
     setSearchInput('');
     setIsSuggestionOpen(false);
     router.push({
-      pathname: '/devotee/(screens)/CeremonyDetails' as any,
+      pathname: '/devotee/CeremonyDetails' as any,
       params: { ceremonyId },
     });
   }
@@ -211,7 +211,7 @@ export default function ExploreTab(): React.JSX.Element {
     setSearchInput('');
     setIsSuggestionOpen(false);
     router.push({
-      pathname: '/devotee/(screens)/PriestDetails' as any,
+      pathname: '/devotee/PriestDetails' as any,
       params: { id: priestProfileId, userId },
     });
   }
@@ -313,7 +313,7 @@ export default function ExploreTab(): React.JSX.Element {
                   onEndReached={fetchNextPage}
                   onPriestPress={(id, userId) =>
                     router.push({
-                      pathname: '/devotee/(screens)/PriestDetails' as any,
+                      pathname: '/devotee/PriestDetails' as any,
                       params: { id, userId },
                     })
                   }

@@ -105,12 +105,12 @@ export default function NotificationCenter(): React.JSX.Element {
     if (item.relatedId) {
       if (item.type === 'booking') {
         router.push({
-          pathname: '/devotee/(screens)/BookingDetails' as any,
+          pathname: '/devotee/BookingDetails' as any,
           params: { bookingId: item.relatedId },
         });
       } else if (item.type === 'payment') {
         router.push({
-          pathname: '/devotee/(screens)/BookingDetails' as any,
+          pathname: '/devotee/BookingDetails' as any,
           params: { bookingId: item.relatedId },
         });
       }

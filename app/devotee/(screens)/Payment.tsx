@@ -72,7 +72,7 @@ export default function PaymentScreen(): React.ReactElement {
         razorpayOrderId: paymentData.razorpay_order_id,
         bookingReference: reference,
       }));
-      router.replace('/devotee/(screens)/BookingConfirmation' as any);
+      router.replace('/devotee/BookingConfirmation' as any);
     } catch (error: any) {
       if ((error as any).code === 'PAYMENT_SESSION_EXPIRED') {
         // Backend rejected verification because the 30-min payment window expired.
@@ -162,7 +162,7 @@ export default function PaymentScreen(): React.ReactElement {
       if ((err as any).code === 'ALREADY_PAID') {
         // Booking was already paid (e.g. user hit retry on an already-completed booking).
         // Navigate to confirmation instead of showing an error.
-        router.replace('/devotee/(screens)/BookingConfirmation' as any);
+        router.replace('/devotee/BookingConfirmation' as any);
         return;
       }
       Alert.alert('Retry Failed', err.message || 'Could not retry payment');
@@ -174,7 +174,7 @@ export default function PaymentScreen(): React.ReactElement {
   const handleCancelPayment = () => {
     // User is explicitly abandoning the payment — clear draft so next booking starts fresh
     dispatch(clearBookingDraft());
-    router.replace('/devotee/(tabs)/HomeTab' as any);
+    router.replace('/devotee/HomeTab' as any);
   };
 
   return (

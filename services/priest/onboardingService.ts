@@ -1,4 +1,8 @@
+import * as FileSystem from 'expo-file-system/legacy';
+import { Platform } from 'react-native';
+
 import api from '@/api/index';
+import { auth } from '@/config/firebase';
 import { getReadableErrorMessage } from '@/utils/errorHandler';
 import {
   setCurrentStep,
@@ -276,6 +280,9 @@ function buildStepPayload(step: number, data: Record<string, any>): Record<strin
       };
     case 2:
       return {
+        // Send full array so all selections are persisted; keep singular for
+        // backward compatibility with existing queries that filter on religiousTradition.
+        religiousTraditions: data.religiousTraditions || [],
         religiousTradition: data.religiousTraditions?.[0] || '',
         specializations: data.specializations?.map((spec: any) =>
           typeof spec === 'string' ? { name: spec, experience: 0 } : spec
@@ -402,32 +409,51 @@ export async function uploadDocument(
   docType: DocumentSlot['type'],
   file: { uri: string; name: string; type: string }
 ): Promise<string> {
+  let fileUri = file.uri;
+  let cleanup: (() => Promise<void>) | undefined;
+
+  // content:// URIs (Android media store) must be copied to file:// before upload
+  if (Platform.OS === 'android' && file.uri.startsWith('content://')) {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    const dest = `${FileSystem.cacheDirectory}doc_${Date.now()}.${ext}`;
+    await FileSystem.copyAsync({ from: file.uri, to: dest });
+    fileUri = dest;
+    cleanup = () => FileSystem.deleteAsync(dest, { idempotent: true });
+  }
+
   try {
     const backendDocType = docType === 'profile_photo' ? 'profile_picture' : docType;
-    const formData = new FormData();
-    formData.append('document', {
-      uri: file.uri,
-      name: file.name,
-      type: file.type,
-    } as any);
-    formData.append('documentType', backendDocType);
+    const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+    const baseURL = process.env.EXPO_PUBLIC_API_URL ?? '';
 
-    const response = await api.post('/priest/documents', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Axios/XHR cannot attach file:// URIs to FormData on Android — use
+    // FileSystem.uploadAsync which uses Expo's native HTTP layer instead.
+    const result = await FileSystem.uploadAsync(
+      `${baseURL}/priest/documents`,
+      fileUri,
+      {
+        httpMethod: 'POST',
+        uploadType: FileSystem.FileSystemUploadType.MULTIPART,
+        fieldName: 'document',
+        mimeType: file.type || 'application/octet-stream',
+        parameters: { documentType: backendDocType },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      }
+    );
 
-    const url = response.data.url || `${api.defaults.baseURL}/priest/documents/${backendDocType}`;
+    if (result.status < 200 || result.status >= 300) {
+      let serverMsg: string | undefined;
+      try { serverMsg = JSON.parse(result.body)?.message; } catch {}
+      throw new Error(serverMsg || `Upload failed with status ${result.status}`);
+    }
+
+    const parsed = JSON.parse(result.body);
+    const url = parsed.url || `${baseURL}/priest/documents/${backendDocType}`;
 
     store.dispatch(
       updateStep6Document({
         type: docType,
-        updates: {
-          status: 'uploaded',
-          url,
-          fileName: file.name,
-        },
+        updates: { status: 'uploaded', url, fileName: file.name },
       })
     );
 
@@ -436,13 +462,13 @@ export async function uploadDocument(
     store.dispatch(
       updateStep6Document({
         type: docType,
-        updates: {
-          status: 'error',
-        },
+        updates: { status: 'error' },
       })
     );
     console.error(`Failed to upload document for ${docType}:`, error);
     throw new Error(getReadableErrorMessage(error));
+  } finally {
+    await cleanup?.();
   }
 }
 

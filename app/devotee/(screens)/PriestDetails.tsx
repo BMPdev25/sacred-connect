@@ -52,7 +52,7 @@ export default function PriestDetailsScreen() {
 
   const handleBookNow = () => {
     router.push({
-      pathname: '/devotee/(screens)/BookCeremony' as any,
+      pathname: '/devotee/BookCeremony' as any,
       params: {
         priestId: priestProfileId,
         priestUserId: userId || priest?.userId || '',
@@ -71,7 +71,7 @@ export default function PriestDetailsScreen() {
     );
 
     router.push({
-      pathname: '/devotee/(screens)/BookCeremony' as any,
+      pathname: '/devotee/BookCeremony' as any,
       params: {
         priestId: priestProfileId,
         priestUserId: userId || priest?.userId || '',
@@ -102,7 +102,7 @@ export default function PriestDetailsScreen() {
               dispatch(setBookingType('instant'));
               dispatch(setPreferredPriest(priestUserId));
               router.push({
-                pathname: '/devotee/(screens)/InstantBookingSetup' as any,
+                pathname: '/devotee/InstantBookingSetup' as any,
                 params: {
                   ceremonyId: selectedCeremonyId ?? '',
                   preferredPriestId: priestUserId,

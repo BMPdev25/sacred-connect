@@ -26,7 +26,18 @@ export async function createBooking(draft: BookingDraft): Promise<BackendBooking
       location: {
         address: draft.selectedAddress.fullAddress,
         city: draft.selectedAddress.city,
-        coordinates: draft.selectedAddress.coordinates,
+        // Backend Booking model expects GeoJSON: { type: 'Point', coordinates: [lng, lat] }
+        ...(draft.selectedAddress.coordinates
+          ? {
+              coordinates: {
+                type: 'Point',
+                coordinates: [
+                  draft.selectedAddress.coordinates.lng,
+                  draft.selectedAddress.coordinates.lat,
+                ],
+              },
+            }
+          : {}),
       },
       basePrice: draft.pricing.basePrice,
       platformFee: draft.pricing.platformFee,

@@ -73,6 +73,36 @@ export function offNewBookingRequest(callback?: (request: BookingRequest) => voi
 }
 
 /**
+ * Registers a listener for instant booking requests broadcast by the server.
+ * The backend emits 'new_instant_request' (distinct from 'new_booking_request')
+ * for instant bookings that need a priest to claim them.
+ *
+ * @param callback - Same shape as onNewBookingRequest; reuse the same handler.
+ */
+export function onNewInstantRequest(callback: (request: BookingRequest) => void): void {
+  if (!socket) {
+    logger.warn('Cannot register instant request listener: socket not initialized');
+    return;
+  }
+  socket.on('new_instant_request', callback);
+}
+
+/**
+ * Removes the active event listener for instant booking requests.
+ *
+ * @param callback - The specific callback to remove.
+ */
+export function offNewInstantRequest(callback?: (request: BookingRequest) => void): void {
+  if (socket) {
+    if (callback) {
+      socket.off('new_instant_request', callback);
+    } else {
+      socket.off('new_instant_request');
+    }
+  }
+}
+
+/**
  * Disconnects the socket client connection and releases the reference.
  */
 export function disconnectSocket(): void {

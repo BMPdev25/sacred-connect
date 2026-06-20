@@ -15,6 +15,7 @@ import { THEME } from '@/constants/theme';
 import { RootState } from '@/redux/store';
 import { AssetService } from '@/services/assets/AssetService';
 import { formatDate } from '@/utils/dateUtils';
+import { getProfilePicSource } from '@/utils/imageUtils';
 import { MenuSectionLabel } from '@/components/devotee/profile/MenuSectionLabel';
 import { MenuCard } from '@/components/devotee/profile/MenuCard';
 import { MenuRow } from '@/components/devotee/profile/MenuRow';
@@ -38,8 +39,7 @@ export default function ProfileTab(): React.JSX.Element {
     handleLogOut,
   } = useProfileActions();
 
-  const avatarPlaceholder = AssetService.getImage('shared.avatarPlaceholder');
-  const profilePicSource = user.profilePicture ? { uri: user.profilePicture } : avatarPlaceholder;
+  const profilePicSource = getProfilePicSource(user.profilePicture);
   const memberSinceText = user.createdAt
     ? `Member since ${formatDate(user.createdAt, 'monthYear')}`
     : '';

@@ -65,7 +65,7 @@ export default function InstantBookingSetupScreen(): React.JSX.Element {
   /** Handles mode conflict when a scheduled-window date is selected. */
   const handleModeConflict = (type: 'use_instant' | 'use_scheduled') => {
     if (type === 'use_scheduled') {
-      router.replace('/devotee/(tabs)/ExploreTab' as any);
+      router.replace('/devotee/ExploreTab' as any);
     }
   };
 
@@ -90,13 +90,23 @@ export default function InstantBookingSetupScreen(): React.JSX.Element {
         location: {
           address: draft.selectedAddress.fullAddress,
           city: draft.selectedAddress.city,
-          coordinates: draft.selectedAddress.coordinates,
+          ...(draft.selectedAddress.coordinates
+            ? {
+                coordinates: {
+                  type: 'Point',
+                  coordinates: [
+                    draft.selectedAddress.coordinates.lng,
+                    draft.selectedAddress.coordinates.lat,
+                  ],
+                },
+              }
+            : {}),
         },
         preferredPriestId: draft.preferredPriestId ?? null,
       });
 
       router.replace({
-        pathname: '/devotee/(screens)/SearchingForPriest' as any,
+        pathname: '/devotee/SearchingForPriest' as any,
         params: {
           bookingId: booking._id,
           totalDisplay: (draft.pricing?.totalAmount ?? 0).toString(),
@@ -110,7 +120,7 @@ export default function InstantBookingSetupScreen(): React.JSX.Element {
           [
             {
               text: 'Browse Pandits',
-              onPress: () => router.replace('/devotee/(tabs)/ExploreTab' as any),
+              onPress: () => router.replace('/devotee/ExploreTab' as any),
             },
             { text: 'Change Date' },
           ]

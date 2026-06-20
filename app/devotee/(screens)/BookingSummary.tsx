@@ -66,7 +66,7 @@ export default function BookingSummaryScreen() {
           draft.pricing?.totalAmount || 0
         );
         router.push({
-          pathname: '/devotee/(screens)/Payment' as any,
+          pathname: '/devotee/Payment' as any,
           params: {
             bookingId: draft.createdBookingId,
             razorpayOrderId: order.id,
@@ -98,7 +98,7 @@ export default function BookingSummaryScreen() {
       }));
 
       router.push({
-        pathname: '/devotee/(screens)/Payment' as any,
+        pathname: '/devotee/Payment' as any,
         params: {
           bookingId: booking._id,
           razorpayOrderId: order.id,
@@ -131,12 +131,22 @@ export default function BookingSummaryScreen() {
         location: {
           address: draft.selectedAddress.fullAddress,
           city: draft.selectedAddress.city,
-          coordinates: draft.selectedAddress.coordinates,
+          ...(draft.selectedAddress.coordinates
+            ? {
+                coordinates: {
+                  type: 'Point',
+                  coordinates: [
+                    draft.selectedAddress.coordinates.lng,
+                    draft.selectedAddress.coordinates.lat,
+                  ],
+                },
+              }
+            : {}),
         },
         preferredPriestId: draft.preferredPriestId ?? null,
       });
       router.push({
-        pathname: '/devotee/(screens)/SearchingForPriest' as any,
+        pathname: '/devotee/SearchingForPriest' as any,
         params: {
           bookingId: booking._id,
           totalDisplay: (draft.pricing?.totalAmount || 0).toString(),

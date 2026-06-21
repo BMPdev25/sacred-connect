@@ -115,7 +115,7 @@ function mapProfileToOnboardingState(profile: Record<string, any>): OnboardingSt
 
   // Step 1
   const step1 = {
-    languages: profile.languages || [],
+    languages: profile.languagesSpoken || [],
     experienceYears: profile.experience || 0,
     bio: profile.description || '',
   };
@@ -276,7 +276,7 @@ function buildStepPayload(step: number, data: Record<string, any>): Record<strin
       return {
         experience: data.experienceYears,
         description: data.bio,
-        languages: data.languages,
+        languagesSpoken: data.languages,
       };
     case 2:
       return {

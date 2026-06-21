@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ImagePicker from 'expo-image-picker';
 
-import api from '@/api/index';
 import { RootState } from '@/redux/store';
 import { updateUserProfile } from '@/redux/slices/userSlice';
 import { CalendarService } from '@/services/priest/calendarService';
@@ -24,15 +23,6 @@ export function useEditPriestProfile() {
     queryKey: ['myPriestProfile'],
     queryFn: CalendarService.fetchPriestProfile,
     staleTime: 300000,
-  });
-
-  const { data: allLanguages } = useQuery({
-    queryKey: ['languages'],
-    queryFn: async () => {
-      const res = await api.get('/languages');
-      return res.data;
-    },
-    staleTime: 86400000,
   });
 
   const [name, setName] = useState(user.name);
@@ -171,11 +161,7 @@ export function useEditPriestProfile() {
     setIsSaving(true);
     try {
       const promises = [];
-      const languageIds = selectedLanguages
-        .map((name) => allLanguages?.find((l: any) => l.name === name)?._id)
-        .filter(Boolean);
-
-      const userUpdates = getUserUpdates(langsChanged, languageIds);
+      const userUpdates = getUserUpdates(langsChanged, selectedLanguages);
       if (Object.keys(userUpdates).length > 0) {
         promises.push(profileService.updateProfile(userUpdates));
       }

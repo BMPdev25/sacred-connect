@@ -45,7 +45,7 @@ export interface PriestProfileHydrationData {
   /** Optional onboarding completion flag. */
   onboardingCompleted?: boolean;
   /** List of languages spoken by the priest. */
-  languages?: string[];
+  languagesSpoken?: string[];
   /** Years of experience. */
   experience?: number;
   /** Priest's bio description. */
@@ -303,7 +303,7 @@ export const onboardingSlice = createSlice({
 
       // Step 1
       const isObjectId = (val: string) => /^[a-f\d]{24}$/i.test(val);
-      state.step1.languages = (profile.languages || []).filter(
+      state.step1.languages = (profile.languagesSpoken || []).filter(
         (lang) => lang && !isObjectId(lang),
       );
       state.step1.experienceYears = profile.experience || 0;

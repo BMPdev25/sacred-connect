@@ -58,8 +58,6 @@ export interface UserProfile {
   phone: string;
   /** Role classification of the user. */
   userType: UserType;
-  /** Firebase Authentication UID. */
-  firebaseUid: string;
   /** Optional URL of the user's profile picture. */
   profilePicture?: string;
   /** Optional Expo push token for notifications. */

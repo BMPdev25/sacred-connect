@@ -97,6 +97,12 @@ export default function ProfileTab(): React.JSX.Element {
           </TouchableOpacity>
 
           <Text style={styles.userName}>{user.name || 'Sacred Pandit'}</Text>
+          {user.phone ? (
+            <View style={styles.phoneRow}>
+              <Ionicons name="call-outline" size={13} color={THEME.colors.textSecondary} />
+              <Text style={styles.phoneText}>{user.phone}</Text>
+            </View>
+          ) : null}
 
           {/* Verification Badge */}
           <View style={styles.badgeRow}>
@@ -157,6 +163,8 @@ const styles = StyleSheet.create({
   avatar: { width: 80, height: 80, borderRadius: THEME.borderRadius.pill, borderWidth: 2, borderColor: THEME.colors.primary },
   cameraBadge: { position: 'absolute', bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: THEME.colors.primary, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: THEME.colors.surface },
   userName: { fontSize: THEME.typography.displayMedium, fontWeight: '700', color: THEME.colors.textPrimary, marginTop: 12, textAlign: 'center' },
+  phoneRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  phoneText: { fontSize: THEME.typography.bodySmall, color: THEME.colors.textSecondary },
   badgeRow: { marginTop: 6 },
   statusRow: { flexDirection: 'row', alignItems: 'center' },
   statusText: { fontSize: THEME.typography.body, fontWeight: '600', marginLeft: 6 },

@@ -6,7 +6,7 @@ import { THEME } from '@/constants/theme';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { BookingRequest } from '@/types/priest.dashboard.types';
 import { formatTimeAgo, formatTime12Hour, extractCity } from '@/utils/priestUtils';
-import { AssetService } from '@/services/assets/AssetService';
+import { getProfilePicSource } from '@/utils/imageUtils';
 
 interface RequestCardProps {
   request: BookingRequest;
@@ -71,11 +71,7 @@ export default function RequestCard({
       {/* ROW 1 — Devotee info */}
       <View style={styles.row1}>
         <Image
-          source={
-            request.devoteeId?.profilePicture
-              ? { uri: request.devoteeId.profilePicture }
-              : AssetService.getImage('shared.placeholderAvatar') as any
-          }
+          source={getProfilePicSource(request.devoteeId?.profilePicture)}
           style={styles.avatar}
         />
         <Text style={styles.devoteeName} numberOfLines={1}>

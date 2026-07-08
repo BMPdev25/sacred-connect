@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
 import { BookingListItem } from '@/types/bookingManagement.types';
 import { getBookingCardDisplay, formatBookingDateTime } from '@/utils/bookingCardUtils';
-import { AssetService } from '@/services/assets/AssetService';
+import { getProfilePicSource } from '@/utils/imageUtils';
 
 // ---------------------------------------------------------------------------
 // Helper Components
@@ -63,9 +63,7 @@ export function BookingCard({ booking, onPress, onActionPress }: BookingCardProp
     }).start();
   };
 
-  const profileSource = booking.priestId?.profilePicture
-    ? { uri: booking.priestId.profilePicture }
-    : AssetService.getImage('shared.avatarPlaceholder');
+  const profileSource = getProfilePicSource(booking.priestId?.profilePicture);
 
   return (
     <Animated.View style={[styles.card, { transform: [{ scale }] }]}>

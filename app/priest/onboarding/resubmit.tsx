@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import PrimaryButton from '@/components/shared/PrimaryButton';
-import { Step6Documents } from '@/components/priest/onboarding/Step6Documents';
+import { Step6Documents } from '@/components/priest/onboarding/steps/Step6Documents';
 import { THEME } from '@/constants/theme';
 import { loadOnboardingProgress, submitForReview } from '@/services/priest/onboardingService';
 import { StepRef } from '@/types/stepRef.types';

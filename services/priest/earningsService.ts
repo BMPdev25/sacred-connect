@@ -64,6 +64,9 @@ export async function fetchTransactions(
     const response = await api.get(`/priest/transactions?page=${page}&limit=10`);
     const rawList = response.data?.data || response.data || [];
     const transactions = Array.isArray(rawList) ? rawList : [];
+    // Prefer the server's accurate pagination flag; fall back to the page-full
+    // heuristic for older backends that returned a bare array.
+    const serverHasMore: boolean | undefined = response.data?.pagination?.hasMore;
     
     const mapped = transactions.map((tx: any) => {
       const desc = tx.description || '';
@@ -88,7 +91,7 @@ export async function fetchTransactions(
 
     return {
       transactions: mapped,
-      hasMore: mapped.length === 10,
+      hasMore: typeof serverHasMore === 'boolean' ? serverHasMore : mapped.length === 10,
     };
   } catch (err) {
     logger.error('Failed to fetch transactions', err);

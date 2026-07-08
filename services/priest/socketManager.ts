@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { BookingRequest } from '@/types/priest.dashboard.types';
 import { logger } from '@/utils/logger';
+import { auth } from '@/config/firebase';
 
 let socket: Socket | null = null;
 
@@ -29,10 +30,21 @@ export function connectSocket(priestId: string): void {
     auth: { priestId },
   });
 
-  socket.on('connect', () => {
+  socket.on('connect', async () => {
     logger.log('Socket connected for priest:', priestId);
-    // Explicitly send registration signal to enable matching of sockets to active sessions
-    socket?.emit('register', priestId);
+    // Register with a real Firebase ID token — the backend verifies it and maps
+    // the resolved User._id to this socket. Sending the raw priestId would fail
+    // verifyIdToken and the registration would be silently refused.
+    try {
+      const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+      if (token) {
+        socket?.emit('register', token);
+      } else {
+        logger.warn('Cannot register socket: no authenticated Firebase user');
+      }
+    } catch (error) {
+      logger.warn('Socket registration failed to get ID token:', error);
+    }
   });
 
   socket.on('disconnect', () => {

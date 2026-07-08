@@ -74,8 +74,15 @@ export interface InstantBookingLocation {
   address: string;
   /** City name. */
   city: string;
-  /** Optional geographic coordinates. */
-  coordinates?: { lat: number; lng: number };
+  /**
+   * Optional geographic coordinates as GeoJSON — this is the exact shape the
+   * backend Booking model stores (`location.coordinates`): a Point with an
+   * ordered [longitude, latitude] pair.
+   */
+  coordinates?: {
+    type: 'Point';
+    coordinates: [number, number];
+  };
 }
 
 /** Arguments for creating an instant booking. */

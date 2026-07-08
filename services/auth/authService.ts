@@ -30,7 +30,6 @@ function mapToUserProfile(data: any): UserProfile {
     email: data.email || '',
     phone: data.phone || '',
     userType: data.userType,
-    firebaseUid: data.firebaseUid,
     profilePicture: data.profilePicture,
     expoPushToken: data.expoPushToken,
     authProvider: data.authProvider || 'firebase',

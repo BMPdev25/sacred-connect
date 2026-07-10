@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
 import {
   Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
+  View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,14 +56,13 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + THEME.spacing.lg, paddingBottom: insets.bottom + THEME.spacing.xl }]}
+    <View style={styles.flex}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + THEME.spacing.lg, paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={80}
       >
         <ForgotPasswordHeader router={router} />
 
@@ -89,8 +87,8 @@ export default function ForgotPasswordScreen(): React.JSX.Element {
         >
           <StateBSuccess email={email} router={router} />
         </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

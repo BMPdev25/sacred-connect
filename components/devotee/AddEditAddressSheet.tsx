@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
-import { StyleSheet, View, ScrollView } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import BottomSheet, { BottomSheetBackdrop, BottomSheetBackdropProps, BottomSheetScrollView } from '@gorhom/bottom-sheet';
 
 import { THEME } from '@/constants/theme';
@@ -53,14 +54,20 @@ export default function AddEditAddressSheet({
   if (!isBottomSheet) {
     return (
       <View style={styles.fullScreenOverlay}>
-        <ScrollView style={styles.fullScrollView} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView
+          style={styles.fullScrollView}
+          contentContainerStyle={styles.fullScrollContent}
+          keyboardShouldPersistTaps="handled"
+          enableOnAndroid
+          extraScrollHeight={80}
+        >
           <AddressForm
             existingAddress={existingAddress}
             onSaved={onSaved}
             onClose={onClose}
             isVisible={isVisible}
           />
-        </ScrollView>
+        </KeyboardAwareScrollView>
       </View>
     );
   }
@@ -110,5 +117,8 @@ const styles = StyleSheet.create({
   },
   fullScrollView: {
     flex: 1,
+  },
+  fullScrollContent: {
+    paddingBottom: 120,
   },
 });

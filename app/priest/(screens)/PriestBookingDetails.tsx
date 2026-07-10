@@ -154,7 +154,7 @@ export default function PriestBookingDetails(): React.JSX.Element {
               <Ionicons name="person" size={24} color={THEME.colors.textMuted} />
             </View>
             <View style={styles.devoteeInfo}>
-              <Text style={styles.devoteeName}>{booking.devoteeId.name}</Text>
+              <Text style={styles.devoteeName}>{booking.devoteeId?.name ?? 'Devotee unavailable'}</Text>
               <Text style={styles.devoteeSubtitle}>Devotee</Text>
             </View>
           </View>

@@ -35,6 +35,7 @@ function mapBackendPriestToNearbyPriest(p: any): NearbyPriest {
     startingPrice,
     experienceYears: p.experience || p.experienceYears || 5,
     distance: typeof p.distance === 'number' ? p.distance : undefined,
+    isOffline: (p.currentAvailability?.status ?? p.availability?.status) === 'offline',
   };
 }
 
@@ -79,6 +80,8 @@ export async function fetchPriests(params: {
   filters: ExploreFilters;
   sort: SortOption;
   limit?: number;
+  /** Exact single ceremony to filter by (e.g. from "Schedule with a Pandit"). Takes priority over category chips. */
+  ceremonyId?: string | null;
 }): Promise<PaginatedPriests> {
   try {
     const filters = params.filters;
@@ -94,7 +97,13 @@ export async function fetchPriests(params: {
     if (filters.minPrice > 0) queryParams.minPrice = filters.minPrice;
     if (filters.maxPrice < 10000) queryParams.maxPrice = filters.maxPrice;
     if (filters.languages.length > 0) queryParams.languages = filters.languages;
-    if (filters.ceremonyTypes.length > 0) queryParams.ceremonyId = filters.ceremonyTypes[0];
+    if (params.ceremonyId) {
+      queryParams.ceremonyId = params.ceremonyId;
+    } else if (filters.ceremonyTypes.length > 0) {
+      // ceremonyTypes holds CeremonyCategory slugs (e.g. "wedding"), not ObjectIds —
+      // the backend resolves the category to the matching Ceremony ids.
+      queryParams.category = filters.ceremonyTypes[0];
+    }
     if (filters.city && filters.city.trim()) queryParams.city = filters.city.trim();
 
     const response = await api.get<{ success: boolean; data: PaginatedPriests }>(

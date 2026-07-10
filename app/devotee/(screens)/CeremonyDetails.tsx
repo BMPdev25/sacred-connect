@@ -72,6 +72,8 @@ interface PanditForCeremony {
   priceForThisCeremony?: number;
   experienceYears?: number;
   userId: { _id: string } | string;
+  /** Current availability status ('available' | 'busy' | 'offline'). Offline pandits are still listed here but only bookable for scheduled ceremonies, not instant. */
+  availability?: string;
 }
 
 interface CeremonyWithPriests {
@@ -111,6 +113,11 @@ function PanditCard({ pandit, onPress }: PanditCardProps): React.JSX.Element {
     <TouchableOpacity style={styles.panditCard} onPress={onPress} activeOpacity={0.8}>
       <Image source={avatarSource as any} style={styles.panditAvatar} />
       <Text style={styles.panditName} numberOfLines={1}>{pandit.name}</Text>
+      {pandit.availability === 'offline' && (
+        <View style={styles.offlinePill}>
+          <Text style={styles.offlinePillText}>Currently offline</Text>
+        </View>
+      )}
       {pandit.rating != null && (
         <View style={styles.panditRatingRow}>
           <Ionicons name="star" size={12} color={THEME.colors.gold} />
@@ -214,7 +221,7 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   const handleSchedule = () => {
     router.push({
       pathname: '/devotee/ExploreTab' as any,
-      params: { filterCeremonyId: ceremonyId },
+      params: { filterCeremonyId: ceremonyId, filterCeremonyName: data?.ceremony?.name ?? '' },
     });
   };
 
@@ -258,7 +265,10 @@ export default function CeremonyDetailsScreen(): React.JSX.Element {
   }
 
   const ceremony = data.ceremony;
-  const priests = data.priests ?? [];
+  // Keep offline pandits discoverable for scheduled booking, but rank them below online ones.
+  const priests = [...(data.priests ?? [])].sort(
+    (a, b) => (a.availability === 'offline' ? 1 : 0) - (b.availability === 'offline' ? 1 : 0)
+  );
   const heroImageSource = getCeremonyImageSource(ceremony.images);
 
 
@@ -704,6 +714,18 @@ const styles = StyleSheet.create({
     color: THEME.colors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
+  },
+  offlinePill: {
+    backgroundColor: THEME.colors.border,
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  offlinePillText: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.textMuted,
+    fontWeight: '600',
   },
   panditRatingRow: {
     flexDirection: 'row',

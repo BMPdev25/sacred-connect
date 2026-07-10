@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -133,15 +134,17 @@ export default function RateReview() {
         <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
       </TouchableOpacity>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={[
           styles.scrollContent,
           {
             paddingTop: insets.top + 56,
-            paddingBottom: insets.bottom + 40,
+            paddingBottom: insets.bottom + 120,
           },
         ]}
         keyboardShouldPersistTaps="handled"
+        enableOnAndroid
+        extraScrollHeight={80}
       >
         <Text style={styles.screenTitle}>
           {existingRatingId ? 'Edit Your Review' : 'Rate Your Experience'}
@@ -149,8 +152,8 @@ export default function RateReview() {
         
         {/* Booking Context */}
         <RateContextCard
-          priestName={booking.priestId.name}
-          profilePicture={booking.priestId.profilePicture}
+          priestName={booking.priestId?.name ?? 'Pandit unavailable'}
+          profilePicture={booking.priestId?.profilePicture}
           avatarPlaceholder={avatarPlaceholder}
           ceremonyType={booking.ceremonyType}
           displayDate={formatDisplayDate(booking.date)}
@@ -189,7 +192,7 @@ export default function RateReview() {
             disabled={overallRating === 0}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </View>
   );
 }

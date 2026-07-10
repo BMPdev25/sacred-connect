@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -60,7 +61,7 @@ export default function EditProfile(): React.JSX.Element {
         <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
       </TouchableOpacity>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         style={styles.scrollView}
         contentContainerStyle={[
           styles.scrollContent,
@@ -70,6 +71,8 @@ export default function EditProfile(): React.JSX.Element {
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={80}
       >
         <Text style={styles.screenTitle}>Edit Profile</Text>
 
@@ -114,7 +117,7 @@ export default function EditProfile(): React.JSX.Element {
             editable={true}
           />
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       {/* STICKY BOTTOM BAR */}
       <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, THEME.spacing.md) }]}>
@@ -145,7 +148,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: THEME.spacing.xl,
+    paddingBottom: 120,
   },
   screenTitle: {
     fontSize: THEME.typography.displayMedium,

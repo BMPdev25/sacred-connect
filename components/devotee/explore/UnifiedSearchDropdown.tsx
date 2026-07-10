@@ -18,6 +18,7 @@ import { CeremonySearchResult, PriestSearchResult } from '@/types/explore.types'
 import { getProfilePicSource } from '@/utils/imageUtils';
 import { THEME } from '@/constants/theme';
 import { SkeletonRow } from './SuggestionRow';
+import { INPUT_HEIGHT } from './ExploreSearchBar';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -247,9 +248,9 @@ export default function UnifiedSearchDropdown(
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
+    top: INPUT_HEIGHT + 4,
     left: 0,
     right: 0,
-    marginTop: 4,
     backgroundColor: THEME.colors.surface,
     borderRadius: THEME.borderRadius.md,
     maxHeight: 380,

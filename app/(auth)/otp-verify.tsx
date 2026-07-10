@@ -1,13 +1,11 @@
 import React, { useState, useRef } from 'react';
 import {
   Animated,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -76,14 +74,13 @@ export default function OtpVerifyScreen(): React.JSX.Element {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + THEME.spacing.lg, paddingBottom: insets.bottom + THEME.spacing.xl }]}
+    <View style={styles.flex}>
+      <KeyboardAwareScrollView
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + THEME.spacing.lg, paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={80}
       >
         <OtpHeader phone={phone} router={router} />
 
@@ -120,8 +117,8 @@ export default function OtpVerifyScreen(): React.JSX.Element {
             loading={loading}
           />
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

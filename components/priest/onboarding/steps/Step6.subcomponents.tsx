@@ -90,7 +90,7 @@ export function DocumentSlotCard({ slot, onUpload, onRemove }: DocumentSlotCardP
         <Ionicons name="alert-circle-outline" size={32} color={THEME.colors.error} />
         <View style={styles.errorTextContainer}>
           <Text style={styles.slotLabel}>{slot.label}</Text>
-          <Text style={styles.errorText}>Upload failed. Tap to retry.</Text>
+          <Text style={styles.errorText}>{slot.errorMessage || 'Upload failed. Tap to retry.'}</Text>
         </View>
       </TouchableOpacity>
     );
@@ -107,6 +107,7 @@ export function DocumentSlotCard({ slot, onUpload, onRemove }: DocumentSlotCardP
       <Ionicons name="cloud-upload-outline" size={32} color={THEME.colors.primary} />
       <Text style={styles.uploadLabel}>{slot.label}</Text>
       <Text style={styles.uploadDescription}>{slot.description}</Text>
+      <Text style={styles.uploadLimitText}>Max file size: 5 MB · JPG, PNG or PDF</Text>
     </TouchableOpacity>
   );
 }
@@ -194,6 +195,12 @@ export const styles = StyleSheet.create({
     fontSize: THEME.typography.bodySmall,
     textAlign: 'center',
     marginTop: 4,
+  },
+  uploadLimitText: {
+    color: THEME.colors.textMuted,
+    fontSize: THEME.typography.caption,
+    textAlign: 'center',
+    marginTop: 6,
   },
   uploadingRow: {
     flexDirection: 'row',

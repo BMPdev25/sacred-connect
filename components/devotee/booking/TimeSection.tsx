@@ -19,6 +19,11 @@ const { width: screenWidth } = Dimensions.get('window');
 // (screenWidth - 48 (left padding from stepper) - 32 (right padding/margins)) / 3 - 8 (gap)
 const PILL_WIDTH = (screenWidth - 80) / 3 - 8;
 
+// Instant flow has no priest yet (broadcast picks one), so there is no
+// weekly schedule to read. Fall back to a generous general-availability
+// window rather than blocking time selection entirely.
+const INSTANT_DEFAULT_SCHEDULE = { startTime: '06:00', endTime: '21:00' };
+
 interface TimeSlotPillProps {
   slot: TimeSlot;
   isSelected: boolean;
@@ -78,10 +83,12 @@ export function TimeSection({ weeklySchedule }: TimeSectionProps) {
   // ACTIVE STATE (date selected, time not yet chosen or activeSection === 'time')
   const isActive = draft.activeSection === 'time' || !draft.selectedTimeSlot;
 
-  if (isActive && draft.selectedDate && draft.selectedService && weeklySchedule) {
+  if (isActive && draft.selectedDate && draft.selectedService) {
     const dayName = getDayName(draft.selectedDate);
-    const schedule = parseDaySchedule(weeklySchedule, dayName);
-    
+    const schedule = weeklySchedule
+      ? parseDaySchedule(weeklySchedule, dayName)
+      : INSTANT_DEFAULT_SCHEDULE;
+
     let slots: TimeSlot[] = [];
     if (schedule) {
       slots = generateTimeSlots(

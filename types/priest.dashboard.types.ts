@@ -67,7 +67,7 @@ export interface BookingRequest {
     /** Extracted city name. */
     city: string;
   };
-  /** Reference details of the devotee. */
+  /** Reference details of the devotee. Null when the devotee has deleted their account. */
   devoteeId: {
     /** Unique devotee identifier. */
     _id: string;
@@ -77,7 +77,7 @@ export interface BookingRequest {
     profilePicture?: string;
     /** Devotee registration creation timestamp. */
     createdAt: string;
-  };
+  } | null;
   /** Status of the booking request. */
   status: string;
   /** Request creation timestamp. */

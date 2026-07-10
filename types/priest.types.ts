@@ -66,6 +66,8 @@ export interface DocumentSlot {
   url?: string;
   /** Optional upload progress percentage (0-100). */
   uploadProgress?: number;
+  /** Friendly message to show inline when status is 'error'. */
+  errorMessage?: string;
   /** Optional flag indicating optional state overrides (if applicable). */
   isOptionalFlag?: boolean;
 }

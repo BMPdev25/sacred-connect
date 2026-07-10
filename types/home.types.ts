@@ -66,6 +66,8 @@ export interface NearbyPriest {
   experienceYears: number;
   /** Optional computed distance in kilometers from the user. */
   distance?: number;
+  /** True when the priest's current availability status is 'offline'. Still bookable for scheduled ceremonies. */
+  isOffline?: boolean;
 }
 
 /**

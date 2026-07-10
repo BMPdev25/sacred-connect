@@ -20,8 +20,8 @@ export interface BookingListItem {
   priestId: {
     _id: string;
     name: string;
-    profilePicture?: string;
-  };
+    profilePicture?: string | { url?: string };
+  } | null;
   devoteeId: string;
   location: {
     address: string;

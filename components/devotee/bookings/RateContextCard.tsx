@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
 import { THEME } from '@/constants/theme';
+import { getProfilePicSource } from '@/utils/imageUtils';
 
 interface RateContextCardProps {
   priestName: string;
-  profilePicture?: string;
+  profilePicture?: string | { url?: string } | null;
   avatarPlaceholder: any;
   ceremonyType: string;
   displayDate: string;
@@ -26,7 +27,7 @@ export function RateContextCard({
   ceremonyType,
   displayDate,
 }: RateContextCardProps): React.JSX.Element {
-  const profileSource = profilePicture ? { uri: profilePicture } : avatarPlaceholder;
+  const profileSource = getProfilePicSource(profilePicture, avatarPlaceholder);
 
   return (
     <View style={styles.contextCard}>

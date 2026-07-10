@@ -4,7 +4,7 @@
  * Active filter state for the Explore Tab.
  */
 export interface ExploreFilters {
-  /** Array of ceremony category _id strings. */
+  /** Array of CeremonyCategory slugs (e.g. "wedding"), not ObjectIds. */
   ceremonyTypes: string[];
   /** Array of languages spoken. */
   languages: string[];

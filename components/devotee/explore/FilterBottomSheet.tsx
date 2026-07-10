@@ -96,8 +96,8 @@ export default function FilterBottomSheet({
             <FilterChip
               key={cat._id}
               label={cat.name}
-              isSelected={filters.ceremonyTypes.includes(cat._id)}
-              onPress={() => dispatch(toggleCeremonyType(cat._id))}
+              isSelected={filters.ceremonyTypes.includes(cat.slug ?? cat._id)}
+              onPress={() => dispatch(toggleCeremonyType(cat.slug ?? cat._id))}
             />
           ))}
         </View>

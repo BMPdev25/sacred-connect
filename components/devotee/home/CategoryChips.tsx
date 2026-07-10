@@ -105,9 +105,11 @@ export default function CategoryChips({ categories }: CategoryChipsProps): React
     }
 
     // Fallback: filter Explore by category (hardcoded chips with no ceremony seeded yet).
+    // ExploreTab's preset filter matches on Ceremony.category (a plain string), so the
+    // slug must be sent here, not the CeremonyCategory ObjectId.
     router.navigate({
       pathname: '/devotee/(tabs)/ExploreTab' as any,
-      params: { categoryId: category._id, categoryName: category.name },
+      params: { categoryId: category.slug ?? category._id, categoryName: category.name },
     });
   };
 

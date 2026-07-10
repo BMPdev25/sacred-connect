@@ -5,14 +5,12 @@
 
 import React from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -60,10 +58,7 @@ export default function SignupPriestScreen(): React.ReactElement {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={styles.flex}>
       <TouchableOpacity
         onPress={() => router.back()}
         style={[styles.backBtn, { top: insets.top + 8 }]}
@@ -72,16 +67,18 @@ export default function SignupPriestScreen(): React.ReactElement {
         <Ionicons name="arrow-back" size={24} color={THEME.colors.textPrimary} />
       </TouchableOpacity>
 
-      <ScrollView
+      <KeyboardAwareScrollView
         contentContainerStyle={[
           styles.scroll,
           {
             paddingTop: insets.top + 56,
-            paddingBottom: insets.bottom + THEME.spacing.xl,
+            paddingBottom: insets.bottom + 120,
           },
         ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={80}
       >
         {/* Logo */}
         <View style={styles.logoWrap}>
@@ -133,8 +130,8 @@ export default function SignupPriestScreen(): React.ReactElement {
           <Text style={styles.loginLink}>Login</Text>
         </TouchableOpacity>
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAwareScrollView>
+    </View>
   );
 }
 

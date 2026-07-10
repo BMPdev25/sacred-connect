@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useDispatch, useSelector } from 'react-redux';
@@ -40,7 +41,7 @@ export default function BookCeremonyScreen() {
 
   const dispatch = useDispatch();
   const draft = useSelector((state: RootState) => state.booking);
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<KeyboardAwareScrollView>(null);
   // Tracks whether service pre-selection has fired to prevent re-running on cache refresh
   const hasPreSelectedRef = useRef(false);
 
@@ -51,7 +52,7 @@ export default function BookCeremonyScreen() {
   useEffect(() => {
     const targetY = offsets[draft.activeSection];
     if (targetY !== undefined) {
-      scrollRef.current?.scrollTo({ y: targetY, animated: true });
+      scrollRef.current?.scrollToPosition(0, targetY, true);
     }
   }, [draft.activeSection, offsets]);
 
@@ -143,7 +144,14 @@ export default function BookCeremonyScreen() {
         <View style={styles.headerRightPlaceholder} />
       </View>
 
-      <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <KeyboardAwareScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        enableOnAndroid
+        extraScrollHeight={80}
+        keyboardShouldPersistTaps="handled"
+      >
         <PriestMiniCard priestProfileId={params.priestId || ''} />
 
         <View style={styles.stepperContainer}>
@@ -173,7 +181,7 @@ export default function BookCeremonyScreen() {
             </View>
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <BookingBottomBar
         pricing={draft.pricing}
@@ -191,7 +199,7 @@ const styles = StyleSheet.create({
   backButton: { padding: 4 },
   headerTitle: { fontSize: THEME.typography.subheading, fontWeight: '600', color: THEME.colors.textPrimary },
   headerRightPlaceholder: { width: 32 },
-  scrollContent: { paddingBottom: 100 },
+  scrollContent: { paddingBottom: 120 },
   stepperContainer: { flexDirection: 'row', paddingLeft: 48, paddingRight: THEME.spacing.md, position: 'relative' },
   stepContentContainer: { flex: 1, paddingLeft: 8 },
 });

@@ -84,7 +84,16 @@ export const Step6Documents = forwardRef<StepRef, {}>((_, ref) => {
       }
 
       if (fileSize > MAX_FILE_SIZE_BYTES) {
-        Alert.alert('File too large', 'Maximum file size is 5MB.');
+        const fileSizeMb = (fileSize / (1024 * 1024)).toFixed(1);
+        dispatch(
+          updateStep6Document({
+            type: slot.type,
+            updates: {
+              status: 'error',
+              errorMessage: `File is ${fileSizeMb} MB — maximum allowed is 5 MB. Please choose a smaller file.`,
+            },
+          })
+        );
         return;
       }
 
@@ -122,7 +131,15 @@ export const Step6Documents = forwardRef<StepRef, {}>((_, ref) => {
       setStepErrors([]);
     } catch (error: any) {
       console.error(`Failed to pick/upload document for ${slot.type}:`, error);
-      Alert.alert('Upload Failed', error.message || 'Failed to upload document. Please try again.');
+      dispatch(
+        updateStep6Document({
+          type: slot.type,
+          updates: {
+            status: 'error',
+            errorMessage: error.message || 'Failed to upload document. Please try again.',
+          },
+        })
+      );
     }
   }
 

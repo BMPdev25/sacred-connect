@@ -3,12 +3,13 @@ import { View, Text, StyleSheet, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
 import { BookingStatus } from '@/types/bookingManagement.types';
+import { getProfilePicSource } from '@/utils/imageUtils';
 import { DetailCard } from './DetailCard';
 
 interface DetailPanditCardProps {
   status: BookingStatus;
   priestName: string;
-  profilePicture?: string;
+  profilePicture?: string | { url?: string } | null;
   avatarPlaceholder: any;
 }
 
@@ -26,7 +27,7 @@ export function DetailPanditCard({
   profilePicture,
   avatarPlaceholder,
 }: DetailPanditCardProps): React.JSX.Element {
-  const profileSource = profilePicture ? { uri: profilePicture } : avatarPlaceholder;
+  const profileSource = getProfilePicSource(profilePicture, avatarPlaceholder);
 
   return (
     <DetailCard title="Your Pandit">

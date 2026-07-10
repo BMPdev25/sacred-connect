@@ -142,7 +142,12 @@ function CeremonyCardSkeleton(): React.JSX.Element {
 
 export default function ExploreTab(): React.JSX.Element {
   const dispatch = useDispatch();
-  const params = useLocalSearchParams<{ focusSearch?: string; categoryId?: string }>();
+  const params = useLocalSearchParams<{
+    focusSearch?: string;
+    categoryId?: string;
+    filterCeremonyId?: string;
+    filterCeremonyName?: string;
+  }>();
   const filters = useSelector((state: RootState) => state.explore);
   const { coordinates, permissionStatus } = useUserLocation();
   const categories = useCategories();
@@ -152,6 +157,7 @@ export default function ExploreTab(): React.JSX.Element {
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [ceremonyFilter, setCeremonyFilter] = useState<{ id: string; name: string } | null>(null);
 
   const debouncedSearch = useDebounce(searchInput, 300);
 
@@ -159,7 +165,7 @@ export default function ExploreTab(): React.JSX.Element {
     useUnifiedSearch(debouncedSearch);
 
   const { priests, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch, error } =
-    useExplorePriests(debouncedSearch, filters, filters.sortBy, coordinates);
+    useExplorePriests(debouncedSearch, filters, filters.sortBy, coordinates, ceremonyFilter?.id);
 
   // Fetch all ceremonies for the grid
   const { data: ceremoniesData, isLoading: isCeremoniesLoading } = useQuery<{
@@ -190,6 +196,17 @@ export default function ExploreTab(): React.JSX.Element {
   useEffect(() => {
     if (params.categoryId) dispatch(applyPresetCategory(params.categoryId));
   }, [params.categoryId, dispatch]);
+
+  // Ceremony-first navigation (CeremonyDetails "Schedule with a Pandit", or the
+  // SearchingForPriest fallback) arrives with an exact ceremony to filter by.
+  useEffect(() => {
+    if (params.filterCeremonyId) {
+      setCeremonyFilter({
+        id: params.filterCeremonyId,
+        name: params.filterCeremonyName || 'this ceremony',
+      });
+    }
+  }, [params.filterCeremonyId, params.filterCeremonyName]);
 
   const emptyReason = getEmptyStateReason(priests, isLoading, permissionStatus, searchInput, error);
 
@@ -284,6 +301,24 @@ export default function ExploreTab(): React.JSX.Element {
 
           {viewMode === 'pandits' ? (
             <>
+              {ceremonyFilter && (
+                <View style={styles.ceremonyFilterRow}>
+                  <View style={styles.ceremonyFilterChip}>
+                    <Ionicons name="filter" size={14} color={THEME.colors.primary} />
+                    <Text style={styles.ceremonyFilterChipText} numberOfLines={1}>
+                      Filtering: {ceremonyFilter.name}
+                    </Text>
+                    <TouchableOpacity
+                      onPress={() => setCeremonyFilter(null)}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      accessibilityLabel="Clear ceremony filter"
+                    >
+                      <Ionicons name="close-circle" size={16} color={THEME.colors.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              )}
+
               <View style={styles.sortWrap}>
                 <SortChips
                   selectedSort={filters.sortBy}
@@ -295,11 +330,15 @@ export default function ExploreTab(): React.JSX.Element {
                 <ExploreEmptyState
                   reason={emptyReason}
                   searchQuery={searchInput}
-                  onClearFilters={() => dispatch(resetFilters())}
+                  onClearFilters={() => {
+                    dispatch(resetFilters());
+                    setCeremonyFilter(null);
+                  }}
                   onBrowseAll={() => {
                     setSearchInput('');
                     setIsSuggestionOpen(false);
                     dispatch(resetFilters());
+                    setCeremonyFilter(null);
                   }}
                   onEnableLocation={() => Linking.openSettings()}
                   onRetry={refetch}
@@ -389,13 +428,15 @@ export default function ExploreTab(): React.JSX.Element {
         </>
       )}
 
-      <FilterBottomSheet
-        isVisible={isFilterSheetOpen}
-        onClose={() => setIsFilterSheetOpen(false)}
-        onApply={() => setIsFilterSheetOpen(false)}
-        categories={categories.data ?? []}
-        resultCount={priests.length}
-      />
+      <View style={styles.filterSheetLayer} pointerEvents="box-none">
+        <FilterBottomSheet
+          isVisible={isFilterSheetOpen}
+          onClose={() => setIsFilterSheetOpen(false)}
+          onApply={() => setIsFilterSheetOpen(false)}
+          categories={categories.data ?? []}
+          resultCount={priests.length}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -409,6 +450,11 @@ const styles = StyleSheet.create({
   backdrop: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 5,
+  },
+  filterSheetLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    elevation: 999,
   },
 
   // Toggle
@@ -446,12 +492,35 @@ const styles = StyleSheet.create({
   },
 
   // Pandits view
-  sortWrap: { marginVertical: THEME.spacing.sm, zIndex: 1 },
+  sortWrap: { marginVertical: THEME.spacing.sm, zIndex: 1, overflow: 'hidden' },
+  ceremonyFilterRow: {
+    paddingHorizontal: THEME.spacing.md,
+    marginTop: THEME.spacing.sm,
+  },
+  ceremonyFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF4E6',
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FFD9A0',
+  },
+  ceremonyFilterChipText: {
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '600',
+    color: THEME.colors.primary,
+    maxWidth: 220,
+  },
 
   // Category chips
   categoryChipsRow: {
     flexGrow: 0,
     marginBottom: THEME.spacing.sm,
+    overflow: 'hidden',
   },
   categoryChipsContainer: {
     paddingHorizontal: THEME.spacing.md,

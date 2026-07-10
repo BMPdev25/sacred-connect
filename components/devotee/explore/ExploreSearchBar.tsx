@@ -13,7 +13,7 @@ import { THEME } from '@/constants/theme';
 // Constants
 // ---------------------------------------------------------------------------
 
-const INPUT_HEIGHT = 48;
+export const INPUT_HEIGHT = 48;
 const BUTTON_SIZE = 48;
 const BADGE_SIZE = 20;
 const BORDER_WIDTH = 1.5;

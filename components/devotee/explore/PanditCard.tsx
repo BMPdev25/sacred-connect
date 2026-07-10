@@ -120,7 +120,14 @@ export default function PanditCard({
       <Image source={imageSource} style={styles.photo} resizeMode="cover" />
 
       <View style={styles.info}>
-        <Text style={styles.name} numberOfLines={1}>{priest.name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{priest.name}</Text>
+          {priest.isOffline && (
+            <View style={styles.offlinePill}>
+              <Text style={styles.offlinePillText}>Currently offline</Text>
+            </View>
+          )}
+        </View>
         <Text style={styles.specialization} numberOfLines={1}>
           {priest.primarySpecialization}
         </Text>
@@ -176,10 +183,27 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: THEME.spacing.xs,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: THEME.spacing.xs,
+  },
   name: {
     fontSize: THEME.typography.body,
     fontWeight: '700',
     color: THEME.colors.textPrimary,
+    flexShrink: 1,
+  },
+  offlinePill: {
+    backgroundColor: THEME.colors.border,
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
+  offlinePillText: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.textMuted,
+    fontWeight: '600',
   },
   specialization: {
     fontSize: THEME.typography.bodySmall,

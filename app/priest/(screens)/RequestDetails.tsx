@@ -158,14 +158,16 @@ export default function RequestDetails(): React.JSX.Element {
         {/* Devotee info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>From</Text>
-          <Text style={styles.devoteeName}>{request.devoteeId.name}</Text>
-          <Text style={styles.devoteeJoined}>
-            Member since{' '}
-            {new Date(request.devoteeId.createdAt).toLocaleDateString('en-IN', {
-              month: 'long',
-              year: 'numeric',
-            })}
-          </Text>
+          <Text style={styles.devoteeName}>{request.devoteeId?.name ?? 'Devotee unavailable'}</Text>
+          {request.devoteeId?.createdAt && (
+            <Text style={styles.devoteeJoined}>
+              Member since{' '}
+              {new Date(request.devoteeId.createdAt).toLocaleDateString('en-IN', {
+                month: 'long',
+                year: 'numeric',
+              })}
+            </Text>
+          )}
         </View>
 
         {/* Ceremony details */}

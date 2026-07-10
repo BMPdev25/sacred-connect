@@ -133,8 +133,8 @@ export default function BookingDetails() {
         {/* Your Pandit */}
         <DetailPanditCard
           status={booking.status}
-          priestName={booking.priestId.name}
-          profilePicture={booking.priestId.profilePicture}
+          priestName={booking.priestId?.name ?? 'Pandit unavailable'}
+          profilePicture={booking.priestId?.profilePicture}
           avatarPlaceholder={avatarPlaceholder}
         />
 

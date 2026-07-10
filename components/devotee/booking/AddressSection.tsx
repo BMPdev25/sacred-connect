@@ -126,7 +126,7 @@ export function AddressSection() {
               return (
                 <TouchableOpacity
                   key={addr._id}
-                  style={styles.addressCard}
+                  style={[styles.addressCard, isSelected && styles.addressCardSelected]}
                   onPress={() => dispatch(setSelectedAddress(addr))}
                 >
                   <Ionicons
@@ -299,7 +299,12 @@ const styles = StyleSheet.create({
     borderRadius: THEME.borderRadius.md,
     marginBottom: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
     ...THEME.shadow.card,
+  },
+  addressCardSelected: {
+    borderColor: THEME.colors.primary,
   },
   addressCardContent: {
     flex: 1,

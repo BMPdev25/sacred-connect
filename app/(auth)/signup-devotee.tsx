@@ -3,7 +3,7 @@
  * Built using shared signup components and hooks to ensure identical structure.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -51,10 +51,12 @@ export default function SignupDevoteeScreen(): React.ReactElement {
     buildPayload,
   } = useSignupForm();
 
+  const [isRoleConflict, setIsRoleConflict] = useState(false);
+
   async function onSubmit(): Promise<void> {
     if (!validateAll()) return;
     const payload = buildPayload('devotee');
-    await handleDevoteeSignup(payload, setIsLoading, setGeneralError, router);
+    await handleDevoteeSignup(payload, setIsLoading, setGeneralError, router, setIsRoleConflict);
   }
 
   return (
@@ -99,6 +101,14 @@ export default function SignupDevoteeScreen(): React.ReactElement {
           />
           
           {Boolean(generalError) && <Text style={styles.errorText}>{generalError}</Text>}
+          {isRoleConflict && (
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/login' as any)}
+              style={styles.roleConflictLinkWrap}
+            >
+              <Text style={styles.loginLink}>Log in instead</Text>
+            </TouchableOpacity>
+          )}
 
           {/* Primary CTA */}
           <View style={styles.ctaWrap}>
@@ -172,6 +182,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ctaWrap: { marginTop: THEME.spacing.sm },
+  roleConflictLinkWrap: {
+    alignSelf: 'center',
+    marginBottom: THEME.spacing.sm,
+  },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',

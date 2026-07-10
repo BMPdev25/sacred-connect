@@ -3,7 +3,7 @@
  * Built using shared signup components and hooks to ensure identical structure.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,13 +13,21 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import FloatingInput from '@/components/shared/FloatingInput';
 import Logo from '@/components/shared/Logo';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { THEME } from '@/constants/theme';
 import { useSignupForm } from '@/hooks/useSignupForm';
+import { store } from '@/redux/store';
+import { setUserSession } from '@/redux/slices/userSlice';
+import { completeGoogleSignup } from '@/services/auth/authService';
+import { isValidPhone } from '@/services/auth/authValidation';
+import { setPendingGoogleProfile, setSignupInProgress } from '@/services/auth/signupState';
+import { getReadableErrorMessage } from '@/utils/errorHandler';
+import { logger } from '@/utils/logger';
 
 import { LegalText, SignupFormFields } from '@/components/auth/signup.components';
 import { handlePriestSignup } from '@/handlers/auth/signup.handlers';
@@ -29,6 +37,110 @@ import { handlePriestSignup } from '@/handlers/auth/signup.handlers';
 // ---------------------------------------------------------------------------
 
 const DIVIDER_HEIGHT = 1;
+const ICON_SIZE = 18;
+
+// ---------------------------------------------------------------------------
+// Google-prefilled branch — the Firebase account already exists (created
+// during Google sign-in), so this only collects the remaining fields
+// (phone) and completes the backend registration directly, without a
+// password or a new Firebase account.
+// ---------------------------------------------------------------------------
+
+interface GooglePrefilledFormProps {
+  email: string;
+  name: string;
+  router: ReturnType<typeof useRouter>;
+}
+
+function GooglePrefilledForm({ email, name, router }: GooglePrefilledFormProps): React.ReactElement {
+  const [nameValue, setNameValue] = useState(name);
+  const [phone, setPhone] = useState('');
+  const [phoneError, setPhoneError] = useState<string | undefined>();
+  const [generalError, setGeneralError] = useState('');
+  const [isRoleConflict, setIsRoleConflict] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  async function onSubmit(): Promise<void> {
+    const validation = isValidPhone(phone);
+    if (!validation.isValid) {
+      setPhoneError(validation.error ?? 'Invalid phone number.');
+      return;
+    }
+    setPhoneError(undefined);
+    setGeneralError('');
+    setIsRoleConflict(false);
+    setIsLoading(true);
+    try {
+      const profile = await completeGoogleSignup('priest', { phone, name: nameValue });
+      setPendingGoogleProfile(null);
+      store.dispatch(setUserSession({ user: profile }));
+      router.replace('/priest/onboarding');
+    } catch (err: any) {
+      logger.error('Google priest signup failed', err);
+      if (err.code === 'ROLE_CONFLICT') setIsRoleConflict(true);
+      setGeneralError(err.message || getReadableErrorMessage(err));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <View style={styles.formArea}>
+      <FloatingInput
+        label="Full Name"
+        value={nameValue}
+        onChangeText={setNameValue}
+        editable={!name}
+        autoCapitalize="words"
+        leftIcon={<Ionicons name="person-outline" size={ICON_SIZE} color={THEME.colors.textMuted} />}
+        testID="signup-priest-google-name-input"
+      />
+      <FloatingInput
+        label="Email Address"
+        value={email}
+        onChangeText={() => {}}
+        editable={false}
+        leftIcon={<Ionicons name="mail-outline" size={ICON_SIZE} color={THEME.colors.textMuted} />}
+        testID="signup-priest-google-email-input"
+      />
+      <FloatingInput
+        label="Phone Number"
+        value={phone}
+        onChangeText={setPhone}
+        onBlur={() => setPhoneError(isValidPhone(phone).error ?? undefined)}
+        keyboardType="phone-pad"
+        error={phoneError}
+        leftIcon={<Text style={styles.dialCode}>+91</Text>}
+        testID="signup-priest-google-phone-input"
+      />
+
+      {Boolean(generalError) && <Text style={styles.errorText}>{generalError}</Text>}
+      {isRoleConflict && (
+        <TouchableOpacity
+          onPress={() => {
+            // Abandoning this Google new-user attempt — release the
+            // semaphore so the listener resumes normal routing.
+            setSignupInProgress(false);
+            setPendingGoogleProfile(null);
+            router.push('/login');
+          }}
+          style={styles.roleConflictLinkWrap}
+        >
+          <Text style={styles.loginLink}>Log in instead</Text>
+        </TouchableOpacity>
+      )}
+
+      <View style={styles.ctaWrap}>
+        <PrimaryButton
+          title="Register as Pandit"
+          onPress={onSubmit}
+          loading={isLoading}
+          testID="signup-priest-google-btn"
+        />
+      </View>
+    </View>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Component
@@ -37,7 +149,9 @@ const DIVIDER_HEIGHT = 1;
 export default function SignupPriestScreen(): React.ReactElement {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+  const params = useLocalSearchParams<{ googleEmail?: string; googleName?: string }>();
+  const isGoogleMode = Boolean(params.googleEmail);
+
   const {
     formValues,
     fieldErrors,
@@ -51,10 +165,12 @@ export default function SignupPriestScreen(): React.ReactElement {
     buildPayload,
   } = useSignupForm();
 
+  const [isRoleConflict, setIsRoleConflict] = useState(false);
+
   async function onSubmit(): Promise<void> {
     if (!validateAll()) return;
     const payload = buildPayload('priest');
-    await handlePriestSignup(payload, setIsLoading, setGeneralError, router);
+    await handlePriestSignup(payload, setIsLoading, setGeneralError, router, setIsRoleConflict);
   }
 
   return (
@@ -87,48 +203,68 @@ export default function SignupPriestScreen(): React.ReactElement {
 
         {/* Headings */}
         <Text style={styles.heading}>Create your account</Text>
-        <Text style={styles.subtext}>Join our network of trusted pandits</Text>
+        <Text style={styles.subtext}>
+          {isGoogleMode ? 'Just a few more details to finish setting up.' : 'Join our network of trusted pandits'}
+        </Text>
 
-        {/* Form fields */}
-        <View style={styles.formArea}>
-          <SignupFormFields
-            values={formValues}
-            errors={fieldErrors}
-            onFieldChange={handleFieldChange}
-            onFieldBlur={handleFieldBlur}
+        {isGoogleMode ? (
+          <GooglePrefilledForm
+            email={params.googleEmail as string}
+            name={(params.googleName as string) || ''}
+            router={router}
           />
-          
-          {Boolean(generalError) && <Text style={styles.errorText}>{generalError}</Text>}
+        ) : (
+          <>
+            {/* Form fields */}
+            <View style={styles.formArea}>
+              <SignupFormFields
+                values={formValues}
+                errors={fieldErrors}
+                onFieldChange={handleFieldChange}
+                onFieldBlur={handleFieldBlur}
+              />
 
-          {/* Primary CTA */}
-          <View style={styles.ctaWrap}>
-            <PrimaryButton
-              title="Register as Pandit"
-              onPress={onSubmit}
-              loading={isLoading}
-              testID="signup-priest-btn"
-            />
-          </View>
+              {Boolean(generalError) && <Text style={styles.errorText}>{generalError}</Text>}
+              {isRoleConflict && (
+                <TouchableOpacity
+                  onPress={() => router.push('/(auth)/login' as any)}
+                  style={styles.roleConflictLinkWrap}
+                >
+                  <Text style={styles.loginLink}>Log in instead</Text>
+                </TouchableOpacity>
+              )}
 
-          {/* Legal Text */}
-          <LegalText
-            onTermsPress={() => { /* TODO: route to terms */ }}
-            onPrivacyPress={() => { /* TODO: route to privacy */ }}
-          />
-        </View>
+              {/* Primary CTA */}
+              <View style={styles.ctaWrap}>
+                <PrimaryButton
+                  title="Register as Pandit"
+                  onPress={onSubmit}
+                  loading={isLoading}
+                  testID="signup-priest-btn"
+                />
+              </View>
 
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-        </View>
+              {/* Legal Text */}
+              <LegalText
+                onTermsPress={() => { /* TODO: route to terms */ }}
+                onPrivacyPress={() => { /* TODO: route to privacy */ }}
+              />
+            </View>
 
-        {/* Footer */}
-        <TouchableOpacity
-          style={styles.loginRow}
-          onPress={() => router.push('/login')}
-        >
-          <Text style={styles.loginPrompt}>Already have an account? </Text>
-          <Text style={styles.loginLink}>Login</Text>
-        </TouchableOpacity>
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+            </View>
+
+            {/* Footer */}
+            <TouchableOpacity
+              style={styles.loginRow}
+              onPress={() => router.push('/login')}
+            >
+              <Text style={styles.loginPrompt}>Already have an account? </Text>
+              <Text style={styles.loginLink}>Login</Text>
+            </TouchableOpacity>
+          </>
+        )}
 
       </KeyboardAwareScrollView>
     </View>
@@ -172,6 +308,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   ctaWrap: { marginTop: THEME.spacing.sm },
+  roleConflictLinkWrap: {
+    alignSelf: 'center',
+    marginBottom: THEME.spacing.sm,
+  },
   dividerRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -195,5 +335,10 @@ const styles = StyleSheet.create({
     fontSize: THEME.typography.body,
     fontWeight: '600',
     color: THEME.colors.primary,
+  },
+  dialCode: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textSecondary,
+    fontWeight: '500',
   },
 });

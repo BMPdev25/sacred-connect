@@ -14,3 +14,24 @@ export function setSignupInProgress(value: boolean): void {
 export function getIsSignupInProgress(): boolean {
   return isSignupInProgress;
 }
+
+/**
+ * Profile snapshot captured from a brand-new Google sign-in, before the
+ * backend account exists. Read by /role-selection (to branch into the
+ * Google-aware completion flow) and /signup-priest (to prefill + lock the
+ * email/name fields). Cleared once registration completes or is abandoned.
+ */
+export interface PendingGoogleProfile {
+  email: string;
+  name?: string;
+}
+
+let pendingGoogleProfile: PendingGoogleProfile | null = null;
+
+export function setPendingGoogleProfile(profile: PendingGoogleProfile | null): void {
+  pendingGoogleProfile = profile;
+}
+
+export function getPendingGoogleProfile(): PendingGoogleProfile | null {
+  return pendingGoogleProfile;
+}

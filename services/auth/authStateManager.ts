@@ -215,6 +215,17 @@ export function handleAuthError(error: any): void {
 let isListenerInitialized = false;
 
 /**
+ * Tracks whether the previous auth state had an active Firebase session.
+ * Distinguishes a real logout transition (session -> null) from a cold app
+ * start with no session ever (null from the very first callback), so that
+ * logging out always lands on /login instead of being routed through the
+ * first-launch onboarding check (checkFirstLaunch never gets a chance to
+ * return false if markLaunched is never called, which would otherwise
+ * silently send every logout back to the onboarding slides).
+ */
+let hadActiveSession = false;
+
+/**
  * Processes Firebase Auth state changes and routes the user accordingly.
  *
  * @param firebaseUser - The active Firebase User session object or null.
@@ -230,6 +241,7 @@ async function handleAuthStateChange(
     console.log('[DEBUG] onAuthStateChanged: Fired. User active:', Boolean(firebaseUser));
     if (firebaseUser) {
       console.log(`[DEBUG] onAuthStateChanged: User UID = ${firebaseUser.uid}, email = ${firebaseUser.email}`);
+      hadActiveSession = true;
       const profileWithState = await fetchUserProfile(firebaseUser);
       routeAuthenticatedUser(
         profileWithState,
@@ -241,8 +253,18 @@ async function handleAuthStateChange(
       SocketManager.disconnectSocket();
       // Reset all slices to initial state — prevents cross-user data bleed
       store.dispatch({ type: 'RESET_ALL' });
-      const firstLaunch = await checkFirstLaunch();
-      routeUnauthenticatedUser(firstLaunch);
+
+      if (hadActiveSession) {
+        // A real logout transition (was authenticated, now signed out) —
+        // go straight to login. Skips the first-launch onboarding check,
+        // which only applies to a genuinely fresh, never-authenticated app start.
+        hadActiveSession = false;
+        console.log('[DEBUG] onAuthStateChanged: Logout detected. Redirecting to /login.');
+        router.replace('/login');
+      } else {
+        const firstLaunch = await checkFirstLaunch();
+        routeUnauthenticatedUser(firstLaunch);
+      }
     }
   } catch (err: any) {
     console.log('[DEBUG] onAuthStateChanged: Error inside listener wrapper:', err);

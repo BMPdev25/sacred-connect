@@ -2,6 +2,7 @@ import { Router } from 'expo-router';
 
 import { loginWithEmail, loginWithGoogle, sendOtp } from '@/services/auth/authService';
 import { isValidPhone } from '@/services/auth/authValidation';
+import { setPendingGoogleProfile, setSignupInProgress } from '@/services/auth/signupState';
 import { logger } from '@/utils/logger';
 
 /** Setter type used by error state setters. */
@@ -93,6 +94,11 @@ export async function handleGoogleLogin(
     setError('');
     const result = await loginWithGoogle();
     if (result.isNewUser) {
+      // Keep the auth listener paused across the role-selection ->
+      // signup-priest navigation so a NO_ACCOUNT 404 mid-flow doesn't yank
+      // the user back to role-selection while they're completing signup.
+      setSignupInProgress(true);
+      setPendingGoogleProfile({ email: result.email || '', name: result.name });
       router.replace('/(auth)/role-selection');
     } else {
       // existing user — auth listener handles routing

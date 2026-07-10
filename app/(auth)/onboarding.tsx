@@ -26,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import { THEME } from '@/constants/theme';
 import { AssetService } from '@/services/assets/AssetService';
+import { markLaunched } from '@/services/auth/authStateManager';
 
 // ---------------------------------------------------------------------------
 // Slide data types and content
@@ -199,6 +200,7 @@ function useSlideNavigation(
   }
 
   function handleSkip(): void {
+    markLaunched();
     router.replace('/role-selection');
   }
 
@@ -283,7 +285,10 @@ export default function OnboardingScreen(): React.ReactElement {
           <View style={styles.getStartedWrap}>
             <PrimaryButton
               title="Get Started"
-              onPress={() => router.replace('/role-selection')}
+              onPress={() => {
+                markLaunched();
+                router.replace('/role-selection');
+              }}
               variant="primary"
             />
           </View>

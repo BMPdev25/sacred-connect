@@ -3,8 +3,8 @@
  * No back button. User picks Devotee or Pandit to continue registration.
  */
 
-import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,6 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Logo from '@/components/shared/Logo';
 import { RoleCard } from '@/components/shared/RoleCard';
 import { THEME } from '@/constants/theme';
+import { store } from '@/redux/store';
+import { setUserSession } from '@/redux/slices/userSlice';
+import { completeGoogleSignup } from '@/services/auth/authService';
+import { getPendingGoogleProfile, setPendingGoogleProfile, setSignupInProgress } from '@/services/auth/signupState';
+import { getReadableErrorMessage } from '@/utils/errorHandler';
+import { logger } from '@/utils/logger';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -35,6 +41,67 @@ export default function RoleSelectionScreen(): React.ReactElement {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
+  // Captured once: a brand-new Google sign-in already has a Firebase session
+  // (created before this screen was reached), so the two role cards below
+  // skip the password-based signup screens for that case.
+  const [googleProfile] = useState(() => getPendingGoogleProfile());
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [error, setError] = useState('');
+  const [isRoleConflict, setIsRoleConflict] = useState(false);
+
+  async function handleGoogleDevotee(): Promise<void> {
+    if (isProcessing) return;
+    setIsProcessing(true);
+    setError('');
+    setIsRoleConflict(false);
+    try {
+      // completeGoogleSignup owns the signup semaphore for the duration of
+      // this call (sets it true, clears it in its own finally on both
+      // success and failure).
+      const profile = await completeGoogleSignup('devotee');
+      setPendingGoogleProfile(null);
+      store.dispatch(setUserSession({ user: profile }));
+      router.replace('/devotee');
+    } catch (err: any) {
+      logger.error('Google devotee signup failed', err);
+      if (err.code === 'ROLE_CONFLICT') setIsRoleConflict(true);
+      setError(err.message || getReadableErrorMessage(err));
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  function handleDevoteePress(): void {
+    if (googleProfile) {
+      handleGoogleDevotee();
+    } else {
+      router.push('/signup-devotee');
+    }
+  }
+
+  function handlePanditPress(): void {
+    if (googleProfile) {
+      // Semaphore stays on — signup-priest completes registration and clears it.
+      router.push({
+        pathname: '/signup-priest',
+        params: { googleEmail: googleProfile.email, googleName: googleProfile.name || '' },
+      });
+    } else {
+      router.push('/signup-priest');
+    }
+  }
+
+  function handleLoginInstead(): void {
+    if (googleProfile) {
+      // Abandoning the Google new-user flow — release the semaphore so the
+      // auth listener resumes normal routing for whatever the user signs
+      // into next (their existing account via a different login method).
+      setSignupInProgress(false);
+      setPendingGoogleProfile(null);
+    }
+    router.push('/login');
+  }
+
   return (
     <View style={[styles.screen, { paddingBottom: insets.bottom + THEME.spacing.lg }]}>
 
@@ -46,33 +113,50 @@ export default function RoleSelectionScreen(): React.ReactElement {
         </View>
         <View style={{ marginBottom: HEADING_MARGIN_BOTTOM }}>
           <Text style={styles.heading}>Welcome to Sacred Connect</Text>
-          <Text style={styles.subtext}>Tell us how you&apos;ll use the app.</Text>
+          <Text style={styles.subtext}>
+            {googleProfile
+              ? `Signed in as ${googleProfile.email}. Tell us how you'll use the app.`
+              : "Tell us how you'll use the app."}
+          </Text>
         </View>
       </View>
 
-      {/* Role cards */}
-      <RoleCard
-        icon="hand-left-outline"
-        title="I'm a Devotee"
-        subtitle="Book pandits for pujas and ceremonies"
-        onPress={() => router.push('/signup-devotee')}
-      />
+      {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
+      {isRoleConflict && (
+        <TouchableOpacity onPress={handleLoginInstead} style={{ marginBottom: THEME.spacing.sm }}>
+          <Text style={[styles.loginLink, { textAlign: 'center' }]}>Log in instead</Text>
+        </TouchableOpacity>
+      )}
 
-      <View style={{ height: CARD_GAP }} />
+      {isProcessing ? (
+        <ActivityIndicator size="large" color={THEME.colors.primary} style={styles.loadingIndicator} />
+      ) : (
+        <>
+          {/* Role cards */}
+          <RoleCard
+            icon="hand-left-outline"
+            title="I'm a Devotee"
+            subtitle="Book pandits for pujas and ceremonies"
+            onPress={handleDevoteePress}
+          />
 
-      <RoleCard
-        icon="person-outline"
-        title="I'm a Pandit"
-        subtitle="Offer services and earn on your schedule"
-        onPress={() => router.push('/signup-priest')}
-      />
+          <View style={{ height: CARD_GAP }} />
+
+          <RoleCard
+            icon="person-outline"
+            title="I'm a Pandit"
+            subtitle="Offer services and earn on your schedule"
+            onPress={handlePanditPress}
+          />
+        </>
+      )}
 
       <View style={styles.spacer} />
 
       {/* Footer */}
       <TouchableOpacity
         style={styles.loginRow}
-        onPress={() => router.push('/login')}
+        onPress={handleLoginInstead}
       >
         <Text style={styles.loginPrompt}>Already have an account? </Text>
         <Text style={styles.loginLink}>Login</Text>
@@ -116,6 +200,15 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
   },
   spacer: { flex: 1 },
+  errorText: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.error,
+    marginBottom: THEME.spacing.sm,
+    textAlign: 'center',
+  },
+  loadingIndicator: {
+    marginTop: THEME.spacing.xl,
+  },
   loginRow: {
     flexDirection: 'row',
     justifyContent: 'center',

@@ -36,9 +36,13 @@ export const Step2Traditions = forwardRef<StepRef, {}>((_, ref) => {
   const step2 = useSelector((state: RootState) => state.onboarding.step2);
   const [errors, setErrors] = useState<string[]>([]);
 
-  function handleTraditionToggle(value: string): void {
-    const next = toggleSelection(step2.religiousTraditions, value);
-    dispatch(updateStep2Data({ religiousTraditions: next }));
+  /**
+   * Religious tradition is single-select (radio behavior): picking one
+   * replaces any prior selection. The data shape stays string[] (length 1)
+   * so Redux/API/model are unaffected.
+   */
+  function handleTraditionSelect(value: string): void {
+    dispatch(updateStep2Data({ religiousTraditions: [value] }));
   }
 
   function handleSpecializationToggle(value: string): void {
@@ -50,7 +54,7 @@ export const Step2Traditions = forwardRef<StepRef, {}>((_, ref) => {
     validate: () => {
       const errs: string[] = [];
       if (step2.religiousTraditions.length < 1) {
-        errs.push('Select at least one religious tradition');
+        errs.push('Select your tradition');
       }
       if (step2.specializations.length < 1) {
         errs.push('Select at least one ceremony specialization');
@@ -72,7 +76,7 @@ export const Step2Traditions = forwardRef<StepRef, {}>((_, ref) => {
       <ChipSelector
         options={TRADITION_OPTIONS}
         selected={step2.religiousTraditions}
-        onToggle={handleTraditionToggle}
+        onToggle={handleTraditionSelect}
       />
 
       {/* Ceremony Specializations Section */}

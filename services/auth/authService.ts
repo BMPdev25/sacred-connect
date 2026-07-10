@@ -89,6 +89,7 @@ export async function syncWithBackend(
     logger.error('Backend sync failed', err.response?.data || err.message);
     const error = new Error(getReadableErrorMessage(err)) as any;
     error.status = err.response?.status;
+    error.code = err.response?.data?.code;
     throw error;
   }
 }
@@ -127,7 +128,10 @@ export async function registerUser(payload: SignupDevoteePayload | SignupPriestP
       logger.warn('Firebase account cleanup after failed registration failed', deleteErr.message);
     }
     logger.error('Registration failed', err);
-    throw new Error(getReadableErrorMessage(err));
+    const error = new Error(getReadableErrorMessage(err)) as any;
+    error.code = err.code;
+    error.status = err.status;
+    throw error;
   } finally {
     // Always re-enable the listener whether registration succeeded or failed.
     setSignupInProgress(false);
@@ -186,13 +190,53 @@ export async function sendPasswordReset(email: string): Promise<void> {
 
 /**
  * Initiates Google OAuth authentication flow.
+ *
+ * Not yet wired: requires @react-native-google-signin/google-signin (not a
+ * project dependency), GoogleSignin.configure({ webClientId }) using the Web
+ * client ID from Firebase Console, and a custom dev-client/EAS rebuild — see
+ * the Google Sign-In config checklist. Once implemented, must resolve
+ * { isNewUser, email, name } from the Google profile so callers can route
+ * new users through role-selection with a prefilled identity.
  */
-export async function loginWithGoogle(): Promise<{ isNewUser: boolean }> {
+export async function loginWithGoogle(): Promise<{ isNewUser: boolean; email?: string; name?: string }> {
   try {
     throw new Error('Google OAuth is not configured on this device');
   } catch (err: any) {
     logger.error('Google authentication failed', err);
     throw new Error(getReadableErrorMessage(err));
+  }
+}
+
+/**
+ * Completes registration for a brand-new Google sign-in. The Firebase
+ * account already exists (created during the Google auth step), so this
+ * only needs to create the backend User record — no
+ * createUserWithEmailAndPassword, and no Firebase account cleanup on
+ * failure (unlike registerUser, there is no freshly-created Firebase
+ * credential to roll back; the user's Google session stays valid either way).
+ * Wrapped in the signup semaphore so the auth listener doesn't race the
+ * multi-screen role-selection -> signup-priest flow with a premature
+ * NO_ACCOUNT redirect.
+ */
+export async function completeGoogleSignup(
+  role: 'devotee' | 'priest',
+  extra?: { phone?: string; name?: string }
+): Promise<UserProfile> {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('No active Google session found. Please sign in again.');
+  }
+
+  setSignupInProgress(true);
+  try {
+    const token = await currentUser.getIdToken();
+    return await syncWithBackend(token, {
+      userType: role,
+      name: extra?.name || currentUser.displayName || undefined,
+      phone: extra?.phone,
+    });
+  } finally {
+    setSignupInProgress(false);
   }
 }
 /**

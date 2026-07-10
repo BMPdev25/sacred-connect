@@ -23,16 +23,21 @@ async function executeRegistration(
   setLoading: Setter<boolean>,
   setGeneralError: Setter<string | null>,
   router: Router,
+  setRoleConflict?: Setter<boolean>,
 ): Promise<void> {
   try {
     setLoading(true);
     setGeneralError(null);
+    setRoleConflict?.(false);
     const profile = await registerUser(payload);
     // Populate Redux so ProfileCard and other screens can read name/email/phone
     store.dispatch(setUserSession({ user: profile }));
     router.replace(successRoute as any);
   } catch (err: any) {
     logger.error('Registration error', err);
+    if (err.code === 'ROLE_CONFLICT') {
+      setRoleConflict?.(true);
+    }
     setGeneralError(err.message || 'Sign up failed. Please try again.');
   } finally {
     setLoading(false);
@@ -57,6 +62,7 @@ export async function handleDevoteeSignup(
   setLoading: Setter<boolean>,
   setGeneralError: Setter<string | null>,
   router: Router,
+  setRoleConflict?: Setter<boolean>,
 ): Promise<void> {
   await executeRegistration(
     payload,
@@ -64,6 +70,7 @@ export async function handleDevoteeSignup(
     setLoading,
     setGeneralError,
     router,
+    setRoleConflict,
   );
 }
 
@@ -81,6 +88,7 @@ export async function handlePriestSignup(
   setLoading: Setter<boolean>,
   setGeneralError: Setter<string | null>,
   router: Router,
+  setRoleConflict?: Setter<boolean>,
 ): Promise<void> {
   await executeRegistration(
     payload,
@@ -88,5 +96,6 @@ export async function handlePriestSignup(
     setLoading,
     setGeneralError,
     router,
+    setRoleConflict,
   );
 }

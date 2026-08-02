@@ -1,960 +1,572 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router, useFocusEffect } from "expo-router";
-import React, { useMemo, useState, useCallback, useEffect } from "react";
+import React, { useEffect, useRef, useCallback } from 'react';
 import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
   View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  Animated,
+  ActivityIndicator,
+  FlatList,
   Alert,
-  Linking,
-  Platform,
-  RefreshControl
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSelector, useDispatch } from "react-redux";
-import { APP_COLORS } from "../../../constants/Colors";
-import { RootState, AppDispatch } from "../../../redux/store";
-import { getEarnings } from "../../../redux/slices/priestSlice";
-import priestService from "../../../services/priestService";
-import { useNotifications } from "../../../context/NotificationContext";
-import ProfileCompletionBanner from "../../../components/ProfileCompletionBanner";
-import { SkeletonCard } from "../../../components/SkeletonCard";
-import { HomeStatusToggle } from "../../../components/HomeStatusToggle";
-import RatingStars from "../../../components/RatingStars";
+} from 'react-native';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useDispatch, useSelector } from 'react-redux';
+import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 
+import { THEME } from '@/constants/theme';
+import Logo from '@/components/shared/Logo';
+import { RootState } from '@/redux/store';
+import {
+  setCurrentStatus,
+  setIsTogglingStatus,
+  setTodayBookings,
+  setStats,
+  incrementPendingRequests,
+} from '@/redux/slices/priestDashboardSlice';
+import { PriestDashboardService } from '@/services/priest/priestDashboardService';
+import { SocketManager } from '@/services/priest/socketManager';
+import { TodayBooking, PriestOnlineStatus } from '@/types/priest.dashboard.types';
 
-const HomeScreen: React.FC = () => {
-  const { userInfo } = useSelector((state: RootState) => state.auth);
-  const earnings = useSelector((state: RootState) => state.priest.earnings);
-  const dispatch = useDispatch<AppDispatch>();
+// ---------------------------------------------------------------------------
+// Sub-components
+// ---------------------------------------------------------------------------
+
+function ToggleSwitch({ isOn, disabled }: { isOn: boolean; disabled: boolean }) {
+  const translateX = useRef(new Animated.Value(isOn ? 28 : 4)).current;
+
+  useEffect(() => {
+    Animated.timing(translateX, {
+      toValue: isOn ? 28 : 4,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+  }, [isOn]);
+
+  return (
+    <View style={[
+      styles.switchContainer,
+      { backgroundColor: isOn ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)' }
+    ]}>
+      <Animated.View style={[
+        styles.switchThumb,
+        { transform: [{ translateX }] }
+      ]}>
+        {disabled && <ActivityIndicator size="small" color={THEME.colors.primary} />}
+      </Animated.View>
+    </View>
+  );
+}
+
+function OnlineToggleBanner({
+  status,
+  isToggling,
+  onToggle,
+}: {
+  status: PriestOnlineStatus;
+  isToggling: boolean;
+  onToggle: () => void;
+}) {
+  const isOnline = status === 'available';
+  const fadeAnim = useRef(new Animated.Value(isOnline ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: isOnline ? 1 : 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  }, [isOnline]);
+
+  return (
+    <TouchableOpacity
+      activeOpacity={0.9}
+      onPress={onToggle}
+      style={styles.bannerContainer}
+      disabled={isToggling}
+    >
+      {/* Offline Gradient (Base) */}
+      <LinearGradient
+        colors={['#6B7280', '#374151']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+      {/* Online Gradient (Overlay animated) */}
+      <Animated.View style={[StyleSheet.absoluteFillObject, { opacity: fadeAnim }]}>
+        <LinearGradient
+          colors={['#FF9933', '#800000']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+      </Animated.View>
+
+      <View style={styles.bannerContentRow}>
+        <View style={styles.bannerLeft}>
+          <Text style={styles.bannerHeading}>
+            {isOnline ? 'You are Online' : 'You are Offline'}
+          </Text>
+          <Text style={styles.bannerSubtitle}>
+            {isOnline ? 'Accepting new booking requests' : 'Go online to receive bookings'}
+          </Text>
+          {isOnline && (
+            <View style={styles.activeIndicatorRow}>
+              <View style={styles.activeDot} />
+              <Text style={styles.activeCaption}>Active</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={styles.bannerRight}>
+          <ToggleSwitch isOn={isOnline} disabled={isToggling} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function TodayBookingCard({ booking, onPress }: { booking: TodayBooking; onPress: () => void }) {
+  return (
+    <TouchableOpacity style={styles.bookingCard} onPress={onPress} activeOpacity={0.8}>
+      <View style={styles.bookingCardTop}>
+        <View style={styles.timeBadge}>
+          <Text style={styles.timeBadgeText}>{`${booking.startTime} - ${booking.endTime}`}</Text>
+        </View>
+        <Ionicons name="calendar" size={16} color={THEME.colors.primary} />
+      </View>
+      <Text style={styles.ceremonyName} numberOfLines={1}>{booking.ceremonyType}</Text>
+      <Text style={styles.devoteeName} numberOfLines={1}>{booking.devoteeId?.name || 'Devotee'}</Text>
+      <View style={styles.statusBadge}>
+        <Text style={styles.statusBadgeText}>Confirmed</Text>
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function StatCard({ iconName, value, label }: { iconName: any; value: string; label: string }) {
+  return (
+    <View style={styles.statCard}>
+      <Ionicons name={iconName} size={22} color={THEME.colors.primary} style={{ marginBottom: 6 }} />
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Component
+// ---------------------------------------------------------------------------
+
+export default function HomeTab(): React.JSX.Element {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { unreadCount, toggleNotifications, showNotifications } = useNotifications();
+  const dispatch = useDispatch();
 
-  const [loading, setLoading] = useState<boolean>(true);
-  const [allBookings, setAllBookings] = useState<any[]>([]);
-  const [profileCompletion, setProfileCompletion] = useState<any>(null);
-  const [currentAvailability, setCurrentAvailability] = useState<any>(null);
-  const [recentReviews, setRecentReviews] = useState<any[]>([]);
-  const [pendingActions, setPendingActions] = useState<any[]>([]);
-  const [completionRate, setCompletionRate] = useState<number>(100);
-  const [ceremonyCount, setCeremonyCount] = useState<number>(0);
-  const [verificationStatus, setVerificationStatus] = useState<string>('incomplete');
-  const [rejectionReason, setRejectionReason] = useState<string>('');
+  const { currentStatus, isTogglingStatus, todayBookings, stats, pendingRequestsCount } = useSelector(
+    (state: RootState) => state.priestDashboard
+  );
+  const priestId = useSelector((state: RootState) => state.user._id);
 
-  const [refreshing, setRefreshing] = useState(false);
-
-  const loadData = useCallback(async (isManualRefresh = false) => {
-    const priestId = userInfo?._id;
-    if (!priestId) return;
-
-    if (!isManualRefresh) setLoading(true);
-
-    try {
-      const results = await Promise.allSettled([
-        priestService.getBookings(priestId),
-        priestService.getProfileCompletion(),
-        priestService.getProfile(),
-        priestService.getRecentReviews(),
-        priestService.getPendingActions()
-      ]);
-
-      // Dispatch earnings via redux (single source of truth)
-      dispatch(getEarnings(priestId));
-
-      const [bookingsRes, completionRes, profileRes, reviewsRes, actionsRes] = results;
-
-      if (bookingsRes.status === 'fulfilled') {
-        const data = bookingsRes.value;
-        const bookings = Array.isArray(data) ? data : (Array.isArray(data?.all) ? data.all : (Array.isArray(data?.data) ? data.data : (data?.data?.all || [])));
-        console.log('[HomeTab] raw bookings data type:', typeof data, Array.isArray(data));
-        console.log('[HomeTab] bookings count:', bookings.length);
-        if (bookings.length > 0) {
-          console.log('[HomeTab] first booking status:', bookings[0]?.status, 'id:', bookings[0]?._id);
-        }
-        setAllBookings(bookings);
-      }
-
-      if (completionRes.status === 'fulfilled') {
-        setProfileCompletion(completionRes.value);
-      }
-
-      if (profileRes.status === 'fulfilled') {
-        const p = profileRes.value;
-        setCurrentAvailability(p.currentAvailability);
-        // setIsVerified(p.profile?.isVerified ?? p.isVerified ?? false); // Removed from state, now using verificationStatus === 'approved'
-        setVerificationStatus(p.profile?.verificationStatus ?? p.verificationStatus ?? 'incomplete');
-        setRejectionReason(p.profile?.rejectionReason ?? p.rejectionReason ?? '');
-        setCompletionRate(p.analytics?.completionRate ?? 100);
-        setCeremonyCount(p.ceremonyCount ?? 0);
-      }
-
-      if (reviewsRes.status === 'fulfilled') {
-        setRecentReviews(reviewsRes.value);
-      }
-
-      if (actionsRes.status === 'fulfilled') {
-        // Priests do not rate devotees in this flow. Filter out rate actions.
-        const filteredActions = Array.isArray(actionsRes.value)
-          ? actionsRes.value.filter((a: any) => a.actionType !== 'rate')
-          : [];
-        setPendingActions(filteredActions);
-      }
-
-      // Check for any failures and alert if manual refresh
-      const hasFailures = results.some(r => r.status === 'rejected');
-      if (hasFailures && isManualRefresh) {
-        Alert.alert("Warning", "Some data failed to load. Please try again.");
-      }
-
-    } catch (err) {
-      console.error(err);
-      if (isManualRefresh) {
-        Alert.alert("Error", "Failed to refresh dashboard.");
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [userInfo?._id, dispatch]);
+  useEffect(() => {
+    PriestDashboardService.fetchPriestStatus().then((status) => {
+      dispatch(setCurrentStatus(status));
+    });
+  }, [dispatch]);
 
   useFocusEffect(
     useCallback(() => {
-      loadData();
-    }, [loadData])
+      PriestDashboardService.fetchTodayBookings().then((bookings) => {
+        dispatch(setTodayBookings(bookings));
+      });
+      PriestDashboardService.fetchDashboardStats().then((data) => {
+        dispatch(setStats(data));
+      });
+    }, [dispatch])
   );
 
-  // Poll for updates every 30s to catch new requests
   useEffect(() => {
-    const id = setInterval(() => loadData(true), 30000);
-    return () => clearInterval(id);
-  }, [loadData]);
+    if (priestId && !SocketManager.isConnected()) {
+      SocketManager.connectSocket(priestId);
+    }
 
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadData(true);
-  }, [loadData]);
+    const handleNewRequest = () => {
+      PriestDashboardService.fetchDashboardStats().then(data => dispatch(setStats(data)));
+      dispatch(incrementPendingRequests());
+    };
 
-  const pendingRequests = useMemo(() => {
-    return allBookings.filter(b => b.status === 'pending' || b.status === 'requested');
-  }, [allBookings]);
+    SocketManager.onNewBookingRequest(handleNewRequest);
 
-  const upNextBooking = useMemo(() => {
-    const upcomingBookings = allBookings
-      .filter(b => b.status === 'confirmed')
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return () => {
+      SocketManager.offNewBookingRequest(handleNewRequest);
+    };
+  }, [dispatch, priestId]);
+
+  const handleToggle = async () => {
+    if (isTogglingStatus) return;
+    const originalStatus = currentStatus;
+    const targetStatus = originalStatus === 'available' ? 'offline' : 'available';
     
-    return upcomingBookings.length > 0 ? upcomingBookings[0] : null;
-  }, [allBookings]);
-
-  const handleAccept = async (bookingId: string) => {
+    // Flip instantly
+    dispatch(setCurrentStatus(targetStatus));
+    dispatch(setIsTogglingStatus(true));
+    
     try {
-      await priestService.updateBookingStatus(bookingId, 'confirmed');
-      // Remove from local state immediately so the carousel updates
-      setAllBookings(prev => prev.filter(b => b._id !== bookingId));
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to accept");
+      const newStatus = await PriestDashboardService.toggleOnlineStatus(targetStatus);
+      dispatch(setCurrentStatus(newStatus));
+    } catch (error: any) {
+      // Revert on network failure
+      dispatch(setCurrentStatus(originalStatus));
+      Alert.alert('Error', error.message || 'Failed to update status');
+    } finally {
+      dispatch(setIsTogglingStatus(false));
     }
   };
 
-  const handleReject = async (bookingId: string) => {
-    try {
-      await priestService.updateBookingStatus(bookingId, 'cancelled');
-      // Remove from local state immediately so the carousel updates
-      setAllBookings(prev => prev.filter(b => b._id !== bookingId));
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to reject");
-    }
+  const handleNotificationPress = () => {
+    router.push('/priest/(screens)/NotificationCenter' as any);
   };
 
-  const openMaps = (location: any) => {
-    if (!location) return;
-    // Simple maps intent
-    const query = location.coordinates ? `${location.coordinates[1]},${location.coordinates[0]}` : location.address;
-    const url = Platform.select({
-      ios: `maps:0,0?q=${query}`,
-      android: `geo:0,0?q=${query}`
-    });
-    if (url) Linking.openURL(url);
+  const handleBookingPress = (bookingId: string) => {
+    router.push({
+      pathname: '/priest/(screens)/PriestBookingDetails',
+      params: { bookingId },
+    } as any);
   };
 
-  const handleMarkComplete = async (bookingId: string) => {
-    try {
-      await priestService.updateBookingStatus(bookingId, 'completed');
-      Alert.alert("Success", "Booking marked as completed!");
-      // Refresh data (ideally optimize this)
-      setPendingActions(prev => prev.filter(a => a._id !== bookingId));
-    } catch (e: any) {
-      Alert.alert("Error", e.message || "Failed to mark as complete");
-    }
+  const navigateToRequests = () => {
+    router.push('/priest/(tabs)/RequestsTab' as any);
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: APP_COLORS.background }}>
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 100, flexGrow: 1 }}
-        style={styles.container}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-      >
-        <View style={{ width: '100%', maxWidth: 600, alignSelf: 'center' }}>
-          <LinearGradient
-            colors={["#FFFFFF", "#FDFBF7"]}
-            style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 12 }]}
-          >
-            <View style={styles.headerContent}>
-              <View>
-                <Text style={styles.headerTitle}>BookMyPujari</Text>
-                <Text style={styles.headerSubtitle}>Namaste 🙏, {userInfo?.name?.split(' ')[0] || 'Pandit ji'}</Text>
-              </View>
-              <View style={styles.headerActions}>
-                <TouchableOpacity
-                  style={styles.notificationBtn}
-                  onPress={toggleNotifications}
-                >
-                  <Ionicons
-                    name={showNotifications ? "notifications" : "notifications-outline"}
-                    size={24}
-                    color={APP_COLORS.tertiary}
-                  />
-                  {unreadCount > 0 && <View style={styles.notificationBadge} />}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Profile Completion */}
-          {!loading && profileCompletion && profileCompletion.completionPercentage < 100 && (
-            <ProfileCompletionBanner data={profileCompletion} />
-          )}
-
-           {/* Verification Status Card */}
-          {!loading && verificationStatus !== 'approved' && (
-            <View style={styles.statusSection}>
-              {verificationStatus === 'pending' ? (
-                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.saffronLight, borderLeftColor: APP_COLORS.primary }]}>
-                  <Ionicons name="time" size={24} color={APP_COLORS.primary} style={{ marginTop: 2 }} />
-                  <View style={styles.bannerContent}>
-                    <Text style={[styles.bannerTitle, { color: APP_COLORS.primary }]}>Application Under Review</Text>
-                    <Text style={styles.bannerText}>Our team is currently verifying your profile and documents. You'll be notified once you're approved to start receiving bookings.</Text>
-                  </View>
-                </View>
-              ) : verificationStatus === 'rejected' ? (
-                <View style={[styles.statusBanner, { backgroundColor: APP_COLORS.error + "12", borderLeftColor: APP_COLORS.error }]}>
-                  <Ionicons name="close-circle" size={24} color={APP_COLORS.error} style={{ marginTop: 2 }} />
-                  <View style={styles.bannerContent}>
-                    <Text style={[styles.bannerTitle, { color: APP_COLORS.error }]}>Application Rejected</Text>
-                    <Text style={styles.bannerText}>{rejectionReason || "Please check your documents and try again."}</Text>
-                    <TouchableOpacity 
-                      style={[styles.bannerBtn, { backgroundColor: APP_COLORS.error }]}
-                      onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
-                    >
-                      <Text style={styles.bannerBtnText}>Update Documents</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ) : verificationStatus === 'incomplete' ? (
-                <TouchableOpacity
-                  style={[styles.statusBanner, { backgroundColor: APP_COLORS.warning + "12", borderLeftColor: APP_COLORS.warning }]}
-                  onPress={() => router.push("/priest/(priestScreens)/OnboardingWizard" as any)}
-                >
-                  <Ionicons name="shield-half-outline" size={24} color={APP_COLORS.warning} style={{ marginTop: 2 }} />
-                  <View style={styles.bannerContent}>
-                    <Text style={[styles.bannerTitle, { color: APP_COLORS.warning }]}>Complete Your Profile</Text>
-                    <Text style={styles.bannerText}>Finish onboarding to start receiving bookings and build your presence on BookMyPujari.</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color={APP_COLORS.warning} />
-                </TouchableOpacity>
-              ) : null}
+    <View style={styles.container}>
+      {/* HEADER ROW */}
+      <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <View style={styles.headerLeft}>
+          <Logo variant="icon-only" size="sm" />
+        </View>
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>Dashboard</Text>
+        </View>
+        <TouchableOpacity style={styles.headerRight} onPress={handleNotificationPress}>
+          <Ionicons name="notifications-outline" size={24} color={THEME.colors.textPrimary} />
+          {pendingRequestsCount > 0 && (
+            <View style={styles.notificationBadge}>
+              <Text style={styles.notificationBadgeText}>
+                {pendingRequestsCount > 9 ? '9+' : pendingRequestsCount}
+              </Text>
             </View>
           )}
+        </TouchableOpacity>
+      </View>
 
-          {/* Reliability Warning Banner */}
-          {!loading && ceremonyCount >= 5 && completionRate < 70 && (
-            <View style={{
-              flexDirection: "row",
-              alignItems: "center",
-              backgroundColor: APP_COLORS.error + "12",
-              marginHorizontal: 20,
-              marginBottom: 12,
-              padding: 14,
-              borderRadius: 12,
-              borderLeftWidth: 3,
-              borderLeftColor: APP_COLORS.error,
-            }}>
-              <Ionicons name="warning" size={24} color={APP_COLORS.error} />
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={{ fontWeight: "bold", color: APP_COLORS.error, fontSize: 14 }}>
-                  Low Reliability Score
-                </Text>
-                <Text style={{ fontSize: 12, color: APP_COLORS.gray, marginTop: 2, lineHeight: 18 }}>
-                  Your completion rate has dropped to {completionRate}%. Completing bookings on time will improve your ranking and visibility.
-                </Text>
-              </View>
-            </View>
-          )}
+      <ScrollView style={styles.scrollView} contentContainerStyle={{ paddingBottom: 40 }}>
+        {/* ONLINE/OFFLINE TOGGLE BANNER */}
+        <OnlineToggleBanner
+          status={currentStatus}
+          isToggling={isTogglingStatus}
+          onToggle={handleToggle}
+        />
 
-          {loading ? (
-            <View style={{ padding: 20 }}>
-              <SkeletonCard />
-              <SkeletonCard />
-            </View>
+        {/* PENDING REQUESTS BANNER */}
+        {pendingRequestsCount > 0 && (
+          <TouchableOpacity style={styles.pendingBanner} onPress={navigateToRequests}>
+            <Ionicons name="flash" size={20} color={THEME.colors.primary} style={{ marginRight: THEME.spacing.sm }} />
+            <Text style={styles.pendingBannerText}>
+              {pendingRequestsCount} new booking request{pendingRequestsCount > 1 ? 's' : ''} waiting
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={THEME.colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* TODAY'S SCHEDULE SECTION */}
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Today's Schedule</Text>
+          {todayBookings.length === 0 ? (
+            <Text style={styles.emptyText}>No ceremonies scheduled for today</Text>
           ) : (
-            <View style={styles.content}>
-
-              {/* Status Toggle - Only show when approved to avoid redundancy with banners above */}
-              {verificationStatus === 'approved' && (
-                <HomeStatusToggle
-                  currentStatus={currentAvailability?.status || 'offline'}
-                  autoToggle={currentAvailability?.autoToggle ?? true}
-                  isVerified={verificationStatus === 'approved'}
-                  completionPercentage={profileCompletion?.completionPercentage || 0}
-                  onStatusChange={(status) => setCurrentAvailability((prev: any) => ({ ...prev, status }))}
-                  style={{ marginBottom: 20 }}
-                  disabled={verificationStatus !== 'approved'}
-                />
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={todayBookings}
+              keyExtractor={(item) => item._id}
+              contentContainerStyle={{ gap: 12, paddingHorizontal: 16, marginTop: THEME.spacing.md }}
+              renderItem={({ item }) => (
+                <TodayBookingCard booking={item} onPress={() => handleBookingPress(item._id)} />
               )}
-
-              {/* 1. Puja Requests Banner - Prominent at top */}
-              {pendingRequests.length > 0 && (
-                <TouchableOpacity
-                  style={styles.pendingBanner}
-                  activeOpacity={0.85}
-                  onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}
-                >
-                  <View style={styles.pendingBannerLeft}>
-                    <View style={styles.pendingCountCircle}>
-                      <Text style={styles.pendingCountText}>{pendingRequests.length}</Text>
-                    </View>
-                    <View style={{ marginLeft: 12 }}>
-                      <Text style={styles.pendingBannerTitle}>
-                        {pendingRequests.length === 1 ? '1 New Booking Request' : `${pendingRequests.length} New Booking Requests`}
-                      </Text>
-                      <Text style={styles.pendingBannerSub}>Tap to review and respond</Text>
-                    </View>
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={APP_COLORS.white} />
-                </TouchableOpacity>
-              )}
-
-              {/* 2. Puja Requests Carousel */}
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>
-                    Puja Requests{pendingRequests.length > 0 ? ` (${pendingRequests.length})` : ''}
-                  </Text>
-                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/RequestsTab" as any)}>
-                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>View All</Text>
-                  </TouchableOpacity>
-                </View>
-                {pendingRequests.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {pendingRequests.map((req, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.requestCard}
-                        activeOpacity={0.7}
-                        onPress={() => router.push({
-                          pathname: "/priest/(priestScreens)/PujaRequestDetails" as any,
-                          params: { bookingId: req._id },
-                        })}
-                      >
-                        <View style={styles.reqCardTop}>
-                          <View style={styles.reqPendingBadge}>
-                            <Text style={styles.reqPendingText}>PENDING</Text>
-                          </View>
-                          <Text style={styles.reqPrice}>₹{req.basePrice}</Text>
-                        </View>
-                        <Text style={styles.reqTitle} numberOfLines={1}>{req.ceremonyType || req.ceremony}</Text>
-                        <View style={styles.reqDetailRow}>
-                          <Ionicons name="person-outline" size={13} color={APP_COLORS.gray} />
-                          <Text style={styles.reqClient} numberOfLines={1}>{req.devoteeId?.name || 'Devotee'}</Text>
-                        </View>
-                        <View style={styles.reqDetailRow}>
-                          <Ionicons name="calendar-outline" size={13} color={APP_COLORS.gray} />
-                          <Text style={styles.reqDate}>{new Date(req.date).toLocaleDateString()}{req.startTime ? ` • ${req.startTime}` : ''}</Text>
-                        </View>
-                        <View style={styles.reqTapHint}>
-                          <Ionicons name="chevron-forward" size={14} color={APP_COLORS.primary} />
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <View style={styles.noRequestsCard}>
-                    <Ionicons name="calendar-outline" size={32} color={APP_COLORS.lightGray} />
-                    <Text style={styles.noRequestsText}>No pending requests</Text>
-                    <Text style={styles.noRequestsSub}>New booking requests will appear here</Text>
-                  </View>
-                )}
-              </View>
-
-              {/* 3. Pending Actions Carousel */}
-              {pendingActions.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Pending Actions</Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {pendingActions.map((action, index) => (
-                      <View key={index} style={styles.actionCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
-                          <View style={[styles.actionIcon, { backgroundColor: APP_COLORS.primary + '20' }]}>
-                            <Ionicons name={'checkmark-circle-outline'} size={24} color={APP_COLORS.primary} />
-                          </View>
-                          <View style={{ marginLeft: 12, flex: 1 }}>
-                            <Text style={styles.actionTitle}>{action.title}</Text>
-                            <Text style={styles.actionDesc} numberOfLines={1}>{action.description}</Text>
-                          </View>
-                        </View>
-                        <TouchableOpacity
-                          style={[styles.actionBtn, { backgroundColor: APP_COLORS.primary }]}
-                          onPress={() => handleMarkComplete(action._id)}
-                        >
-                          <Text style={styles.actionBtnText}>Mark Complete</Text>
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </ScrollView>
-                </View>
-              )}
-
-              {/* 4. Dashboard Grid - Earnings & Puja Stats */}
-              <View style={styles.dashboardGrid}>
-                <View style={styles.statCard}>
-                  <Ionicons name="calendar-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>This Month</Text>
-                  <Text style={styles.statValue}>₹{earnings?.thisMonth ?? 0}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Ionicons name="wallet-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>Balance</Text>
-                  <Text style={styles.statValue}>₹{earnings?.availableBalance ?? 0}</Text>
-                </View>
-              </View>
-              <View style={styles.dashboardGrid}>
-                <View style={styles.statCard}>
-                  <Ionicons name="checkmark-done-outline" size={20} color={APP_COLORS.primary} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>Pujas Completed</Text>
-                  <Text style={[styles.statValue, { color: APP_COLORS.primary }]}>{earnings?.pujasCompleted ?? 0}</Text>
-                </View>
-                <View style={styles.statCard}>
-                  <Ionicons name="hourglass-outline" size={20} color={APP_COLORS.warning} style={{ marginBottom: 4 }} />
-                  <Text style={styles.statLabel}>Pujas Pending</Text>
-                  <Text style={[styles.statValue, { color: APP_COLORS.warning }]}>{earnings?.pujasPending ?? 0}</Text>
-                </View>
-              </View>
-
-              {/* 5. Up Next */}
-              {upNextBooking && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Up Next</Text>
-                  <View style={styles.upNextCard}>
-                    <View style={styles.upNextHeader}>
-                      <Text style={styles.ceremonyTitle}>{upNextBooking.ceremonyType || upNextBooking.ceremony}</Text>
-                      <View style={styles.badge}>
-                        <Text style={styles.badgeText}>CONFIRMED</Text>
-                      </View>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Ionicons name="person-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText}>{upNextBooking.devoteeId?.name || "Client"}</Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Ionicons name="time-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText}>
-                        {new Date(upNextBooking.date).toLocaleDateString()} • {upNextBooking.startTime || upNextBooking.time}
-                      </Text>
-                    </View>
-                    <View style={styles.detailRow}>
-                      <Ionicons name="location-outline" size={16} color={APP_COLORS.gray} />
-                      <Text style={styles.detailText} numberOfLines={1}>
-                        {upNextBooking.location?.address || "Location details"}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.actionButton}
-                      onPress={() => openMaps(upNextBooking.location)}
-                    >
-                      <Ionicons name="navigate-outline" size={18} color={APP_COLORS.white} />
-                      <Text style={styles.actionButtonText}>Navigate</Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              )}
-
-              {/* 6. Recent Reviews */}
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionTitle}>Recent Reviews</Text>
-                  <TouchableOpacity onPress={() => router.push("/priest/(tabs)/ProfileTab" as any)}>
-                    <Text style={{ color: APP_COLORS.primary, fontWeight: '600' }}>See All</Text>
-                  </TouchableOpacity>
-                </View>
-                {recentReviews.length > 0 ? (
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.horizontalScroll}>
-                    {recentReviews.slice(0, 4).map((review, index) => (
-                      <View key={index} style={styles.reviewCard}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                          <View style={styles.reviewerAvatar}>
-                            <Text style={styles.avatarText}>{review.reviewerId?.name?.charAt(0) || 'D'}</Text>
-                          </View>
-                          <View style={{ marginLeft: 8 }}>
-                            <Text style={styles.reviewerName}>{review.reviewerId?.name || "Devotee"}</Text>
-                            <RatingStars rating={review.rating} size={14} readOnly />
-                          </View>
-                        </View>
-                        <Text numberOfLines={3} style={styles.reviewComment}>"{review.comment}"</Text>
-                      </View>
-                    ))}
-                  </ScrollView>
-                ) : (
-                  <Text style={{ color: APP_COLORS.gray, fontStyle: 'italic' }}>No reviews yet.</Text>
-                )}
-              </View>
-
-            </View>
+            />
           )}
+        </View>
+
+        {/* QUICK STATS ROW */}
+        <View style={styles.sectionContainer}>
+          <Text style={[styles.sectionTitle, { marginBottom: THEME.spacing.md }]}>Quick Stats</Text>
+          <View style={styles.statsRow}>
+            <StatCard
+              iconName="calendar-outline"
+              value={`₹${(stats?.thisMonth || 0).toLocaleString('en-IN')}`}
+              label="THIS MONTH"
+            />
+            <StatCard
+              iconName="document-text-outline"
+              value={(stats?.totalBookings || 0).toString()}
+              label="TOTAL BOOKINGS"
+            />
+            <StatCard
+              iconName="star-outline"
+              value={(stats?.rating || 0).toFixed(1)}
+              label="RATING"
+            />
+            <StatCard
+              iconName="wallet-outline"
+              value={`₹${(stats?.pendingPayout || 0).toLocaleString('en-IN')}`}
+              label="PENDING PAYOUT"
+            />
+          </View>
         </View>
       </ScrollView>
     </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: APP_COLORS.neutral },
-  header: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: APP_COLORS.tertiary,
-    shadowOpacity: 0.06,
-    elevation: 3,
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  headerContent: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    alignItems: 'center'
+  scrollView: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  headerLeft: {
+    flex: 1,
+    alignItems: 'flex-start',
+  },
+  headerCenter: {
+    flex: 2,
+    alignItems: 'center',
   },
   headerTitle: {
-    color: APP_COLORS.tertiary,
-    fontSize: 28,
-    fontFamily: 'serif',
-    fontWeight: "bold",
+    fontSize: 18,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: APP_COLORS.secondary,
-    fontFamily: 'serif',
-    opacity: 0.8,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  notificationBtn: {
+  headerRight: {
+    flex: 1,
+    alignItems: 'flex-end',
     position: 'relative',
-    padding: 8,
   },
   notificationBadge: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: APP_COLORS.error,
-    borderWidth: 2,
-    borderColor: APP_COLORS.white,
-  },
-  content: {
-    padding: 20,
-    paddingTop: 8,
-  },
-  dashboardGrid: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: APP_COLORS.white,
-    padding: 16,
-    borderRadius: 16,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-    minHeight: 104,
-    justifyContent: 'space-between',
-  },
-  statLabel: {
-    fontSize: 12,
-    color: APP_COLORS.secondary,
-    marginBottom: 4,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: APP_COLORS.primary,
-  },
-  section: {
-    marginBottom: 24,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#800000',
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  
+  // Toggle Switch
+  switchContainer: {
+    width: 56,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+  },
+  switchThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+
+  // Toggle Banner
+  bannerContainer: {
+    height: 110,
+    borderRadius: 16,
+    marginHorizontal: 16,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  bannerContentRow: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    zIndex: 1,
+  },
+  bannerLeft: {
+    flex: 1,
+  },
+  bannerHeading: {
+    color: '#FFFFFF',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  bannerSubtitle: {
+    color: '#FFFFFF',
+    opacity: 0.85,
+    fontSize: 13,
+    marginTop: 4,
+  },
+  activeIndicatorRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  activeDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#22C55E',
+  },
+  activeCaption: {
+    color: '#22C55E',
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  bannerRight: {
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+    width: 60,
+  },
+
+  // Pending Banner
+  pendingBanner: {
+    marginHorizontal: 16,
+    marginTop: THEME.spacing.md,
+    marginBottom: THEME.spacing.xl,
+    backgroundColor: '#FFF3E0',
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pendingBannerText: {
+    flex: 1,
+    fontSize: THEME.typography.body,
+    fontWeight: '600',
+    color: '#D97706',
+  },
+
+  // Sections
+  sectionContainer: {
+    marginTop: THEME.spacing.xl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    marginBottom: 12,
+    fontSize: THEME.typography.subheading,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    paddingHorizontal: 16,
   },
-  upNextCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 16,
-    padding: 20,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOpacity: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
+  emptyText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textMuted,
+    marginTop: THEME.spacing.sm,
+    paddingHorizontal: 16,
+  },
+
+  // Booking Card
+  bookingCard: {
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-  },
-  upNextHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
-  },
-  ceremonyTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    flex: 1,
-  },
-  badge: {
-    backgroundColor: APP_COLORS.saffronLight,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 100,
-  },
-  badgeText: {
-    color: APP_COLORS.primary,
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 14,
-    color: APP_COLORS.secondary,
-  },
-  actionButton: {
-    backgroundColor: APP_COLORS.primary,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 100,
-    marginTop: 16,
-    gap: 8,
-  },
-  actionButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14,
-    letterSpacing: 0.5,
-  },
-  horizontalScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
-  },
-  actionCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 280,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 16,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.primary
-  },
-  actionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  actionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: APP_COLORS.tertiary,
-    fontFamily: 'serif',
-    marginBottom: 2
-  },
-  actionDesc: {
-    fontSize: 12,
-    color: APP_COLORS.secondary
-  },
-  actionBtn: {
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 8
-  },
-  actionBtnText: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14
-  },
-  requestCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 200,
+    borderColor: THEME.colors.border,
+    borderRadius: 12,
     padding: 12,
-    borderRadius: 16,
-    marginRight: 10,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
+    width: 180,
   },
-  reqCardTop: {
+  bookingCardTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
   },
-  reqPendingBadge: {
-    backgroundColor: APP_COLORS.saffronLight,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 100,
+  timeBadge: {
+    backgroundColor: '#FFF3E0',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: THEME.borderRadius.pill,
   },
-  reqPendingText: {
-    fontSize: 9,
+  timeBadgeText: {
+    fontSize: THEME.typography.caption,
+    fontWeight: '700',
+    color: THEME.colors.primary,
+  },
+  ceremonyName: {
+    fontSize: THEME.typography.body,
     fontWeight: '600',
-    color: APP_COLORS.primary,
+    color: THEME.colors.textPrimary,
+    marginTop: 8,
   },
-  reqPrice: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-  },
-  reqTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    marginBottom: 4,
-  },
-  reqDetailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginBottom: 2,
-  },
-  reqClient: {
-    fontSize: 12,
-    color: APP_COLORS.secondary,
-    flex: 1,
-  },
-  reqDate: {
-    fontSize: 11,
-    color: APP_COLORS.secondary,
-  },
-  reqTapHint: {
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
-  emptyState: {
-    alignItems: 'center',
-    marginTop: 40,
-  },
-  emptyStateText: {
-    marginTop: 12,
-    color: APP_COLORS.secondary,
-    fontSize: 16,
-    fontFamily: 'serif',
-  },
-  pendingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 14,
-    paddingTop: 10,
-    paddingBottom: 20,
-    paddingHorizontal: 14,
-    marginBottom: 20,
-    elevation: 4,
-    shadowColor: APP_COLORS.primary,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-  },
-  pendingBannerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  pendingCountCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.25)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pendingCountText: {
-    color: APP_COLORS.white,
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  pendingBannerTitle: {
-    color: APP_COLORS.white,
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  pendingBannerSub: {
-    color: 'rgba(255,255,255,0.8)',
-    fontSize: 12,
+  devoteeName: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
     marginTop: 2,
   },
-  noRequestsCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-    borderStyle: 'dashed',
-  },
-  noRequestsText: {
-    color: APP_COLORS.secondary,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 10,
-  },
-  noRequestsSub: {
-    color: APP_COLORS.gray,
-    fontSize: 12,
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  reviewCard: {
-    backgroundColor: APP_COLORS.white,
-    width: 220,
-    padding: 16,
-    borderRadius: 16,
-    marginRight: 12,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-  },
-  reviewerAvatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: APP_COLORS.primary + '20',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: APP_COLORS.primary,
-  },
-  reviewerName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: APP_COLORS.tertiary,
-  },
-  reviewComment: {
-    lineHeight: 20,
-    color: APP_COLORS.secondary,
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
-  statusSection: {
-    paddingHorizontal: 20,
-    marginBottom: 16,
-    marginTop: 16,
-  },
-  statusBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    padding: 20,
-    borderRadius: 16,
-    borderLeftWidth: 6,
-    backgroundColor: APP_COLORS.white,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 4,
-    marginVertical: 4,
-  },
-  bannerContent: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  bannerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    fontFamily: 'serif',
-    marginBottom: 4,
-  },
-  bannerText: {
-    fontSize: 13,
-    color: APP_COLORS.secondary,
-    lineHeight: 18,
-  },
-  bannerBtn: {
-    marginTop: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 8,
+  statusBadge: {
+    marginTop: 8,
+    backgroundColor: '#DCFCE7',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: THEME.borderRadius.pill,
     alignSelf: 'flex-start',
   },
-  bannerBtnText: {
-    color: APP_COLORS.white,
-    fontSize: 12,
-    fontWeight: 'bold',
+  statusBadgeText: {
+    fontSize: THEME.typography.caption,
+    fontWeight: '600',
+    color: '#166534',
+  },
+
+  // Stat Card
+  statsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  statCard: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 12,
+    padding: 12,
+    flex: 1,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: THEME.typography.subheading,
+    fontWeight: '700',
+    color: '#D4AF37',
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 9,
+    color: THEME.colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    textAlign: 'center',
   },
 });
-
-export default HomeScreen;

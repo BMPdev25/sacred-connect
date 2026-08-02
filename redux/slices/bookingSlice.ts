@@ -1,135 +1,274 @@
-import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
-import api from '../../api';
-import { RootState } from '../store';
-import devoteeService from '../../services/devoteeService';
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-// Define types for the Booking and State
-interface Booking {
-  _id: string;
-  userId: string;
-  status: string;
-  date: string;
-  // Add any other booking-specific fields here
+import { PLATFORM_FEE_PERCENTAGE } from '@/constants/config';
+import {
+  BookingDraft,
+  BookingPriceBreakdown,
+  BookingServiceSelection,
+  DevoteeAddress,
+  TimeSlot,
+} from '@/types/booking.types';
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Pure helper function to calculate the booking price breakdown.
+ *
+ * @param basePrice - The base price of the selected ceremony service.
+ * @returns The calculated price breakdown containing basePrice, platformFee, totalAmount, and feePercentageLabel.
+ */
+export function calculatePricing(basePrice: number): BookingPriceBreakdown {
+  const platformFee = Math.round(basePrice * PLATFORM_FEE_PERCENTAGE);
+  const totalAmount = basePrice + platformFee;
+  const feePercentageLabel = (PLATFORM_FEE_PERCENTAGE * 100).toFixed(0) + '%';
+
+  return {
+    basePrice,
+    platformFee,
+    totalAmount,
+    feePercentageLabel,
+  };
 }
 
-interface BookingState {
-  bookings: Booking[];
-  currentBooking: Booking | null;
-  isLoading: boolean;
-  error: string | null;
-}
+// ---------------------------------------------------------------------------
+// Initial State
+// ---------------------------------------------------------------------------
 
-// Get user bookings
-export const getBookings = createAsyncThunk<Booking[], void, { state: RootState; rejectValue: string }>(
-  'booking/getBookings',
-  async (_, { rejectWithValue }) => {
-    try {
-      const response = await devoteeService.getBookings();
-      // Server returns: { success: true, data: { today: [], upcoming: [], completed: [], all: [] }, pagination: {} }
-      // Extract the flat 'all' array. Fall back gracefully for any other shape.
-      const payload = response?.data ?? response;
-      if (Array.isArray(payload)) return payload;
-      if (Array.isArray(payload?.all)) return payload.all;
-      if (Array.isArray(payload?.bookings)) return payload.bookings;
-      return [];
-    } catch (error: any) {
-      return rejectWithValue(typeof error === 'string' ? error : 'Failed to fetch bookings');
-    }
-  }
-);
-
-// Update booking status
-export const updateBookingStatus = createAsyncThunk<Booking, { bookingId: string; status: string }, { rejectValue: string }>(
-  'booking/updateStatus',
-  async ({ bookingId, status }, { rejectWithValue }) => {
-    try {
-      const response = await api.put(`/api/bookings/${bookingId}/status`, { status });
-      return response.data;
-    } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Failed to update booking status');
-    }
-  }
-);
-
-// Submit rating and review
-export const submitRating = createAsyncThunk<any, any, { state: RootState; rejectValue: string }>(
-  'booking/submitRating',
-  async (ratingData, { rejectWithValue }) => {
-    try {
-      const response = await devoteeService.submitReview(ratingData);
-      return response;
-    } catch (error: any) {
-      console.error('Submit rating API error:', error);
-      return rejectWithValue(typeof error === 'string' ? error : 'Failed to submit rating');
-    }
-  }
-);
-
-const initialState: BookingState = {
-  bookings: [],
-  currentBooking: null,
-  isLoading: false,
-  error: null,
+const initialState: BookingDraft = {
+  priestProfileId: null,
+  priestUserId: null,
+  priestName: null,
+  priestProfilePicture: null,
+  priestRating: null,
+  selectedService: null,
+  selectedDate: null,
+  selectedTimeSlot: null,
+  selectedAddress: null,
+  pricing: null,
+  createdBookingId: null,
+  razorpayOrderId: null,
+  bookingReference: null,
+  activeSection: 'service',
+  bookingType: 'scheduled',
+  ceremonyId: null,
+  preferredPriestId: null,
+  instantExpiresAt: null,
 };
 
-const bookingSlice = createSlice({
+/** Default ceremony duration (minutes) when a ceremony omits its own. */
+const DEFAULT_CEREMONY_DURATION_MINUTES = 60;
+
+// ---------------------------------------------------------------------------
+// Slice
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload interface for initializing the booking flow.
+ */
+export interface InitBookingFlowPayload {
+  /** The priest profile ID */
+  priestProfileId: string;
+  /** The priest user ID (User._id) */
+  priestUserId: string;
+  /** The priest name */
+  priestName?: string;
+  /** The priest profile picture URL */
+  priestProfilePicture?: string | null;
+  /** The priest rating score */
+  priestRating?: number | null;
+  /** Optional service ID if preset */
+  serviceId?: string;
+  /** Optional ceremony ID if preset */
+  ceremonyId?: string;
+  /** Optional ceremony name if preset */
+  ceremonyName?: string;
+  /** Optional service duration in minutes if preset */
+  durationMinutes?: number;
+  /** Optional base price of the service if preset */
+  basePrice?: number;
+}
+
+/**
+ * Redux slice for managing the devotee's active booking draft.
+ */
+export const bookingSlice = createSlice({
   name: 'booking',
   initialState,
   reducers: {
-    clearError: (state) => {
-      state.error = null;
+    /**
+     * Initializes the booking flow by setting the priest context and resetting previous selections.
+     * If a serviceId is present in the payload, it also sets the selected service and advances section.
+     */
+    initBookingFlow(state, action: PayloadAction<InitBookingFlowPayload>) {
+      const {
+        priestProfileId,
+        priestUserId,
+        priestName,
+        priestProfilePicture,
+        priestRating,
+      } = action.payload;
+
+      // If same priest, do not reset selections
+      if (state.priestProfileId === priestProfileId) {
+        return;  // already initialized for this priest, keep selections
+      }
+
+      // Reset state to initial and populate priest context
+      Object.assign(state, initialState);
+      state.priestProfileId = priestProfileId;
+      state.priestUserId = priestUserId;
+      state.priestName = priestName ?? null;
+      state.priestProfilePicture = priestProfilePicture ?? null;
+      state.priestRating = priestRating ?? null;
     },
-    setCurrentBooking: (state, action: PayloadAction<Booking | null>) => {
-      state.currentBooking = action.payload;
+
+    /**
+     * Updates the display information of the priest.
+     */
+    updatePriestDisplayInfo(
+      state,
+      action: PayloadAction<{
+        priestName?: string;
+        priestProfilePicture?: string | null;
+        priestRating?: number | null;
+      }>
+    ) {
+      // Only update display fields, never touch selections
+      if (action.payload.priestName !== undefined) {
+        state.priestName = action.payload.priestName;
+      }
+      if (action.payload.priestProfilePicture !== undefined) {
+        state.priestProfilePicture = action.payload.priestProfilePicture;
+      }
+      if (action.payload.priestRating !== undefined) {
+        state.priestRating = action.payload.priestRating;
+      }
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      // Handle getBookings
-      .addCase(getBookings.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(getBookings.fulfilled, (state, action: PayloadAction<Booking[]>) => {
-        state.isLoading = false;
-        state.bookings = action.payload;
-      })
-      .addCase(getBookings.rejected, (state, action: PayloadAction<string | undefined>) => {
-        state.isLoading = false;
-        state.error = action.payload ?? 'Failed to fetch bookings';
-      })
-      // Handle updateBookingStatus
-      .addCase(updateBookingStatus.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(updateBookingStatus.fulfilled, (state, action: PayloadAction<Booking>) => {
-        state.isLoading = false;
-        // Update the booking in the bookings array
-        const index = state.bookings.findIndex(b => b._id === action.payload._id);
-        if (index !== -1) {
-          state.bookings[index] = action.payload;
-        }
-      })
-      .addCase(updateBookingStatus.rejected, (state, action: PayloadAction<string | undefined>) => {
-        state.isLoading = false;
-        state.error = action.payload ?? 'Failed to update booking status';
-      })
-      // Handle submitRating
-      .addCase(submitRating.pending, (state) => {
-        state.isLoading = true;
-        state.error = null;
-      })
-      .addCase(submitRating.fulfilled, (state, action) => {
-        state.isLoading = false;
-        // Rating submitted successfully
-      })
-      .addCase(submitRating.rejected, (state, action: PayloadAction<string | undefined>) => {
-        state.isLoading = false;
-        state.error = action.payload ?? 'Failed to submit rating';
-      });
+
+    /**
+     * Sets the selected ceremony service and advances the active section to 'date'.
+     * Also computes the platform fees and total price breakdown.
+     */
+    setSelectedService(state, action: PayloadAction<BookingServiceSelection>) {
+      state.selectedService = action.payload;
+      state.pricing = calculatePricing(action.payload.basePrice);
+      state.activeSection = 'date';
+    },
+
+    /**
+     * Sets the selected booking date, clears the previously selected time slot, and advances to 'time'.
+     */
+    setSelectedDate(state, action: PayloadAction<string>) {
+      state.selectedDate = action.payload;
+      state.selectedTimeSlot = null;
+      state.activeSection = 'time';
+    },
+
+    /**
+     * Sets the selected time slot and advances the active section to 'address'.
+     */
+    setSelectedTimeSlot(state, action: PayloadAction<TimeSlot>) {
+      state.selectedTimeSlot = action.payload;
+      state.activeSection = 'address';
+    },
+
+    /**
+     * Sets the selected devotee address. Active section remains 'address'.
+     */
+    setSelectedAddress(state, action: PayloadAction<DevoteeAddress>) {
+      state.selectedAddress = action.payload;
+    },
+
+    /**
+     * Navigates to a specific section in the booking flow.
+     */
+    setActiveSection(state, action: PayloadAction<BookingDraft['activeSection']>) {
+      state.activeSection = action.payload;
+    },
+
+    /**
+     * Saves post-creation identifiers returned by the backend after draft booking is registered.
+     */
+    setCreatedBooking(
+      state,
+      action: PayloadAction<{
+        bookingId: string;
+        razorpayOrderId: string;
+        bookingReference: string;
+      }>
+    ) {
+      state.createdBookingId = action.payload.bookingId;
+      state.razorpayOrderId = action.payload.razorpayOrderId;
+      state.bookingReference = action.payload.bookingReference;
+    },
+
+    /**
+     * Sets which booking path (instant broadcast vs scheduled priest-first) the
+     * draft is on. Does not touch other selections.
+     */
+    setBookingType(state, action: PayloadAction<'instant' | 'scheduled'>) {
+      state.bookingType = action.payload;
+    },
+
+    /**
+     * Sets the ceremony context for the ceremony-first instant flow (no priest
+     * chosen). Populates the ceremony id, a synthetic service selection so the
+     * date/time steps unlock, and the price breakdown, then advances to 'date'.
+     */
+    setCeremonyContext(
+      state,
+      action: PayloadAction<{
+        ceremonyId: string;
+        ceremonyName: string;
+        basePrice: number;
+        durationMinutes?: number;
+      }>
+    ) {
+      const { ceremonyId, ceremonyName, basePrice, durationMinutes } = action.payload;
+      state.ceremonyId = ceremonyId;
+      state.selectedService = {
+        serviceId: '',
+        ceremonyId,
+        ceremonyName,
+        durationMinutes: durationMinutes ?? DEFAULT_CEREMONY_DURATION_MINUTES,
+        basePrice,
+      };
+      state.pricing = calculatePricing(basePrice);
+      state.activeSection = 'date';
+    },
+
+    /**
+     * Sets the preferred priest for a priest-triggered instant booking (head-start),
+     * or clears it for the ceremony-first flow.
+     */
+    setPreferredPriest(state, action: PayloadAction<string | null>) {
+      state.preferredPriestId = action.payload;
+    },
+
+    /**
+     * Resets the active booking draft back to the initial blank state.
+     */
+    clearBookingDraft() {
+      return initialState;
+    },
   },
 });
 
-export const { clearError, setCurrentBooking } = bookingSlice.actions;
+export const {
+  initBookingFlow,
+  setSelectedService,
+  setSelectedDate,
+  setSelectedTimeSlot,
+  setSelectedAddress,
+  setActiveSection,
+  setCreatedBooking,
+  clearBookingDraft,
+  updatePriestDisplayInfo,
+  setBookingType,
+  setCeremonyContext,
+  setPreferredPriest,
+} = bookingSlice.actions;
+
 export default bookingSlice.reducer;

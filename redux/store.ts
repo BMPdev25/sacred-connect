@@ -1,27 +1,45 @@
-import { configureStore } from '@reduxjs/toolkit';
-import authReducer from './slices/authSlice';
-import bookingReducer from './slices/bookingSlice';
-import devoteeReducer from './slices/devoteeSlice';
-import priestReducer from './slices/priestSlice';
-import onboardingReducer from './slices/onboardingSlice';
+import { configureStore, combineReducers, Action, Reducer } from '@reduxjs/toolkit';
 
-// Define the Redux store
-const store = configureStore({
-  reducer: {
-    auth: authReducer,
-    priest: priestReducer,
-    devotee: devoteeReducer,
-    booking: bookingReducer,
-    onboarding: onboardingReducer,
-  },
+import onboardingReducer from './slices/onboardingSlice';
+import userReducer from './slices/userSlice';
+import exploreReducer from './slices/exploreSlice';
+import bookingReducer from './slices/bookingSlice';
+import priestDashboardReducer from './slices/priestDashboardSlice';
+
+const appReducer = combineReducers({
+  onboarding: onboardingReducer,
+  user: userReducer,
+  explore: exploreReducer,
+  booking: bookingReducer,
+  priestDashboard: priestDashboardReducer,
+});
+
+type AppState = ReturnType<typeof appReducer>;
+
+// Dispatching { type: 'RESET_ALL' } resets every slice to its initial state —
+// used on logout to prevent cross-user data bleed.
+const rootReducer: Reducer<AppState> = (state: AppState | undefined, action: Action) => {
+  if (action.type === 'RESET_ALL') {
+    return appReducer(undefined, action);
+  }
+  return appReducer(state, action);
+};
+
+export const store = configureStore({
+  reducer: rootReducer,
+
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
     }),
 });
 
-// Optional: Define RootState and AppDispatch types for type safety
-export type AppDispatch = typeof store.dispatch;
-export type RootState = ReturnType<typeof store.getState>;
+/**
+ * TypeScript type representing the complete global state tree of the Redux store.
+ */
+export type RootState = ReturnType<typeof appReducer>;
 
-export default store;
+/**
+ * TypeScript type representing the dispatch function for dispatching actions to the Redux store.
+ */
+export type AppDispatch = typeof store.dispatch;

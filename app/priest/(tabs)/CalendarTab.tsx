@@ -1,382 +1,242 @@
-import React, { useState, useCallback, useMemo, memo } from 'react';
-import { router, useFocusEffect } from 'expo-router';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { StatusBar } from 'expo-status-bar';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CalendarProvider, ExpandableCalendar, AgendaList } from 'react-native-calendars';
-import { APP_COLORS } from '../../../constants/Colors';
-import { useSelector } from 'react-redux';
-import { RootState } from '../../../redux/store';
-import priestService from '../../../services/priestService';
+import React, { useState, useMemo } from 'react';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
+import { Calendar } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
-import { AvailabilityManager } from '../../../components/AvailabilityManager';
+import { useQuery } from '@tanstack/react-query';
+import { router } from 'expo-router';
 
-// Memoized booking card component for better list performance
-const BookingCard = memo(({ item, cardStyle, isLarge }: { item: any; cardStyle: any; isLarge: boolean }) => (
-    <TouchableOpacity
-        style={cardStyle}
-        onPress={() => router.push({
-            pathname: "/priest/PujaRequestDetails",
-            params: { bookingId: item._id }
-        })}
-        activeOpacity={0.9}
-    >
-        <View style={[styles.timeStripe, isLarge && styles.timeStripeLarge]}>
-            <Text style={[styles.timeText, isLarge && styles.timeTextLarge]}>
-                {item.startTime || item.time || '00:00'}
-            </Text>
-        </View>
-        <View style={[styles.cardContent, isLarge && styles.cardContentCenter]}>
-            <Text style={[styles.ceremonyName, isLarge && styles.textLarge]}>
-                {item.ceremonyType || item.ceremony}
-            </Text>
-            <Text style={[styles.clientName, isLarge && styles.textMedium]}>
-                {item.devoteeId?.name || 'Client'}
-            </Text>
-            <View style={[styles.locationRow, isLarge && { marginTop: 8 }]}>
-                <Ionicons name="location-outline" size={isLarge ? 20 : 14} color={APP_COLORS.gray} />
-                <Text style={[styles.locationText, isLarge && styles.textMedium]} numberOfLines={2}>
-                    {item.location?.address || `${item.location?.city || 'Location'}`}
-                </Text>
-            </View>
-        </View>
-    </TouchableOpacity>
-));
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-export default function CalendarTab() {
-    const insets = useSafeAreaInsets();
-    const { userInfo } = useSelector((state: RootState) => state.auth);
-    const [sections, setSections] = useState<any[]>([]);
-    const [markedDates, setMarkedDates] = useState<any>({});
-    const [loading, setLoading] = useState(false);
-    const [viewMode, setViewMode] = useState<'bookings' | 'availability'>('bookings');
+import { THEME } from '@/constants/theme';
+import { CalendarBooking } from '@/types/priest.calendar.types';
+import { CalendarService } from '@/services/priest/calendarService';
+import CalendarDayBookingCard from '@/components/priest/CalendarDayBookingCard';
 
-    // Default to today
-    const today = new Date().toISOString().split('T')[0];
+/**
+ * Returns today's date formatted as a local timezone YYYY-MM-DD string.
+ *
+ * @returns Today's date string.
+ */
+function getTodayString(): string {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
 
-    const loadBookings = useCallback(async () => {
-        if (!userInfo?._id) return;
-        try {
-            setLoading(true);
-            const data = await priestService.getBookings(userInfo._id, 'confirmed');
-            const arr = Array.isArray(data) ? data : data?.data || [];
+/**
+ * Formats a given date string into a friendly localized display label.
+ *
+ * @param dateStr - The date string in "YYYY-MM-DD" format.
+ * @returns Human-friendly label (e.g. "Today", "Tomorrow", "Wed, 3 June").
+ */
+function formatSelectedDateLabel(dateStr: string): string {
+  try {
+    const today = getTodayString();
+    const tom = new Date();
+    tom.setDate(tom.getDate() + 1);
+    const tomorrow = `${tom.getFullYear()}-${String(tom.getMonth() + 1).padStart(2, '0')}-${String(tom.getDate()).padStart(2, '0')}`;
 
-            // Group by date: { '2023-10-22': [b1, b2] }
-            const grouped: any = {};
-            const markers: any = {};
+    if (dateStr === today) return 'Today';
+    if (dateStr === tomorrow) return 'Tomorrow';
 
-            arr.forEach((b: any) => {
-                const date = new Date(b.date).toISOString().split('T')[0];
-                if (!grouped[date]) {
-                    grouped[date] = [];
-                }
-                grouped[date].push(b);
-                markers[date] = { marked: true, dotColor: APP_COLORS.primary };
-            });
+    const [year, monthStr, dayStr] = dateStr.split('-');
+    const date = new Date(Number(year), Number(monthStr) - 1, Number(dayStr));
+    const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    return `${weekdays[date.getDay()]}, ${date.getDate()} ${months[date.getMonth()]}`;
+  } catch {
+    return dateStr;
+  }
+}
 
-            // Convert to sections array for AgendaList
-            // [{ title: '2023-10-22', data: [...] }]
-            const sectionData = Object.keys(grouped).sort((a, b) => a.localeCompare(b)).map(date => ({
-                title: date,
-                data: grouped[date]
-            }));
+/**
+ * Renders a loading card placeholder block.
+ */
+function SkeletonCard(): React.JSX.Element {
+  return (
+    <View style={styles.skeletonCard}>
+      <View style={styles.skeletonRow}>
+        <View style={styles.skeletonTimePill} />
+        <View style={styles.skeletonStatusPill} />
+      </View>
+      <View style={styles.skeletonTitle} />
+      <View style={styles.skeletonSubtitle} />
+    </View>
+  );
+}
 
-            setSections(sectionData);
-            setMarkedDates(markers);
-        } catch (error) {
-            console.error('Error loading schedule:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [userInfo?._id]);
+/**
+ * Calendar tab main component for the priest workspace dashboard.
+ */
+export default function CalendarTab(): React.JSX.Element {
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayString());
 
-    useFocusEffect(
-        useCallback(() => {
-            loadBookings();
-        }, [loadBookings])
-    );
+  const { data: allBookings = [], isLoading } = useQuery<CalendarBooking[]>({
+    queryKey: ['priestCalendarBookings'],
+    queryFn: CalendarService.fetchCalendarBookings,
+    staleTime: 120000,
+  });
 
-    const totalItems = useMemo(() => sections.reduce((acc, s) => acc + s.data.length, 0), [sections]);
+  const markedDates = useMemo(() => {
+    return CalendarService.buildMarkedDates(allBookings, selectedDate);
+  }, [allBookings, selectedDate]);
 
-    const cardStyle = useMemo(() => {
-        if (totalItems === 1) return [styles.card, styles.cardSingle];
-        if (totalItems === 2) return [styles.card, styles.cardDouble];
-        return styles.card;
-    }, [totalItems]);
+  const bookingsForSelectedDate = useMemo(() => {
+    return allBookings
+      .filter((b) => b.date === selectedDate)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [allBookings, selectedDate]);
 
-    const isLarge = totalItems <= 2;
+  const selectedDateLabel = useMemo(() => {
+    return formatSelectedDateLabel(selectedDate);
+  }, [selectedDate]);
 
-    const renderItem = useCallback(({ item }: { item: any }) => (
-        <BookingCard item={item} cardStyle={cardStyle} isLarge={isLarge} />
-    ), [cardStyle, isLarge]);
+  const handleBookingPress = (bookingId: string) => {
+    router.push({
+      pathname: '/priest/(screens)/PriestBookingDetails',
+      params: { bookingId },
+    } as any);
+  };
 
-    const theme = useMemo(() => ({
-        selectedDayBackgroundColor: APP_COLORS.primary,
-        todayTextColor: APP_COLORS.primary,
-        dotColor: APP_COLORS.primary,
-        arrowColor: APP_COLORS.primary,
-        stylesheet: {
-            calendar: {
-                header: {
-                    paddingTop: 0,
-                    marginTop: 0,
-                }
-            }
-        }
-    }), []);
+  return (
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <ScrollView contentContainerStyle={styles.content}>
+      <Text style={styles.headerTitle}>My Calendar</Text>
 
-    return (
-        <View style={styles.container}>
-            <StatusBar style="dark" />
-            
-            <LinearGradient
-                colors={['#FFFFFF', '#FDFBF7']}
-                style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24 }]}
-            >
-                <View style={styles.headerContent}>
-                    <Text style={styles.headerTitle}>Calendar</Text>
-                    <TouchableOpacity onPress={() => router.push('/notifications' as any)}>
-                        <Ionicons name="notifications-outline" size={24} color={APP_COLORS.tertiary} />
-                    </TouchableOpacity>
-                </View>
-            </LinearGradient>
+      <Calendar
+        current={selectedDate}
+        markedDates={markedDates}
+        markingType="multi-dot"
+        onDayPress={(day) => setSelectedDate(day.dateString)}
+        theme={{
+          selectedDayBackgroundColor: THEME.colors.primary,
+          todayTextColor: THEME.colors.primary,
+          todayBackgroundColor: 'transparent',
+          todayBorderColor: THEME.colors.primary,
+          arrowColor: THEME.colors.primary,
+          monthTextColor: THEME.colors.textPrimary,
+          textMonthFontWeight: '700',
+          dotColor: THEME.colors.primary,
+          selectedDotColor: 'white',
+          textDayFontSize: 14,
+          textMonthFontSize: 16,
+        } as any}
+      />
 
-            <View style={styles.tabContainer}>
-                <View style={styles.headerTabs}>
-                    <TouchableOpacity
-                        style={[styles.tab, viewMode === 'bookings' && styles.activeTab]}
-                        onPress={() => setViewMode('bookings')}
-                    >
-                        <Text style={[styles.tabText, viewMode === 'bookings' && styles.activeTabText]}>Bookings</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.tab, viewMode === 'availability' && styles.activeTab]}
-                        onPress={() => setViewMode('availability')}
-                    >
-                        <Text style={[styles.tabText, viewMode === 'availability' && styles.activeTabText]}>Availability</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
+      <View style={styles.divider} />
 
-            {viewMode === 'bookings' ? (
-                loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator size="large" color={APP_COLORS.primary} />
-                    </View>
-                ) : (
-                    <CalendarProvider
-                        date={today}
-                        showTodayButton
-                        theme={theme}
-                        // Add key to force re-render when switching back to this view or when data changes significantly if needed
-                        key={sections.length > 0 ? 'loaded' : 'empty'}
-                    >
-                        <ExpandableCalendar
-                            firstDay={1}
-                            markedDates={markedDates}
-                            theme={theme}
-                            disablePan={false}
-                            hideKnob={false}
-                            style={styles.calendar}
-                        />
+      <View style={styles.bookingsContainer}>
+        <Text style={styles.sectionHeading}>Bookings for {selectedDateLabel}</Text>
 
-                        <View style={styles.listContainer}>
-                            {sections.length > 0 ? (
-                                <AgendaList
-                                    sections={sections}
-                                    renderItem={renderItem}
-                                    sectionStyle={styles.sectionHeader}
-                                    contentContainerStyle={{ paddingBottom: 100 }}
-                                />
-                            ) : (
-                                <View style={styles.empty}>
-                                    <Text style={styles.emptyText}>No upcoming bookings found.</Text>
-                                </View>
-                            )}
-                        </View>
-                    </CalendarProvider>
-                )
-            ) : (
-                <AvailabilityManager />
-            )}
-        </View>
-    );
+        {isLoading ? (
+          <View style={styles.skeletonContainer}>
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
+        ) : bookingsForSelectedDate.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="calendar-outline" size={40} color={THEME.colors.textMuted} />
+            <Text style={styles.emptyText}>No bookings on this day</Text>
+          </View>
+        ) : (
+          bookingsForSelectedDate.map((booking) => (
+            <CalendarDayBookingCard
+              key={booking._id}
+              booking={booking}
+              onPress={() => handleBookingPress(booking._id)}
+            />
+          ))
+        )}
+      </View>
+    </ScrollView>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: APP_COLORS.neutral,
-    },
-    header: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-    },
-    headerContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flex: 1,
-    },
-    headerTitle: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: APP_COLORS.tertiary,
-        fontFamily: 'serif',
-    },
-    tabContainer: {
-        backgroundColor: APP_COLORS.white,
-        borderBottomWidth: 1,
-        borderBottomColor: APP_COLORS.divider,
-    },
-    headerTabs: {
-        flexDirection: 'row',
-        padding: 12,
-        paddingHorizontal: 20,
-        gap: 12,
-    },
-    tab: {
-        flex: 1,
-        paddingVertical: 10,
-        alignItems: 'center',
-        borderRadius: 12,
-        backgroundColor: APP_COLORS.neutral,
-        borderWidth: 1,
-        borderColor: APP_COLORS.divider,
-    },
-    activeTab: {
-        backgroundColor: APP_COLORS.primary,
-        borderColor: APP_COLORS.primary,
-    },
-    tabText: {
-        fontWeight: '600',
-        color: APP_COLORS.secondary,
-        fontSize: 14,
-    },
-    activeTabText: {
-        color: APP_COLORS.white,
-    },
-    calendar: {
-        paddingTop: 0, // Ensure no top padding
-        marginTop: 0, // Ensure no top margin
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        zIndex: 10,
-    },
-    listContainer: {
-        flex: 1,
-    },
-    sectionHeader: {
-        fontSize: 14,
-        fontWeight: 'bold',
-        color: APP_COLORS.gray,
-        backgroundColor: APP_COLORS.background,
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        textTransform: 'uppercase',
-    },
-    card: {
-        flexDirection: 'row',
-        backgroundColor: APP_COLORS.white,
-        borderRadius: 16,
-        marginHorizontal: 16,
-        marginBottom: 12,
-        overflow: 'hidden',
-        elevation: 3,
-        shadowColor: APP_COLORS.cardShadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 1,
-        shadowRadius: 4,
-        borderWidth: 1,
-        borderColor: APP_COLORS.divider,
-        minHeight: 90,
-    },
-    cardSingle: {
-        marginTop: 20,
-        minHeight: 400,
-        marginHorizontal: 20,
-    },
-    cardDouble: {
-        marginTop: 16,
-        minHeight: 200,
-        marginHorizontal: 18,
-    },
-    timeStripe: {
-        backgroundColor: APP_COLORS.primary + '15', // lighter opacity
-        width: 70,
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRightWidth: 1,
-        borderRightColor: APP_COLORS.lightGray,
-    },
-    timeStripeLarge: {
-        width: 100,
-    },
-    timeText: {
-        fontWeight: 'bold',
-        color: APP_COLORS.primary,
-        fontSize: 16,
-    },
-    timeTextLarge: {
-        fontSize: 24,
-    },
-    cardContent: {
-        flex: 1,
-        padding: 16,
-        justifyContent: 'center',
-    },
-    cardContentCenter: {
-        justifyContent: 'center',
-    },
-    ceremonyName: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        fontFamily: 'serif',
-        marginBottom: 6,
-        color: APP_COLORS.tertiary,
-    },
-    textLarge: {
-        fontSize: 28,
-        marginBottom: 12,
-    },
-    clientName: {
-        fontSize: 14,
-        color: APP_COLORS.gray,
-        marginBottom: 6,
-        fontWeight: '500',
-    },
-    textMedium: {
-        fontSize: 18,
-        marginBottom: 10,
-    },
-    locationRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    locationText: {
-        fontSize: 13,
-        color: APP_COLORS.gray,
-        marginLeft: 4,
-        flex: 1,
-    },
-    empty: {
-        marginTop: 50,
-        alignItems: 'center',
-    },
-    emptyText: {
-        color: APP_COLORS.gray,
-        fontSize: 16,
-    },
-    center: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    }
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  content: {
+    paddingBottom: THEME.spacing.lg,
+  },
+  headerTitle: {
+    fontSize: THEME.typography.displayMedium,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    marginBottom: THEME.spacing.sm,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: THEME.colors.border,
+    marginVertical: 8,
+  },
+  bookingsContainer: {
+    paddingHorizontal: 16,
+  },
+  sectionHeading: {
+    fontSize: THEME.typography.subheading,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: THEME.spacing.md,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: THEME.spacing.xl,
+  },
+  emptyText: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textMuted,
+    marginTop: THEME.spacing.sm,
+  },
+  skeletonContainer: {
+    gap: 10,
+  },
+  skeletonCard: {
+    backgroundColor: '#FAFAF9',
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+    borderRadius: 12,
+    padding: 14,
+    height: 100,
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  skeletonRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  skeletonTimePill: {
+    backgroundColor: '#E7E5E4',
+    width: 80,
+    height: 20,
+    borderRadius: THEME.borderRadius.pill,
+  },
+  skeletonStatusPill: {
+    backgroundColor: '#E7E5E4',
+    width: 70,
+    height: 20,
+    borderRadius: THEME.borderRadius.pill,
+  },
+  skeletonTitle: {
+    backgroundColor: '#E7E5E4',
+    width: '60%',
+    height: 18,
+    borderRadius: 4,
+    marginTop: 10,
+  },
+  skeletonSubtitle: {
+    backgroundColor: '#E7E5E4',
+    width: '40%',
+    height: 14,
+    borderRadius: 4,
+    marginTop: 4,
+  },
 });

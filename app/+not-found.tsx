@@ -1,18 +1,23 @@
-import { Link, Stack } from 'expo-router';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { Link, usePathname } from 'expo-router';
+import { THEME } from '@/constants/theme';
 
-export default function NotFoundScreen() {
+/**
+ * Fallback screen rendered when Expo Router fails to match the URL to any route.
+ * Displays the unmatched pathname for easy debugging.
+ */
+export default function NotFoundScreen(): React.JSX.Element {
+  const pathname = usePathname();
+
   return (
-    <>
-      <Stack.Screen options={{ title: 'Oops!' }} />
-      <View style={styles.container}>
-        <Text style={styles.title}>This screen doesn't exist.</Text>
-
-        <Link href="/" style={styles.link}>
-          <Text style={styles.linkText}>Go to home screen!</Text>
-        </Link>
-      </View>
-    </>
+    <View style={styles.container}>
+      <Text style={styles.title}>Oops! Page Not Found</Text>
+      <Text style={styles.subtitle}>Unmatched Route: {pathname}</Text>
+      <Link href="/splash" style={styles.link}>
+        <Text style={styles.linkText}>Go back to Splash</Text>
+      </Link>
+    </View>
   );
 }
 
@@ -21,18 +26,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    padding: THEME.spacing.lg,
+    backgroundColor: THEME.colors.background,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: THEME.typography.heading,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: THEME.spacing.xs,
+  },
+  subtitle: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.error,
+    marginBottom: THEME.spacing.xl,
+    textAlign: 'center',
   },
   link: {
-    marginTop: 15,
-    paddingVertical: 15,
+    marginTop: THEME.spacing.md,
+    paddingVertical: THEME.spacing.sm,
   },
   linkText: {
-    fontSize: 14,
-    color: '#2e78b7',
+    fontSize: THEME.typography.body,
+    color: THEME.colors.primary,
+    fontWeight: '600',
   },
 });

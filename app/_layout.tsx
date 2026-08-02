@@ -1,78 +1,119 @@
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider,
-} from "@react-navigation/native";
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
-import { useColorScheme } from "react-native";
-import { Provider } from "react-redux";
-import store from "../redux/store";
-import { useAppDispatch, useAppSelector } from "../redux/hooks";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { setLogoutCallback } from "../api";
-import { logout } from "../redux/slices/authSlice";
-import { usePushNotifications } from "../hooks/usePushNotifications";
-import authService from "../services/authServices";
+import React, { useEffect, useRef } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Stack, router } from 'expo-router';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Provider } from 'react-redux';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Notifications from 'expo-notifications';
 
-import { SocketProvider } from "../context/SocketContext";
-import { NotificationProvider } from "../context/NotificationContext";
+import { store } from '@/redux/store';
+import { queryClient } from '@/lib/queryClient';
+import { THEME } from '@/constants/theme';
+import { initializeAuthListener } from '@/services/auth/authStateManager';
+import { pendingNotificationRef } from '@/services/notifications/pendingNotification';
 
-const queryClient = new QueryClient();
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
-function AppContent() {
-  const colorScheme = useColorScheme();
-  const dispatch = useAppDispatch();
-  const { userToken } = useAppSelector((state) => state.auth);
-  
-  // Register for push notifications
-  const { expoPushToken } = usePushNotifications();
+function RootStack(): React.JSX.Element {
+  const notificationListener = useRef<any>(null);
+  const responseListener = useRef<any>(null);
 
-  // Set up logout callback for API interceptor
   useEffect(() => {
-    setLogoutCallback(() => {
-      dispatch(logout());
+    console.log('[DEBUG] RootStack: Subscribing to auth state change observer...');
+    const unsubscribe = initializeAuthListener();
+
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      console.log('[Push] Received:', notification.request.content.title);
     });
-  }, [dispatch]);
 
-  // Sync Push Token to Backend when authenticated
-  useEffect(() => {
-    const syncToken = async () => {
-      if (userToken && expoPushToken?.data) {
-        await authService.savePushToken(expoPushToken.data);
-        console.log("Push token synced to backend:", expoPushToken.data);
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as {
+        screen?: string;
+        bookingId?: string;
+      };
+      // Store in ref so auth routing (which may still be in-flight) doesn't
+      // overwrite this navigation with a router.replace (Bug 2 fix).
+      pendingNotificationRef.data = data;
+    });
+
+    // Bug 1 fix: handle cold-start tap that fired before JS mounted.
+    // expo-notifications consumes the initial response during launch;
+    // the listener above will never fire for it.
+    Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response) {
+        const data = response.notification.request.content.data as {
+          screen?: string;
+          bookingId?: string;
+        };
+        pendingNotificationRef.data = data;
+      }
+    });
+
+    return () => {
+      console.log('[DEBUG] RootStack: Cleaning up auth state observer...');
+      unsubscribe();
+      if (notificationListener.current) {
+        notificationListener.current.remove();
+      }
+      if (responseListener.current) {
+        responseListener.current.remove();
       }
     };
-    syncToken();
-  }, [userToken, expoPushToken]);
+  }, []);
+
 
   return (
-    <SocketProvider>
-      <NotificationProvider>
-        <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>
-          <>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }}>
-              {/* Register screens/stacks used by the app so routes are available */}
-              {/* <Stack.Screen name="splash" options={{ headerShown: false }} /> */}
-              {/* <Stack.Screen name="(auth)" options={{ headerShown: false }} /> */}
-              {/* <Stack.Screen name="(devotee)" options={{ headerShown: false }} /> */}
-              {/* <Stack.Screen name="(priest)" options={{ headerShown: false }} /> */}
-            </Stack>
-          </>
-        </ThemeProvider>
-      </NotificationProvider>
-    </SocketProvider>
+    <View style={styles.container}>
+      <StatusBar style="dark" />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="devotee/index" />
+        <Stack.Screen name="devotee/(tabs)" />
+        <Stack.Screen name="devotee/(screens)" />
+        <Stack.Screen name="priest/index" />
+        <Stack.Screen name="priest/onboarding" />
+        <Stack.Screen name="priest/(screens)" />
+        <Stack.Screen name="+not-found" />
+      </Stack>
+    </View>
   );
 }
 
-export default function RootLayout() {
+/**
+ * Main application Root Layout. Wraps the app in the SafeAreaProvider,
+ * QueryClientProvider, and mounts the top-padded Root Stack router.
+ */
+export default function RootLayout(): React.JSX.Element {
   return (
-    <Provider store={store}>
-      <QueryClientProvider client={queryClient}>
-        <AppContent />
-      </QueryClientProvider>
-    </Provider>
+    <GestureHandlerRootView style={styles.root}>
+      <Provider store={store}>
+        <QueryClientProvider client={queryClient}>
+          <SafeAreaProvider>
+            <RootStack />
+          </SafeAreaProvider>
+        </QueryClientProvider>
+      </Provider>
+    </GestureHandlerRootView>
   );
 }
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: THEME.colors.background,
+  },
+});

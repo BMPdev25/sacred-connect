@@ -1,0 +1,66 @@
+import { useEffect, useRef } from 'react';
+import { useRouter } from 'expo-router';
+import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
+
+/**
+ * Periodically polls the booking details from backend server.
+ * When status is 'confirmed', stops polling and navigates to the confirmation page.
+ *
+ * @param bookingId - Unique identifier of the booking record.
+ * @param isActive - Flag indicating whether polling should run.
+ */
+export function useBookingPolling(bookingId: string | undefined, isActive: boolean): void {
+  const router = useRouter();
+  const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isActiveRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    if (!isActive || !bookingId) return;
+
+    isActiveRef.current = true;
+
+    const checkStatus = async () => {
+      // Guard: bail out immediately if component already unmounted
+      if (!isActiveRef.current) return;
+      try {
+        const res = await fetchBookingDetails(bookingId);
+        // Handle both wrapped { data: booking } and unwrapped booking responses
+        const booking = (res as any).data || res;
+        const isComplete =
+          booking.status === 'confirmed' || booking.paymentStatus === 'completed';
+        // Re-check isActiveRef after the await — component may have unmounted
+        if (isComplete && isActiveRef.current) {
+          isActiveRef.current = false;
+          if (intervalRef.current) {
+            clearTimeout(intervalRef.current);
+            intervalRef.current = null;
+          }
+          router.replace('/devotee/(screens)/BookingConfirmation' as any);
+        }
+      } catch (err) {
+        // Fail silently during background polling to prevent interruption
+      }
+    };
+
+    const scheduleNextPoll = () => {
+      intervalRef.current = setTimeout(async () => {
+        if (!isActiveRef.current) return;  // guard for cleanup
+        await checkStatus();               // wait for completion
+        if (isActiveRef.current) {        // still mounted?
+          scheduleNextPoll();              // only then schedule next
+        }
+      }, 5000);
+    };
+
+    scheduleNextPoll();  // kick off first poll
+    
+    return () => {
+      isActiveRef.current = false;
+      if (intervalRef.current) {
+        clearTimeout(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [bookingId, isActive, router]);
+}
+

@@ -1,529 +1,164 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Linking,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { LinearGradient } from "expo-linear-gradient";
-import { useDispatch, useSelector } from "react-redux";
-import { APP_COLORS } from "../../../constants/Colors";
-import { getBookings } from "../../../redux/slices/bookingSlice";
-import { AppDispatch, RootState } from "../../../redux/store";
-import { formatCurrency } from "../../../utils/formatUtlis";
-import Card from "../../../components/Card";
-import PrimaryButton from "../../../components/PrimaryButton";
-import { useFocusEffect } from "@react-navigation/native";
-import { useCallback } from "react";
+import React, { useState } from 'react';
+import { StyleSheet, Text, View, FlatList, RefreshControl, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
+import { THEME } from '@/constants/theme';
+import { useUpcomingBookings, usePastBookings } from '@/hooks/useBookings';
+import { BookingListItem } from '@/types/bookingManagement.types';
 
+import { BookingCard } from '@/components/devotee/bookings/BookingCard';
+import { BookingsEmptyState } from '@/components/devotee/bookings/BookingsEmptyState';
+import { BookingCardSkeleton } from '@/components/devotee/bookings/BookingCardSkeleton';
+import { TabSwitcher } from '@/components/devotee/bookings/TabSwitcher';
 
-// ─── Component ────────────────────────────────────────────────────────────
-const BookingsScreen: React.FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
-  const insets = useSafeAreaInsets();
-  const { userInfo } = useSelector((state: RootState) => state.auth);
-  const { bookings, isLoading, error } = useSelector((state: RootState) => state.booking);
+export default function BookingsTab(): React.JSX.Element {
+  const [activeTab, setActiveTab] = useState<'upcoming' | 'past'>('upcoming');
+  const router = useRouter();
 
-  const [activeTab, setActiveTab] = useState<"upcoming" | "history">("upcoming");
-  const [refreshing, setRefreshing] = useState(false);
+  const {
+    bookings: upcoming,
+    isLoading: upcomingLoading,
+    hasMore: upcomingHasMore,
+    fetchNextPage: fetchMoreUpcoming,
+    refetch: refetchUpcoming,
+  } = useUpcomingBookings();
 
-  // Initial load and auto-refresh on focus
-  useFocusEffect(
-    useCallback(() => {
-      if (userInfo) {
-        dispatch(getBookings());
-      }
-    }, [dispatch, userInfo])
-  );
+  const {
+    bookings: past,
+    isLoading: pastLoading,
+    hasMore: pastHasMore,
+    fetchNextPage: fetchMorePast,
+    refetch: refetchPast,
+  } = usePastBookings();
 
-  useEffect(() => {
-    if (bookings && bookings.length > 0) {
-      console.log('[BookingsTab] Bookings from Redux:', bookings.length, 'items');
-      console.log('[BookingsTab] First booking sample:', JSON.stringify({
-        _id: bookings[0]._id,
-        status: bookings[0].status,
-        date: bookings[0].date,
-        keys: Object.keys(bookings[0])
-      }));
-    }
-  }, [bookings]);
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (userInfo) await dispatch(getBookings());
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  // Filtering logic
-  const upcomingBookings = (bookings || []).filter((b: any) => {
-    return (
-      b.status === "confirmed" || 
-      b.status === "pending" || 
-      b.status === "requested" || 
-      b.status === "accepted" || 
-      b.status === "searching" || 
-      b.status === "in_progress" || 
-      b.status === "arrived"
-    );
-  });
-
-  const historyBookings = (bookings || []).filter((b: any) => {
-    return b.status === "completed" || b.status === "cancelled" || b.status === "expired";
-  });
-
-  const displayBookings = activeTab === "upcoming" ? upcomingBookings : historyBookings;
-
-  const getStatusConfig = (status: string) => {
-    switch (status) {
-      case "confirmed":
-        return { bg: "#E8F5E9", color: APP_COLORS.success, label: "Confirmed", icon: "checkmark-circle" as const };
-      case "completed":
-        return { bg: "#E3F2FD", color: APP_COLORS.info, label: "Completed", icon: "checkmark-done-circle" as const };
-      case "cancelled":
-        return { bg: "#FFEBEE", color: APP_COLORS.error, label: "Cancelled", icon: "close-circle" as const };
-      case "pending":
-        return { bg: "#FFF8E1", color: APP_COLORS.warning, label: "Payment Pending", icon: "time" as const };
-      case "requested":
-        return { bg: "#FFF3E0", color: "#F57C00", label: "Pending Acceptance", icon: "hourglass-outline" as const };
-      case "searching":
-        return { bg: "#F3E5F5", color: "#9C27B0", label: "Searching Priest", icon: "search-outline" as const };
-      case "arrived":
-        return { bg: "#E8F5E9", color: APP_COLORS.success, label: "Priest Arrived", icon: "location-outline" as const };
-      case "in_progress":
-        return { bg: "#E3F2FD", color: APP_COLORS.info, label: "In Progress", icon: "sync-outline" as const };
-      case "expired":
-        return { bg: "#FFEBEE", color: APP_COLORS.error, label: "Expired", icon: "close-circle" as const };
-      case "accepted":
-        return { bg: "#E8F5E9", color: APP_COLORS.success, label: "Accepted", icon: "checkmark-circle" as const };
-      default:
-        return { bg: APP_COLORS.lightGray, color: APP_COLORS.gray, label: status || 'Unknown', icon: "ellipse" as const };
-    }
-  };
-
-  const handleBookingPress = (booking: any) => {
-    if (booking._id?.startsWith("mock")) return;
-    console.log('[BookingsTab] Pressing booking:', JSON.stringify({
-      _id: booking._id,
-      status: booking.status,
-      ceremonyType: booking.ceremonyType,
-      date: booking.date,
-      hasLocation: !!booking.location,
-      keys: Object.keys(booking)
-    }));
-    router.push({ 
-      pathname: "/(devoteeScreens)/(bookings)/BookingDetails", 
-      params: { 
-        booking: JSON.stringify(booking),
-        bookingId: booking._id 
-      } 
+  const handleBookingPress = (bookingId: string) => {
+    router.push({
+      pathname: '/devotee/BookingDetails' as any,
+      params: { bookingId },
     });
   };
 
-  const handleRateNow = (booking: any) => {
-    router.push({ 
-      pathname: "/Ratings", 
-      params: { 
-        booking: JSON.stringify(booking),
-        bookingId: booking._id || booking.id,
-        priestId: booking.priestId?._id || booking.priestId
-      } 
-    });
+  const handleActionPress = (booking: BookingListItem) => {
+    switch (booking.status) {
+      case 'pending':
+      case 'confirmed':
+        handleBookingPress(booking._id);
+        break;
+      case 'completed':
+        router.push({
+          pathname: '/devotee/RateReview' as any,
+          params: { bookingId: booking._id },
+        });
+        break;
+      case 'cancelled':
+      case 'rejected':
+        if (booking.priestId?._id) {
+          router.push({
+            pathname: '/devotee/PriestDetails' as any,
+            params: { id: booking.priestId._id, userId: booking.priestId._id },
+          });
+        }
+        break;
+    }
   };
 
-  const renderBookingCard = ({ item }: { item: any }) => {
-    const statusConfig = getStatusConfig(item.status || "");
-    const bookingDate = new Date(item.date);
-    const formattedDate = bookingDate.toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-    const isUpcoming = activeTab === "upcoming";
-
-    return (
-      <View style={[styles.bookingCard, isUpcoming && styles.bookingCardUpcoming]}>
-        {/* Status Ribbon */}
-        <View style={styles.cardHeader}>
-          <Text style={styles.ceremonyType}>{item.ceremonyType}</Text>
-          <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
-            <Ionicons name={statusConfig.icon} size={14} color={statusConfig.color} />
-            <Text style={[styles.statusText, { color: statusConfig.color }]}>{statusConfig.label}</Text>
-          </View>
-        </View>
-
-        {/* Priest */}
-        <View style={styles.priestRow}>
-          <Ionicons name="person-circle" size={20} color={APP_COLORS.gray} />
-          <Text style={styles.priestName}>{item.priestName}</Text>
-        </View>
-
-        {/* Details */}
-        <View style={styles.detailsGrid}>
-          <View style={styles.detailItem}>
-            <Ionicons name="calendar-outline" size={15} color={APP_COLORS.gray} />
-            <Text style={styles.detailText}>{formattedDate}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="time-outline" size={15} color={APP_COLORS.gray} />
-            <Text style={styles.detailText}>{item.startTime} - {item.endTime}</Text>
-          </View>
-          <View style={styles.detailItem}>
-            <Ionicons name="location-outline" size={15} color={APP_COLORS.gray} />
-            <Text style={styles.detailText} numberOfLines={1}>{item.location?.address}</Text>
-          </View>
-        </View>
-
-        {/* Footer */}
-        <View style={styles.cardFooter}>
-          <Text style={styles.priceText}>
-            {formatCurrency ? formatCurrency(item.basePrice) : `₹${item.basePrice}`}
-          </Text>
-
-          {isUpcoming && (
-            <View style={styles.actionButtons}>
-              <TouchableOpacity style={styles.iconButton} onPress={() => {
-                const id = item._id || item.id;
-                // Skip navigation for mock/placeholder bookings
-                if (!id || id.length !== 24) {
-                  Alert.alert("Info", "Samagri details will be available once a real booking is created.");
-                  return;
-                }
-                router.push({
-                  pathname: "/(devoteeScreens)/(bookings)/BookingDetails",
-                  params: { bookingId: id, booking: JSON.stringify(item) }
-                });
-              }}>
-                <Ionicons name="list-outline" size={18} color={APP_COLORS.saffron} />
-                <Text style={styles.iconButtonLabel}>Samagri</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.iconButton} onPress={() => {
-                const phone = item?.priestId?.phone
-                  || item?.priestId?.userId?.phone
-                  || item?.priest?.phone;
-                if (phone) {
-                  Linking.openURL(`tel:${phone}`);
-                } else {
-                  Alert.alert("Unavailable", "Priest's phone number is not available yet.");
-                }
-              }}>
-                <Ionicons name="call-outline" size={18} color={APP_COLORS.success} />
-                <Text style={styles.iconButtonLabel}>Call</Text>
-              </TouchableOpacity>
-
-            </View>
-          )}
-
-          {!isUpcoming && item.status === "completed" && !item.rated && (
-            <PrimaryButton
-              title="Rate Priest"
-              onPress={() => handleRateNow(item)}
-              size="sm"
-              style={{ borderRadius: 12 }}
-            />
-          )}
-
-          {!isUpcoming && item.status === "completed" && item.rated && (
-            <View style={styles.ratedBadge}>
-              <Ionicons name="checkmark-circle" size={16} color={APP_COLORS.success} />
-              <Text style={styles.ratedText}>Rated</Text>
-            </View>
-          )}
-        </View>
-      </View>
-    );
+  const handleBookNow = () => {
+    router.push('/devotee/HomeTab' as any);
   };
 
-  if (isLoading && !refreshing) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={APP_COLORS.saffron} />
-        <Text style={styles.loadingText}>Loading bookings...</Text>
-      </View>
-    );
-  }
+  const currentData = activeTab === 'upcoming' ? upcoming : past;
+  const currentLoading = activeTab === 'upcoming' ? upcomingLoading : pastLoading;
+  const currentHasMore = activeTab === 'upcoming' ? upcomingHasMore : pastHasMore;
+  const currentFetchNext = activeTab === 'upcoming' ? fetchMoreUpcoming : fetchMorePast;
+  const currentRefetch = activeTab === 'upcoming' ? refetchUpcoming : refetchPast;
+
+  const renderEmptyComponent = () => {
+    if (currentLoading) {
+      return (
+        <>
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+          <BookingCardSkeleton />
+        </>
+      );
+    }
+    return <BookingsEmptyState tab={activeTab} onBookNow={handleBookNow} />;
+  };
+
+  const renderFooter = () => {
+    if (currentHasMore && !currentLoading && currentData.length > 0) {
+      return (
+        <ActivityIndicator
+          color={THEME.colors.primary}
+          style={{ marginVertical: THEME.spacing.lg }}
+        />
+      );
+    }
+    return null;
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <StatusBar style="dark" />
-
-      {/* Header */}
-      <LinearGradient
-        colors={["#FFE5D9", "#FFF5E6"]}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      {/* FIXED HEADER */}
+      <View style={styles.header}>
         <Text style={styles.headerTitle}>My Bookings</Text>
-      </LinearGradient>
-
-      {/* Segmented Control */}
-      <View style={styles.segmentedControl}>
-        <TouchableOpacity
-          style={[styles.segment, activeTab === "upcoming" && styles.segmentActive]}
-          onPress={() => setActiveTab("upcoming")}
-        >
-          <Text style={[styles.segmentText, activeTab === "upcoming" && styles.segmentTextActive]}>
-            Upcoming ({upcomingBookings.length})
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.segment, activeTab === "history" && styles.segmentActive]}
-          onPress={() => setActiveTab("history")}
-        >
-          <Text style={[styles.segmentText, activeTab === "history" && styles.segmentTextActive]}>
-            History ({historyBookings.length})
-          </Text>
-        </TouchableOpacity>
+        <TabSwitcher activeTab={activeTab} onSwitch={setActiveTab} />
       </View>
 
-      {/* List */}
-      {displayBookings.length > 0 ? (
-        <FlatList
-          data={displayBookings}
-          renderItem={renderBookingCard}
-          keyExtractor={(item: any) => item._id || Math.random().toString()}
-          contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[APP_COLORS.saffron]} />}
-        />
-      ) : (
-        <View style={styles.emptyState}>
-          <Ionicons name="calendar-outline" size={60} color={APP_COLORS.lightGray} />
-          <Text style={styles.emptyTitle}>
-            {activeTab === "upcoming" ? "No upcoming bookings" : "No past bookings"}
-          </Text>
-          <Text style={styles.emptySubtitle}>
-            {activeTab === "upcoming"
-              ? "Book a puja and it will show up here"
-              : "Your completed ceremonies will appear here"}
-          </Text>
-          {activeTab === "upcoming" && (
-            <PrimaryButton
-              title="Explore Pujas"
-              onPress={() => router.navigate("/devotee/(tabs)/ExploreTab" as any)}
-              style={{ marginTop: 16 }}
-            />
-          )}
-        </View>
-      )}
-    </View>
+      {/* CONTENT LIST */}
+      <FlatList
+        data={currentData}
+        keyExtractor={(item) => item._id}
+        renderItem={({ item }) => (
+          <BookingCard
+            booking={item}
+            onPress={handleBookingPress}
+            onActionPress={handleActionPress}
+          />
+        )}
+        ListEmptyComponent={renderEmptyComponent}
+        ListFooterComponent={renderFooter}
+        onEndReached={currentFetchNext}
+        onEndReachedThreshold={0.5}
+        contentContainerStyle={[
+          styles.listContent,
+          currentData.length === 0 && !currentLoading ? styles.listContentEmpty : null,
+        ]}
+        refreshControl={
+          <RefreshControl
+            refreshing={false} // React Query handles internal refreshing visual, or we can leave it false as requested
+            onRefresh={currentRefetch}
+            tintColor={THEME.colors.primary}
+          />
+        }
+      />
+    </SafeAreaView>
   );
-};
+}
 
-// ─── Styles ───────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: THEME.colors.background,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: APP_COLORS.background,
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 15,
-    color: APP_COLORS.gray,
-  },
-
-  // Header
   header: {
-    paddingHorizontal: 20,
-    paddingVertical: 20,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 8,
   },
   headerTitle: {
-    fontSize: 28,
-    fontFamily: "serif",
-    fontWeight: "bold",
-    color: APP_COLORS.tertiary,
+    fontSize: THEME.typography.displayMedium,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginBottom: THEME.spacing.md,
   },
-
-  // Segmented Control
-  segmentedControl: {
-    flexDirection: "row",
-    marginHorizontal: 16,
-    marginTop: 16,
-    marginBottom: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 4,
-    shadowColor: "#704214",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#F8F8F8'
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 24,
   },
-  segment: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 20,
-    alignItems: "center",
-  },
-  segmentActive: {
-    backgroundColor: '#FFF5E6',
-  },
-  segmentText: {
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: "serif",
-    color: APP_COLORS.gray,
-  },
-  segmentTextActive: {
-    color: APP_COLORS.saffron,
-    fontWeight: "700",
-  },
-
-  // Booking Card
-  bookingCard: {
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 24,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#F8F8F8',
-    shadowColor: "#704214",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  bookingCardUpcoming: {
-    borderLeftWidth: 4,
-    borderLeftColor: APP_COLORS.saffron,
-    overflow: "hidden", // Helps when applying a thick left border with high radius
-  },
-  cardHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  ceremonyType: {
-    fontSize: 18,
-    fontWeight: "bold",
-    fontFamily: "serif",
-    color: APP_COLORS.tertiary,
-    flex: 1,
-  },
-  statusBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    gap: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  priestRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 12,
-  },
-  priestName: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    fontWeight: "500",
-  },
-  detailsGrid: {
-    gap: 6,
-    marginBottom: 14,
-  },
-  detailItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  detailText: {
-    fontSize: 13,
-    color: APP_COLORS.bodyText,
-    flex: 1,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: APP_COLORS.divider,
-    paddingTop: 12,
-  },
-  priceText: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: APP_COLORS.headingText,
-  },
-  actionButtons: {
-    flexDirection: "row",
-    gap: 14,
-  },
-  iconButton: {
-    alignItems: "center",
-    gap: 2,
-  },
-  iconButtonLabel: {
-    fontSize: 10,
-    color: APP_COLORS.gray,
-    fontWeight: "500",
-  },
-  ratedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#E8F5E9",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
-  },
-  ratedText: {
-    fontSize: 12,
-    color: APP_COLORS.success,
-    fontWeight: "600",
-  },
-
-  // Empty
-  emptyState: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    gap: 8,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    fontFamily: "serif",
-    color: APP_COLORS.tertiary,
-    marginTop: 8,
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    textAlign: "center",
-    lineHeight: 20,
+  listContentEmpty: {
+    flexGrow: 1,
   },
 });
-
-export default BookingsScreen;

@@ -1,438 +1,644 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router, useLocalSearchParams } from "expo-router";
-import React, { useEffect, useState } from "react";
-import {
-    Dimensions,
-    FlatList,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-    Platform,
-} from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
-import { APP_COLORS } from "../../../constants/Colors";
-import Card from "../../../components/Card";
-import PrimaryButton from "../../../components/PrimaryButton";
-import ceremonyService from "../../../services/ceremonyService";
-import { useQuery } from "@tanstack/react-query";
-import { ActivityIndicator } from "react-native";
-import { getImageUri } from "../../../utils/imageUtils";
-import ErrorMessage from "../../../components/ErrorMessage";
-import LoadingSpinner from "../../../components/LoadingSpinner";
+/**
+ * ExploreTab -- main discoverability tab for devotees.
+ * Includes a Pandits / Ceremonies toggle. Pandits view shows the sortable
+ * priest list; Ceremonies view shows a 2-column grid with category chips.
+ */
 
-// ─── useDebounce Hook (Internal) ───────────────
-function useDebounce<T>(value: T, delay: number): T {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-    return debouncedValue;
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  FlatList,
+  Image,
+  Linking,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { useLocalSearchParams, router } from 'expo-router';
+import { useDispatch, useSelector } from 'react-redux';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useQuery } from '@tanstack/react-query';
+import { Ionicons } from '@expo/vector-icons';
+
+import { RootState } from '@/redux/store';
+import { applyPresetCategory, resetFilters, setSortBy } from '@/redux/slices/exploreSlice';
+import { THEME } from '@/constants/theme';
+import { NearbyPriest } from '@/types/home.types';
+
+import { useUserLocation } from '@/hooks/useUserLocation';
+import { useCategories } from '@/hooks/useHomeData';
+import { useDebounce } from '@/hooks/useDebounce';
+import { useUnifiedSearch } from '@/hooks/useUnifiedSearch';
+import { useExplorePriests } from '@/hooks/useExploreData';
+import api from '@/api/index';
+import { getCeremonyImageSource } from '@/utils/imageUtils';
+
+import { ExploreHeader } from '@/components/devotee/explore/ExploreHeader';
+import SortChips from '@/components/devotee/explore/SortChips';
+import PriestList from '@/components/devotee/explore/PriestList';
+import ExploreEmptyState, { ExploreEmptyReason } from '@/components/devotee/explore/ExploreEmptyState';
+import FilterBottomSheet from '@/components/devotee/explore/FilterBottomSheet';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+type ViewMode = 'pandits' | 'ceremonies';
+
+interface CeremonyListItem {
+  _id: string;
+  name: string;
+  category?: string;
+  description?: string;
+  duration?: { typical?: number };
+  pricing?: { basePrice?: number };
+  images?: Array<{ url?: string; isPrimary?: boolean }>;
 }
 
-const { width: WINDOW_WIDTH } = Dimensions.get("window");
-const SCREEN_WIDTH = Platform.OS === 'web' ? Math.min(WINDOW_WIDTH, 600) : WINDOW_WIDTH;
-const SIDEBAR_WIDTH = 72; // Fixed width for sidebar instead of percentage
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
-// ─── Component ────────────────────────────────────────────────────────────
-const ExploreScreen: React.FC = () => {
-    const { category: initialCategory, search: initialSearch } = useLocalSearchParams<{ category?: string, search?: string }>();
-    const insets = useSafeAreaInsets();
-    const [searchQuery, setSearchQuery] = useState(initialSearch || "");
-    const debouncedSearch = useDebounce(searchQuery, 500);
-    const [activeCategory, setActiveCategory] = useState(initialCategory || "all");
+function getEmptyStateReason(
+  priests: NearbyPriest[],
+  isLoading: boolean,
+  permissionStatus: string,
+  searchInput: string,
+  error: any
+): ExploreEmptyReason | null {
+  if (isLoading) return null;
+  if (error) return 'error';
+  if (priests.length > 0) return null;
+  if (permissionStatus === 'denied') return 'no_location';
+  if (searchInput.length > 0) return 'search_empty';
+  return 'no_results';
+}
 
-    // Sync activeCategory and searchQuery with param updates
-    useEffect(() => {
-        if (initialCategory) {
-            setActiveCategory(initialCategory);
-        }
-        if (initialSearch) {
-            setSearchQuery(initialSearch);
-        }
-    }, [initialCategory, initialSearch]);
+function formatDurationShort(minutes?: number): string {
+  if (!minutes) return '';
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h} hr`;
+}
 
-    // Fetch Categories
-    const { 
-        data: categories = [], 
-        isLoading: isLoadingCats, 
-        isError: isErrorCats,
-        refetch: refetchCats 
-    } = useQuery({
-        queryKey: ["ceremony-categories"],
-        queryFn: ceremonyService.getCategories,
+// ---------------------------------------------------------------------------
+// Ceremony card sub-component
+// ---------------------------------------------------------------------------
+
+interface CeremonyCardProps {
+  item: CeremonyListItem;
+  onPress: () => void;
+}
+
+function CeremonyCard({ item, onPress }: CeremonyCardProps): React.JSX.Element {
+  const imgSource = getCeremonyImageSource(item.images);
+  const duration = item.duration?.typical;
+  const basePrice = item.pricing?.basePrice;
+
+  return (
+    <TouchableOpacity style={styles.ceremonyCard} onPress={onPress} activeOpacity={0.85}>
+      <Image source={imgSource} style={styles.ceremonyCardImage} resizeMode="cover" />
+      <View style={styles.ceremonyCardBody}>
+        {item.category ? (
+          <View style={styles.ceremonyCategoryPill}>
+            <Text style={styles.ceremonyCategoryText}>{item.category.toUpperCase()}</Text>
+          </View>
+        ) : null}
+        <Text style={styles.ceremonyCardName} numberOfLines={2}>{item.name}</Text>
+        {duration != null && (
+          <View style={styles.ceremonyCardMeta}>
+            <Ionicons name="time-outline" size={12} color={THEME.colors.textMuted} />
+            <Text style={styles.ceremonyCardMetaText}>{formatDurationShort(duration)}</Text>
+          </View>
+        )}
+        {basePrice != null && (
+          <Text style={styles.ceremonyCardPrice}>
+            From ₹{basePrice.toLocaleString('en-IN')}
+          </Text>
+        )}
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+// Skeleton placeholder for loading state
+function CeremonyCardSkeleton(): React.JSX.Element {
+  return (
+    <View style={[styles.ceremonyCard, styles.ceremonySkeleton]}>
+      <View style={styles.ceremonySkeletonImage} />
+      <View style={styles.ceremonyCardBody}>
+        <View style={styles.ceremonySkeletonLine} />
+        <View style={[styles.ceremonySkeletonLine, { width: '60%', marginTop: 6 }]} />
+      </View>
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Screen
+// ---------------------------------------------------------------------------
+
+export default function ExploreTab(): React.JSX.Element {
+  const dispatch = useDispatch();
+  const params = useLocalSearchParams<{
+    focusSearch?: string;
+    categoryId?: string;
+    filterCeremonyId?: string;
+    filterCeremonyName?: string;
+  }>();
+  const filters = useSelector((state: RootState) => state.explore);
+  const { coordinates, permissionStatus } = useUserLocation();
+  const categories = useCategories();
+
+  const [viewMode, setViewMode] = useState<ViewMode>('pandits');
+  const [searchInput, setSearchInput] = useState('');
+  const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [ceremonyFilter, setCeremonyFilter] = useState<{ id: string; name: string } | null>(null);
+
+  const debouncedSearch = useDebounce(searchInput, 300);
+
+  const { ceremonies: searchCeremonies, priests: searchPriests, isLoading: isLoadingSearch } =
+    useUnifiedSearch(debouncedSearch);
+
+  const { priests, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage, refetch, error } =
+    useExplorePriests(debouncedSearch, filters, filters.sortBy, coordinates, ceremonyFilter?.id);
+
+  // Fetch all ceremonies for the grid
+  const { data: ceremoniesData, isLoading: isCeremoniesLoading } = useQuery<{
+    ceremonies: CeremonyListItem[];
+  }>({
+    queryKey: ['allCeremonies'],
+    queryFn: () =>
+      api
+        .get<{ ceremonies: CeremonyListItem[] }>('/ceremonies?limit=100')
+        .then((r) => r.data),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+  });
+
+  const allCeremonies = ceremoniesData?.ceremonies ?? [];
+
+  // Derive category chips from ceremony data
+  const categoryChips = useMemo(() => {
+    const cats = Array.from(new Set(allCeremonies.map((c) => c.category).filter(Boolean))) as string[];
+    return ['All', ...cats];
+  }, [allCeremonies]);
+
+  // Filtered ceremonies
+  const filteredCeremonies = useMemo(() => {
+    if (selectedCategory === 'All') return allCeremonies;
+    return allCeremonies.filter((c) => c.category === selectedCategory);
+  }, [allCeremonies, selectedCategory]);
+
+  useEffect(() => {
+    if (params.categoryId) dispatch(applyPresetCategory(params.categoryId));
+  }, [params.categoryId, dispatch]);
+
+  // Ceremony-first navigation (CeremonyDetails "Schedule with a Pandit", or the
+  // SearchingForPriest fallback) arrives with an exact ceremony to filter by.
+  useEffect(() => {
+    if (params.filterCeremonyId) {
+      setCeremonyFilter({
+        id: params.filterCeremonyId,
+        name: params.filterCeremonyName || 'this ceremony',
+      });
+    }
+  }, [params.filterCeremonyId, params.filterCeremonyName]);
+
+  const emptyReason = getEmptyStateReason(priests, isLoading, permissionStatus, searchInput, error);
+
+  function handleSearchAllPandits(query: string): void {
+    setSearchInput(query);
+    setIsSuggestionOpen(false);
+  }
+
+  function handleCeremonyPress(ceremonyId: string): void {
+    setSearchInput('');
+    setIsSuggestionOpen(false);
+    router.push({
+      pathname: '/devotee/CeremonyDetails' as any,
+      params: { ceremonyId },
     });
+  }
 
-    // Fetch Ceremonies (all initially, by category, OR by search)
-    const { 
-        data: ceremoniesData, 
-        isLoading: isLoadingCeremonies, 
-        isError: isErrorCeremonies,
-        refetch: refetchCeremonies 
-    } = useQuery({
-        queryKey: ["ceremonies", activeCategory, debouncedSearch],
-        queryFn: () => {
-            if (debouncedSearch.trim()) {
-                return ceremonyService.searchPujas(debouncedSearch);
-            }
-            return activeCategory === "all" 
-                ? ceremonyService.getAllPujas() 
-                : ceremonyService.getPujasByCategory(activeCategory);
-        },
+  function handlePriestPress(priestProfileId: string, userId: string): void {
+    setSearchInput('');
+    setIsSuggestionOpen(false);
+    router.push({
+      pathname: '/devotee/PriestDetails' as any,
+      params: { id: priestProfileId, userId },
     });
+  }
 
-    const ceremonies = ceremoniesData?.ceremonies || ceremoniesData || [];
-    const isLoading = isLoadingCats || isLoadingCeremonies;
-    const isError = isErrorCats || isErrorCeremonies;
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <ExploreHeader
+        title={viewMode === 'pandits' ? 'Explore Pandits' : 'Browse Ceremonies'}
+        searchInput={searchInput}
+        onChangeSearchInput={(text) => {
+          setSearchInput(text);
+          setIsSuggestionOpen(text.length >= 2);
+        }}
+        isSuggestionOpen={isSuggestionOpen}
+        setIsSuggestionOpen={setIsSuggestionOpen}
+        ceremonies={searchCeremonies}
+        priests={searchPriests}
+        isLoadingSearch={isLoadingSearch}
+        filterCount={filters.activeFilterCount}
+        onFilterPress={() => setIsFilterSheetOpen(true)}
+        autoFocus={params.focusSearch === 'true'}
+        onCeremonyPress={handleCeremonyPress}
+        onPriestPress={handlePriestPress}
+        onSearchAllPandits={handleSearchAllPandits}
+        onSearchSubmit={(q) => {
+          setIsSuggestionOpen(false);
+          setSearchInput(q);
+        }}
+        onSearchClear={() => {
+          setSearchInput('');
+          setIsSuggestionOpen(false);
+        }}
+        onFocus={() => {
+          if (searchInput.length >= 2) setIsSuggestionOpen(true);
+        }}
+      />
 
-    const handleRetry = () => {
-        if (isErrorCats) refetchCats();
-        if (isErrorCeremonies) refetchCeremonies();
-    };
+      {/* Backdrop */}
+      {isSuggestionOpen && (
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => setIsSuggestionOpen(false)}
+          accessibilityLabel="Close search suggestions"
+        />
+      )}
 
-    const searchedServices = ceremonies;
-
-    const renderServiceCard = ({ item }: { item: any }) => (
-        <View style={styles.serviceCardShadow}>
-            <View style={styles.serviceCard}>
-                <Image
-                    source={{ 
-                        uri: getImageUri(item.image || (item.images && item.images[0])) 
-                    }}
-                    style={styles.serviceImage}
-                    resizeMode="cover"
-                />
-                <View style={styles.serviceInfo}>
-                    <Text style={styles.serviceName} numberOfLines={2}>{item.name}</Text>
-
-                    <View style={styles.serviceMetaRow}>
-                        <Ionicons name="time-outline" size={13} color={APP_COLORS.gray} />
-                        <Text style={styles.serviceDuration}>
-                            {typeof item.duration === 'object' ? (item.duration.typical || item.duration.minimum) : item.duration} mins
-                        </Text>
-                    </View>
-                    <View style={styles.servicePriceRow}>
-                        <Text style={styles.servicePrice}>₹{item.pricing?.basePrice || item.basePrice || "0"}</Text>
-                        <PrimaryButton
-                            title="Select"
-                            onPress={() => router.push(`/(devoteeScreens)/(pujas)/${item._id}`)}
-                            size="sm"
-                            style={{ paddingVertical: 6, paddingHorizontal: 14, borderRadius: 12 }}
-                        />
-                    </View>
-                </View>
-            </View>
-        </View>
-
-    );
-
-    return (
-        <View style={styles.container}>
-            <StatusBar style="dark" />
-
-            {/* ── Header & Search Bar ──────────────────────────────── */}
-            <LinearGradient
-                colors={['#FFE5D9', '#FFF5E6']}
-                style={[styles.searchContainer, { paddingTop: insets.top + 16 }]}
+      {!isSuggestionOpen && (
+        <>
+          {/* ── Pandits / Ceremonies toggle ── */}
+          <View style={styles.toggleWrap}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'pandits' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('pandits')}
+              activeOpacity={0.8}
             >
-                <View style={styles.searchBar}>
-                    <Ionicons name="search" size={20} color={APP_COLORS.gray} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search for 'Griha Pravesh'..."
-                        placeholderTextColor={APP_COLORS.gray}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        returnKeyType="search"
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity onPress={() => setSearchQuery("")}>
-                            <Ionicons name="close-circle" size={20} color="#704214" />
-                        </TouchableOpacity>
-                    )}
-                </View>
-            </LinearGradient>
+              <Text style={[styles.toggleLabel, viewMode === 'pandits' && styles.toggleLabelActive]}>
+                Pandits
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'ceremonies' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('ceremonies')}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.toggleLabel, viewMode === 'ceremonies' && styles.toggleLabelActive]}>
+                Ceremonies
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-            {/* ── Body: Sidebar + Main Content ──────────── */}
-            <View style={styles.body}>
-                {/* Sidebar */}
-                <ScrollView
-                    style={styles.sidebar}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingVertical: 8 }}
-                >
+          {viewMode === 'pandits' ? (
+            <>
+              {ceremonyFilter && (
+                <View style={styles.ceremonyFilterRow}>
+                  <View style={styles.ceremonyFilterChip}>
+                    <Ionicons name="filter" size={14} color={THEME.colors.primary} />
+                    <Text style={styles.ceremonyFilterChipText} numberOfLines={1}>
+                      Filtering: {ceremonyFilter.name}
+                    </Text>
                     <TouchableOpacity
-                        key="all-category"
-                        style={[styles.sidebarItem, activeCategory === "all" && styles.sidebarItemActive]}
-                        onPress={() => setActiveCategory("all")}
-                        activeOpacity={0.7}
+                      onPress={() => setCeremonyFilter(null)}
+                      hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+                      accessibilityLabel="Clear ceremony filter"
                     >
-                        <Ionicons
-                            name="apps"
-                            size={20}
-                            color={activeCategory === "all" ? APP_COLORS.saffron : APP_COLORS.gray}
-                        />
-                        <Text
-                            style={[
-                                styles.sidebarText,
-                                activeCategory === "all" && styles.sidebarTextActive,
-                            ]}
-                            numberOfLines={1}
-                        >
-                            All
-                        </Text>
-                        {activeCategory === "all" && <View style={styles.sidebarIndicator} />}
+                      <Ionicons name="close-circle" size={16} color={THEME.colors.primary} />
                     </TouchableOpacity>
+                  </View>
+                </View>
+              )}
 
-                    {categories.map((cat: any, index: number) => {
-                        const categoryId = cat.slug || cat._id || cat.id || `cat-${index}`;
-                        const isActive = activeCategory === categoryId;
-                        return (
-                            <TouchableOpacity
-                                key={`category-${categoryId}-${index}`}
-                                style={[styles.sidebarItem, isActive && styles.sidebarItemActive]}
-                                onPress={() => setActiveCategory(categoryId)}
-                                activeOpacity={0.7}
-                            >
-                                <Ionicons
-                                    name={(cat.icon || "flower") as any}
-                                    size={20}
-                                    color={isActive ? APP_COLORS.saffron : APP_COLORS.gray}
-                                />
-                                <Text
-                                    style={[
-                                        styles.sidebarText,
-                                        isActive && styles.sidebarTextActive,
-                                    ]}
-                                    numberOfLines={1}
-                                >
-                                    {cat.name}
-                                </Text>
-                                {isActive && <View style={styles.sidebarIndicator} />}
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
+              <View style={styles.sortWrap}>
+                <SortChips
+                  selectedSort={filters.sortBy}
+                  onSortChange={(sort) => dispatch(setSortBy(sort))}
+                />
+              </View>
 
-                {/* Main Content */}
-                {isError ? (
-                    <View style={styles.emptyState}>
-                        <ErrorMessage 
-                            message="Failed to load ceremonies. Please check your connection." 
-                            showRetry 
-                            onRetry={handleRetry} 
-                        />
-                    </View>
-                ) : isLoading ? (
-                    <View style={styles.emptyState}>
-                        <LoadingSpinner text="Finding sacred services..." />
-                    </View>
-                ) : (
-                    <FlatList
-                        data={searchedServices}
-                        renderItem={renderServiceCard}
-                        keyExtractor={(item, index) => item._id || item.id || index.toString()}
-                        style={styles.mainContent}
-                        contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
-                        showsVerticalScrollIndicator={false}
-                        ListEmptyComponent={
-                            <View style={styles.emptyState}>
-                                <Ionicons name="search-outline" size={48} color={APP_COLORS.lightGray} />
-                                <Text style={styles.emptyTitle}>No services found</Text>
-                                <Text style={styles.emptySubtitle}>Try a different category or search term</Text>
-                            </View>
-                        }
-                    />
+              {emptyReason ? (
+                <ExploreEmptyState
+                  reason={emptyReason}
+                  searchQuery={searchInput}
+                  onClearFilters={() => {
+                    dispatch(resetFilters());
+                    setCeremonyFilter(null);
+                  }}
+                  onBrowseAll={() => {
+                    setSearchInput('');
+                    setIsSuggestionOpen(false);
+                    dispatch(resetFilters());
+                    setCeremonyFilter(null);
+                  }}
+                  onEnableLocation={() => Linking.openSettings()}
+                  onRetry={refetch}
+                />
+              ) : (
+                <PriestList
+                  priests={priests}
+                  isLoading={isLoading}
+                  isFetchingNextPage={isFetchingNextPage}
+                  hasNextPage={hasNextPage}
+                  onEndReached={fetchNextPage}
+                  onPriestPress={(id, userId) =>
+                    router.push({
+                      pathname: '/devotee/PriestDetails' as any,
+                      params: { id, userId },
+                    })
+                  }
+                  resultCount={priests.length}
+                  isSearchActive={searchInput.length > 0}
+                />
+              )}
+            </>
+          ) : (
+            /* ── Ceremonies view ── */
+            <View style={{ flex: 1 }}>
+              {/* Category filter chips */}
+              <FlatList
+                horizontal
+                data={categoryChips}
+                keyExtractor={(cat) => cat}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.categoryChipsContainer}
+                style={styles.categoryChipsRow}
+                renderItem={({ item: cat }) => (
+                  <TouchableOpacity
+                    style={[
+                      styles.categoryChip,
+                      cat === selectedCategory && styles.categoryChipActive,
+                    ]}
+                    onPress={() => setSelectedCategory(cat)}
+                    activeOpacity={0.8}
+                  >
+                    <Text
+                      style={[
+                        styles.categoryChipLabel,
+                        cat === selectedCategory && styles.categoryChipLabelActive,
+                      ]}
+                    >
+                      {cat === 'All' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                    </Text>
+                  </TouchableOpacity>
                 )}
+              />
 
+              {/* Ceremony grid */}
+              {isCeremoniesLoading ? (
+                <FlatList
+                  data={Array.from({ length: 6 })}
+                  numColumns={2}
+                  keyExtractor={(_, i) => String(i)}
+                  contentContainerStyle={styles.gridContent}
+                  columnWrapperStyle={styles.gridRow}
+                  renderItem={() => <CeremonyCardSkeleton />}
+                />
+              ) : filteredCeremonies.length === 0 ? (
+                <View style={styles.centerEmpty}>
+                  <Text style={styles.emptyText}>No ceremonies found</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={filteredCeremonies}
+                  numColumns={2}
+                  keyExtractor={(item) => item._id}
+                  contentContainerStyle={styles.gridContent}
+                  columnWrapperStyle={styles.gridRow}
+                  showsVerticalScrollIndicator={false}
+                  renderItem={({ item }) => (
+                    <CeremonyCard
+                      item={item}
+                      onPress={() => handleCeremonyPress(item._id)}
+                    />
+                  )}
+                />
+              )}
             </View>
-        </View>
-    );
-};
+          )}
+        </>
+      )}
 
-// ─── Styles ───────────────────────────────────────────────────────────────
+      <View style={styles.filterSheetLayer} pointerEvents="box-none">
+        <FilterBottomSheet
+          isVisible={isFilterSheetOpen}
+          onClose={() => setIsFilterSheetOpen(false)}
+          onApply={() => setIsFilterSheetOpen(false)}
+          categories={categories.data ?? []}
+          resultCount={priests.length}
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Styles
+// ---------------------------------------------------------------------------
+
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: APP_COLORS.background,
-        width: Platform.OS === 'web' ? '100%' : undefined,
-        maxWidth: Platform.OS === 'web' ? 600 : undefined,
-        alignSelf: Platform.OS === 'web' ? 'center' : undefined,
-    },
+  container: { flex: 1, backgroundColor: THEME.colors.background },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 5,
+  },
+  filterSheetLayer: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 999,
+    elevation: 999,
+  },
 
-    // Search
-    searchContainer: {
-        paddingHorizontal: 20,
-        paddingBottom: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(112, 66, 20, 0.1)',
-        shadowColor: "#704214",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        elevation: 4,
-        zIndex: 10,
-    },
-    searchBar: {
-        flexDirection: "row",
-        alignItems: "center",
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        paddingHorizontal: 16,
-        shadowColor: '#704214',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.06,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    searchInput: {
-        flex: 1,
-        height: 50,
-        marginLeft: 10,
-        fontSize: 16,
-        color: '#704214',
-    },
+  // Toggle
+  toggleWrap: {
+    flexDirection: 'row',
+    backgroundColor: '#F0EDE6',
+    borderRadius: 24,
+    padding: 4,
+    marginHorizontal: THEME.spacing.md,
+    marginTop: THEME.spacing.sm,
+    marginBottom: 12,
+  },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 20,
+  },
+  toggleBtnActive: {
+    backgroundColor: THEME.colors.surface,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  toggleLabel: {
+    fontSize: THEME.typography.body,
+    fontWeight: '500',
+    color: THEME.colors.textSecondary,
+  },
+  toggleLabelActive: {
+    color: THEME.colors.textPrimary,
+    fontWeight: '700',
+  },
 
-    // Body layout
-    body: {
-        flex: 1,
-        flexDirection: "row",
-    },
+  // Pandits view
+  sortWrap: { marginVertical: THEME.spacing.sm, zIndex: 1, overflow: 'hidden' },
+  ceremonyFilterRow: {
+    paddingHorizontal: THEME.spacing.md,
+    marginTop: THEME.spacing.sm,
+  },
+  ceremonyFilterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF4E6',
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#FFD9A0',
+  },
+  ceremonyFilterChipText: {
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '600',
+    color: THEME.colors.primary,
+    maxWidth: 220,
+  },
 
-    // Sidebar
-    sidebar: {
-        width: 76,
-        maxWidth: 76,
-        flexShrink: 0,
-        backgroundColor: '#FFFFFF',
-        borderRightWidth: 1,
-        borderRightColor: 'rgba(112, 66, 20, 0.05)',
-    },
-    sidebarItem: {
-        alignItems: "center",
-        paddingVertical: 12,
-        paddingHorizontal: 6,
-        marginHorizontal: 8,
-        marginBottom: 8,
-        borderRadius: 16,
-    },
-    sidebarItemActive: {
-        backgroundColor: 'rgba(255, 229, 217, 0.5)',
-    },
-    sidebarText: {
-        fontSize: 10,
-        color: APP_COLORS.gray,
-        marginTop: 4,
-        textAlign: "center",
-        fontWeight: "600",
-    },
-    sidebarTextActive: {
-        color: APP_COLORS.saffron,
-        fontWeight: "700",
-    },
-    sidebarIndicator: {
-        display: 'none',
-    },
+  // Category chips
+  categoryChipsRow: {
+    flexGrow: 0,
+    marginBottom: THEME.spacing.sm,
+    overflow: 'hidden',
+  },
+  categoryChipsContainer: {
+    paddingHorizontal: THEME.spacing.md,
+    gap: 8,
+  },
+  categoryChip: {
+    height: 34,
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: THEME.colors.surface,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
+  },
+  categoryChipActive: {
+    backgroundColor: THEME.colors.primary,
+    borderColor: THEME.colors.primary,
+  },
+  categoryChipLabel: {
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '500',
+    color: THEME.colors.textPrimary,
+  },
+  categoryChipLabelActive: {
+    color: THEME.colors.surface,
+    fontWeight: '700',
+  },
 
-    // Main content
-    mainContent: {
-        flex: 1,
-    },
+  // Ceremony grid
+  gridContent: {
+    paddingHorizontal: THEME.spacing.sm,
+    paddingBottom: THEME.spacing.xl,
+  },
+  gridRow: {
+    justifyContent: 'space-between',
+  },
+  ceremonyCard: {
+    flex: 1,
+    margin: 6,
+    backgroundColor: THEME.colors.surface,
+    borderRadius: 16,
+    overflow: 'hidden',
+    ...THEME.shadow.card,
+  },
+  ceremonyCardImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: THEME.colors.border,
+  },
+  ceremonyCardBody: {
+    padding: 10,
+  },
+  ceremonyCategoryPill: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFF3E0',
+    borderRadius: THEME.borderRadius.pill,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginBottom: 4,
+  },
+  ceremonyCategoryText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: THEME.colors.primary,
+    letterSpacing: 0.5,
+  },
+  ceremonyCardName: {
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '700',
+    color: THEME.colors.textPrimary,
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  ceremonyCardMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 4,
+  },
+  ceremonyCardMetaText: {
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.textMuted,
+  },
+  ceremonyCardPrice: {
+    fontSize: THEME.typography.body,
+    fontWeight: '700',
+    color: THEME.colors.primary,
+    marginTop: 4,
+  },
 
-    // Service Card
-    serviceCardShadow: {
-        marginBottom: 16,
-        borderRadius: 24,
-        backgroundColor: '#FFFFFF', // Important for Android elevation
-        shadowColor: "#704214",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 3,
-    },
-    serviceCard: {
-        flexDirection: "row",
-        borderRadius: 24,
-        borderWidth: 1,
-        borderColor: 'rgba(112, 66, 20, 0.05)',
-        backgroundColor: '#FFFFFF',
-        overflow: "hidden", // Perfectly clips the image corners
-    },
-    serviceImage: {
-        width: 110,
-        height: 130,
-        // Border radii removed: let the parent's overflow: "hidden" handle clipping!
-    },
-    serviceInfo: {
-        flex: 1,
-        padding: 16,
-        justifyContent: "space-between",
-    },
-    serviceName: {
-        fontSize: 18,
-        fontWeight: "700",
-        fontFamily: "serif",
-        color: "#704214",
-        marginBottom: 4,
-    },
-    serviceMetaRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-        marginBottom: 2,
-    },
-    serviceRating: {
-        fontSize: 12,
-        fontWeight: "600",
-        color: APP_COLORS.bodyText,
-    },
-    serviceBookings: {
-        fontSize: 11,
-        color: APP_COLORS.gray,
-    },
-    serviceDuration: {
-        fontSize: 12,
-        color: APP_COLORS.gray,
-    },
-    servicePriceRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginTop: 4,
-    },
-    servicePrice: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: APP_COLORS.saffron,
-    },
+  // Skeleton
+  ceremonySkeleton: {
+    opacity: 0.5,
+  },
+  ceremonySkeletonImage: {
+    width: '100%',
+    height: 100,
+    backgroundColor: THEME.colors.border,
+  },
+  ceremonySkeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: THEME.colors.border,
+    width: '80%',
+    marginTop: 8,
+  },
 
-    // Empty state
-    emptyState: {
-        alignItems: "center",
-        justifyContent: "center",
-        paddingTop: 60,
-        gap: 8,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#704214",
-        fontFamily: "serif",
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: APP_COLORS.gray,
-    },
+  // Empty
+  centerEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 60,
+  },
+  emptyText: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textMuted,
+    fontStyle: 'italic',
+  },
 });
-
-export default ExploreScreen;

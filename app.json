@@ -7,6 +7,10 @@
     "icon": "./assets/images/icon.png",
     "scheme": "sacredconnect",
     "userInterfaceStyle": "automatic",
+    "statusBar": {
+      "barStyle": "dark-content",
+      "backgroundColor": "#FAFAF7"
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
@@ -14,7 +18,12 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -22,10 +31,21 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "navigationBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#FAFAF7"
+      },
       "predictiveBackGestureEnabled": false,
       "softwareKeyboardLayoutMode": "resize",
       "package": "com.anonymous.bookmypujari",
-      "googleServicesFile": "./google-services.json"
+      "usesCleartextTraffic": true,
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.CALL_PHONE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -43,19 +63,27 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#ffffff",
-          "defaultChannel": "default",
-          "enableBackgroundRemoteNotifications": false
+          "color": "#FF9933",
+          "sounds": []
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker",
+      "expo-font",
+      "expo-secure-store",
+      "expo-web-browser",
+      "@react-native-google-signin/google-signin"
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
+      "router": {
+        "sitemap": true
+      },
       "eas": {
-        "projectId": "1e95d30c-0c85-41f9-b010-6b96b7568116"
+        "projectId": "2f508e81-9a95-4294-82f8-d9939d1f3d64"
       }
-    }
+    },
+    "owner": "sunny302001"
   }
 }

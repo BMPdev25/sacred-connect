@@ -1,651 +1,137 @@
-import { Ionicons } from "@expo/vector-icons";
-import { StatusBar } from "expo-status-bar";
-import { useFocusEffect } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import React, { useCallback, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Modal,
-  Platform,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
-import { useSelector, useDispatch } from "react-redux";
-import { APP_COLORS } from "../../../constants/Colors";
-import { RootState, AppDispatch } from "../../../redux/store";
-import { getEarnings } from "../../../redux/slices/priestSlice";
-import priestService from "../../../services/priestService";
+import React, { useMemo, useState } from 'react';
+import { ScrollView, View, Text, StyleSheet, Pressable, ActivityIndicator, Alert, RefreshControl, TouchableOpacity } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
+import { useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-const HEADER_TOP_PADDING = Platform.OS === "android" ? 24 : 44;
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const EarningsScreen = () => {
-  // ... hooks ...
-  const insets = useSafeAreaInsets();
-  const { userInfo } = useSelector((state: RootState) => state.auth);
-  const earningsData = useSelector((state: RootState) => state.priest.earnings);
-  const earningsLoading = useSelector((state: RootState) => state.priest.isLoading);
-  const dispatch = useDispatch<AppDispatch>();
-  const [selectedMonth, setSelectedMonth] = useState<string>("current");
-  const [withdrawalModalVisible, setWithdrawalModalVisible] = useState(false);
-  const [withdrawalAmount, setWithdrawalAmount] = useState("");
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState("upi");
-  const [loading, setLoading] = useState(true);
+import { THEME } from '@/constants/theme';
+import { EarningsService } from '@/services/priest/earningsService';
+import { PriestTransaction } from '@/types/priest.earnings.types';
+import TransactionRow from '@/components/priest/TransactionRow';
+import EarningStatCard from '@/components/priest/EarningStatCard';
+
+export default function EarningsTab(): React.JSX.Element {
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
-  useFocusEffect(
-    useCallback(() => {
-      const priestId = userInfo?._id;
-      if (priestId) {
-        setLoading(true);
-        dispatch(getEarnings(priestId)).finally(() => setLoading(false));
-      }
-    }, [userInfo?._id])
-  );
+  const { data: summary, isLoading: isSummaryLoading } = useQuery({
+    queryKey: ['priestEarnings'],
+    queryFn: EarningsService.fetchEarningsSummary,
+    staleTime: 60000,
+  });
+
+  const {
+    data: txnData,
+    isLoading: isTxnsLoading,
+    hasNextPage,
+    fetchNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['priestTransactions'],
+    queryFn: ({ pageParam = 1 }) => EarningsService.fetchTransactions(pageParam as number),
+    getNextPageParam: (lastPage, allPages) => lastPage.hasMore ? allPages.length + 1 : undefined,
+    initialPageParam: 1,
+    staleTime: 60000,
+  });
+
+  const allTransactions = useMemo(() => txnData?.pages.flatMap((p) => p.transactions) || [], [txnData]);
 
   const handleRefresh = async () => {
-    const priestId = userInfo?._id;
-    if (!priestId) return;
     setRefreshing(true);
-    await dispatch(getEarnings(priestId));
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['priestEarnings'] }),
+      queryClient.invalidateQueries({ queryKey: ['priestTransactions'] }),
+    ]);
     setRefreshing(false);
   };
 
-  // ... handleWithdrawal ...
-  const handleWithdrawal = async () => {
-    const amount = parseFloat(withdrawalAmount);
-    if (isNaN(amount) || amount <= 0) {
-      Alert.alert("Validation Error", "Please enter a valid amount");
-      return;
-    }
-
-    const availableBalance = earningsData?.availableBalance || 0;
-    if (amount > availableBalance) {
-      Alert.alert(
-        "Validation Error",
-        "Withdrawal amount cannot exceed available balance"
-      );
-      return;
-    }
-
-    try {
-      await priestService.requestWithdrawal({
-        amount: amount,
-        paymentMethod: selectedPaymentMethod,
-      });
-
-      // Alert.alert("Success", "Withdrawal request submitted successfully");
-      setWithdrawalModalVisible(false);
-      setWithdrawalAmount("");
-
-      // Refresh earnings data from redux
-      await dispatch(getEarnings(userInfo?._id || ''));
-    } catch (error: any) {
-      console.error("Withdrawal error:", error);
-      Alert.alert(
-        "Error",
-        error.message || "Failed to process withdrawal request"
-      );
-    }
+  const handleRequestPayout = () => {
+    Alert.alert('Payout Coming Soon', 'Bank account setup will be available soon.\n\nFor urgent requests, contact:\nsupport@sacredconnect.in', [{ text: 'OK' }]);
   };
-
-  const formatCurrency = (amount: number | undefined) => {
-    return `₹${(amount as any)?.toLocaleString?.("en-IN") || "0"}`;
-  };
-
-  const formatDate = (date: any) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString("en-IN", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
-  };
-
-  if (loading) {
-    return (
-      <View
-        style={[
-          styles.container,
-          { justifyContent: "center", alignItems: "center" },
-        ]}
-      >
-        <StatusBar style="dark" />
-        <ActivityIndicator size="large" color={APP_COLORS.primary} />
-        <Text style={{ marginTop: 16, color: APP_COLORS.gray }}>
-          Loading earnings data...
-        </Text>
-      </View>
-    );
-  }
 
   return (
-    <View style={{ flex: 1, backgroundColor: APP_COLORS.neutral }}>
-      <StatusBar style="dark" />
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={[APP_COLORS.primary]} />
-        }
-      >
-        <LinearGradient 
-          colors={['#FFFFFF', '#FDFBF7']} 
-          style={[styles.header, { paddingTop: Math.max(insets.top, 24) + 16, paddingBottom: 24, marginHorizontal: -16, marginBottom: 16 }]}
-        >
-          <Text style={styles.headerTitle}>Earnings</Text>
-        </LinearGradient>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
+    <ScrollView
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={THEME.colors.primary} />}
+    >
+      <Text style={styles.headerTitle}>Earnings</Text>
 
-        <View style={styles.earningsSummary}>
-          <View style={styles.summaryHeader}>
-            <Text style={styles.summaryTitle}>Total Earnings</Text>
-            <View style={styles.periodSelector}>
-              <TouchableOpacity onPress={() => setSelectedMonth("previous")}>
-                <Text
-                  style={[
-                    styles.periodText,
-                    selectedMonth === "previous" && styles.activePeriodText,
-                  ]}
-                >
-                  Previous
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => setSelectedMonth("current")}>
-                <Text
-                  style={[
-                    styles.periodText,
-                    selectedMonth === "current" && styles.activePeriodText,
-                  ]}
-                >
-                  Current
-                </Text>
-              </TouchableOpacity>
+      {isSummaryLoading ? <View style={styles.walletShimmer} /> : (
+        <LinearGradient colors={['#FF9933', '#CC3300', '#800000']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.walletCard}>
+          <Text style={styles.walletLabel}>WALLET BALANCE</Text>
+          <Text style={styles.walletAmount}>₹{(summary?.walletBalance || 0).toLocaleString('en-IN')}</Text>
+          <View style={styles.walletFooter}>
+            <View style={styles.pendingRow}>
+              <Ionicons name="time-outline" size={14} color="#FFF" />
+              <Text style={styles.pendingText}>Pending: ₹{(summary?.pendingPayments || 0).toLocaleString('en-IN')}</Text>
             </View>
+            <TouchableOpacity onPress={handleRequestPayout} activeOpacity={0.8}>
+              <Text style={styles.requestText}>Request Payout →</Text>
+            </TouchableOpacity>
           </View>
+        </LinearGradient>
+      )}
 
-          <Text style={styles.totalAmount}>
-            {selectedMonth === "current"
-              ? formatCurrency(earningsData?.thisMonth)
-              : formatCurrency(earningsData?.lastMonth)}
-          </Text>
+      <View style={styles.statsRow}>
+        <EarningStatCard iconName="wallet-outline" value={`₹${(summary?.thisMonth || 0).toLocaleString('en-IN')}`} label="This Month" />
+        <EarningStatCard iconName="bar-chart-outline" value={`₹${(summary?.totalEarnings || 0).toLocaleString('en-IN')}`} label="Total Earned" />
+        <EarningStatCard iconName="ribbon-outline" value={(summary?.ceremonyCount || 0).toString()} label="Completed" />
+      </View>
 
-          {earningsData?.growthPercentage !== undefined &&
-            earningsData.growthPercentage !== 0 && (
-              <View style={styles.growthIndicator}>
-                <Ionicons
-                  name={
-                    earningsData.growthPercentage >= 0
-                      ? "arrow-up"
-                      : "arrow-down"
-                  }
-                  size={16}
-                  color={
-                    earningsData.growthPercentage >= 0
-                      ? APP_COLORS.success
-                      : APP_COLORS.error
-                  }
-                />
-                <Text
-                  style={[
-                    styles.growthText,
-                    {
-                      color:
-                        earningsData.growthPercentage >= 0
-                          ? APP_COLORS.success
-                          : APP_COLORS.error,
-                    },
-                  ]}
-                >
-                  {Math.abs(earningsData.growthPercentage)}% vs last month
-                </Text>
-              </View>
-            )}
-        </View>
-
-        <TouchableOpacity
-          style={styles.withdrawButton}
-          onPress={() => setWithdrawalModalVisible(true)}
-        >
-          <Ionicons name="wallet-outline" size={20} color={APP_COLORS.white} />
-          <Text style={styles.withdrawButtonText}>Withdraw Earnings</Text>
+      <View style={styles.transactionsHeader}>
+        <Text style={styles.subheading}>Recent Transactions</Text>
+        <TouchableOpacity onPress={() => Alert.alert('View All Transactions', 'All transactions will be paginated below. Tap "Load More" to see older history.')}>
+          <Text style={styles.viewAllText}>View All →</Text>
         </TouchableOpacity>
+      </View>
 
-        <View style={styles.transactionsContainer}>
-          <Text style={styles.sectionTitle}>Recent Transactions</Text>
-
-          {!earningsData?.transactions ||
-            earningsData.transactions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Ionicons
-                name="receipt-outline"
-                size={48}
-                color={APP_COLORS.gray}
-              />
-              <Text style={styles.emptyStateText}>No transactions yet</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Complete your first ceremony to see earnings here
-              </Text>
-            </View>
-          ) : (
-            (earningsData.transactions || []).map(
-              (transaction: any, index: number) => (
-                <View
-                  key={transaction.id || index}
-                  style={styles.transactionCard}
-                >
-                  <View style={styles.transactionHeader}>
-                    <Text style={styles.transactionName}>
-                      {transaction.description?.replace(/^Earnings from /, "")}
-                    </Text>
-                    <Text style={styles.transactionAmount}>
-                      {formatCurrency(transaction.amount)}
-                    </Text>
-                  </View>
-                  <Text style={styles.transactionClient}>
-                    {transaction.client}
-                  </Text>
-                  <View style={styles.transactionFooter}>
-                    <View style={styles.transactionDate}>
-                      <Ionicons
-                        name="calendar-outline"
-                        size={16}
-                        color={APP_COLORS.gray}
-                      />
-                      <Text style={styles.transactionDateText}>
-                        {formatDate(transaction.date)}
-                      </Text>
-                    </View>
-                    <View style={styles.transactionStatus}>
-                      <Ionicons
-                        name="checkmark-circle"
-                        size={16}
-                        color={APP_COLORS.success}
-                      />
-                      <Text style={styles.transactionStatusText}>
-                        Completed
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              )
-            )
+      {isTxnsLoading && !isFetchingNextPage ? (
+        <View style={styles.loadingWrapper}><ActivityIndicator color={THEME.colors.primary} /></View>
+      ) : allTransactions.length === 0 ? (
+        <View style={styles.emptyWrapper}>
+          <Ionicons name="receipt-outline" size={48} color={THEME.colors.textMuted} />
+          <Text style={styles.emptyText}>No transactions yet</Text>
+        </View>
+      ) : (
+        <View style={styles.transactionsCard}>
+          {allTransactions.map((tx: PriestTransaction, idx: number) => (
+            <TransactionRow key={tx._id} transaction={tx} isLast={idx === allTransactions.length - 1} />
+          ))}
+          {hasNextPage && (
+            <TouchableOpacity style={styles.loadMoreBtn} onPress={() => fetchNextPage()} disabled={isFetchingNextPage}>
+              {isFetchingNextPage ? <ActivityIndicator color={THEME.colors.primary} /> : <Text style={styles.loadMoreText}>Load More</Text>}
+            </TouchableOpacity>
           )}
         </View>
-      </ScrollView>
-
-      {/* Withdrawal Modal */}
-      <Modal
-        visible={withdrawalModalVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setWithdrawalModalVisible(false)}
-      >
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Withdraw Earnings</Text>
-              <TouchableOpacity
-                onPress={() => setWithdrawalModalVisible(false)}
-              >
-                <Ionicons name="close" size={24} color={APP_COLORS.gray} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.modalBody}>
-              <Text style={styles.balanceText}>
-                Available Balance:{" "}
-                {formatCurrency(earningsData?.availableBalance)}
-              </Text>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.inputLabel}>Amount (₹)</Text>
-                <TextInput
-                  style={styles.input}
-                  value={withdrawalAmount}
-                  onChangeText={setWithdrawalAmount}
-                  keyboardType="numeric"
-                  placeholder="Enter amount to withdraw"
-                />
-              </View>
-
-              <Text style={styles.paymentMethodLabel}>Payment Method</Text>
-              <View style={styles.paymentMethods}>
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    selectedPaymentMethod === "upi" &&
-                    styles.selectedPaymentMethod,
-                  ]}
-                  onPress={() => setSelectedPaymentMethod("upi")}
-                >
-                  <View style={styles.radioButton}>
-                    {selectedPaymentMethod === "upi" && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <Text style={styles.paymentMethodText}>UPI</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.paymentMethodOption,
-                    selectedPaymentMethod === "card" &&
-                    styles.selectedPaymentMethod,
-                  ]}
-                  onPress={() => setSelectedPaymentMethod("card")}
-                >
-                  <View style={styles.radioButton}>
-                    {selectedPaymentMethod === "card" && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <Text style={styles.paymentMethodText}>
-                    Credit/Debit Card
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.withdrawConfirmButton}
-                onPress={handleWithdrawal}
-              >
-                <Text style={styles.withdrawConfirmButtonText}>
-                  Withdraw Funds
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
+      )}
+    </ScrollView>
+    </SafeAreaView>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  refreshButton: {
-    padding: 8,
-  },
-  rotating: {
-    transform: [{ rotate: '180deg' }],
-  },
-  container: {
-    flex: 1,
-    backgroundColor: APP_COLORS.neutral,
-  },
-  header: {
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    shadowColor: APP_COLORS.tertiary,
-    shadowOpacity: 0.06,
-    elevation: 3,
-    paddingHorizontal: 20,
-  },
-  headerTitle: {
-    color: APP_COLORS.tertiary,
-    fontSize: 28,
-    fontFamily: 'serif',
-    fontWeight: "bold",
-  },
-  scrollContent: {
-    padding: 16,
-  },
-  earningsSummary: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOpacity: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-  },
-  summaryHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  summaryTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-  },
-  periodSelector: {
-    flexDirection: "row",
-  },
-  periodText: {
-    marginLeft: 12,
-    color: APP_COLORS.gray,
-  },
-  activePeriodText: {
-    color: APP_COLORS.primary,
-    fontWeight: "bold",
-  },
-  totalAmount: {
-    fontSize: 32,
-    fontWeight: "bold",
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    marginBottom: 8,
-  },
-  growthIndicator: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  growthText: {
-    marginLeft: 4,
-    color: APP_COLORS.success,
-  },
-  withdrawButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 100,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 12,
-    marginBottom: 20,
-  },
-  withdrawButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    marginLeft: 8,
-  },
-  transactionsContainer: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    marginBottom: 12,
-  },
-  transactionCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    elevation: 3,
-    shadowColor: APP_COLORS.cardShadow,
-    shadowOpacity: 1,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    borderWidth: 1,
-    borderColor: APP_COLORS.divider,
-  },
-  transactionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 4,
-  },
-  transactionName: {
-    fontSize: 14,
-    fontWeight: "600",
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-    flex: 1, // Allow text to wrap if needed and take available space
-    marginRight: 8, // Add spacing between name and amount
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: APP_COLORS.primary,
-  },
-  transactionClient: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 12,
-  },
-  transactionFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  transactionDate: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  transactionDateText: {
-    marginLeft: 4,
-    color: APP_COLORS.gray,
-    fontSize: 14,
-  },
-  transactionStatus: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  transactionStatusText: {
-    marginLeft: 4,
-    color: APP_COLORS.success,
-    fontSize: 14,
-  },
-  modalContainer: {
-    flex: 1,
-    justifyContent: "flex-end",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
-  modalContent: {
-    backgroundColor: APP_COLORS.white,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    fontFamily: 'serif',
-    color: APP_COLORS.tertiary,
-  },
-  modalBody: {
-    paddingBottom: 20,
-  },
-  balanceText: {
-    fontSize: 16,
-    marginBottom: 20,
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  inputLabel: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1.5,
-    borderColor: APP_COLORS.divider,
-    borderRadius: 12,
-    padding: 12,
-    fontSize: 16,
-    backgroundColor: APP_COLORS.surface,
-  },
-  paymentMethodLabel: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    marginBottom: 8,
-  },
-  paymentMethods: {
-    marginBottom: 20,
-  },
-  paymentMethodOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: APP_COLORS.lightGray,
-    borderRadius: 8,
-    padding: 12,
-  },
-  selectedPaymentMethod: {
-    borderColor: APP_COLORS.primary,
-    backgroundColor: APP_COLORS.primary + "10",
-  },
-  radioButton: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: APP_COLORS.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 8,
-  },
-  radioButtonInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: APP_COLORS.primary,
-  },
-  paymentMethodText: {
-    fontSize: 16,
-  },
-  withdrawConfirmButton: {
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: 100,
-    paddingVertical: 12,
-    alignItems: "center",
-  },
-  withdrawConfirmButtonText: {
-    color: APP_COLORS.white,
-    fontWeight: "bold",
-    fontSize: 16,
-  },
-  emptyState: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 10,
-    elevation: 2,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: APP_COLORS.black,
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: APP_COLORS.gray,
-    textAlign: "center",
-    lineHeight: 20,
-  },
+  container: { flex: 1, backgroundColor: '#FFFFFF' },
+  content: { paddingBottom: 32 },
+  headerTitle: { fontSize: THEME.typography.displayMedium, fontWeight: '700', color: THEME.colors.textPrimary, paddingHorizontal: 16, paddingTop: 8, marginBottom: THEME.spacing.sm },
+  walletCard: { height: 140, borderRadius: 20, marginHorizontal: 16, padding: 20, position: 'relative' },
+  walletShimmer: { height: 140, borderRadius: 20, marginHorizontal: 16, backgroundColor: '#F3F4F6' },
+  walletLabel: { fontSize: 10, fontWeight: '700', color: '#FFFFFF', opacity: 0.8, letterSpacing: 2 },
+  walletAmount: { fontSize: 40, fontWeight: '900', color: '#FFFFFF', marginTop: 4 },
+  walletFooter: { position: 'absolute', bottom: 20, left: 20, right: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pendingRow: { flexDirection: 'row', alignItems: 'center' },
+  pendingText: { fontSize: 12, color: '#FFFFFF', opacity: 0.7, marginLeft: 4 },
+  requestText: { fontSize: 12, color: '#FFFFFF', fontWeight: '700' },
+  statsRow: { flexDirection: 'row', marginHorizontal: 16, marginTop: 12, gap: 8 },
+  transactionsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: THEME.spacing.lg },
+  subheading: { fontSize: THEME.typography.subheading, fontWeight: '700', color: THEME.colors.textPrimary },
+  viewAllText: { fontSize: 14, color: THEME.colors.primary, fontWeight: '600' },
+  transactionsCard: { backgroundColor: '#FFFFFF', borderRadius: 16, marginHorizontal: 16, marginTop: 12, shadowColor: '#000000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: THEME.colors.border, overflow: 'hidden' },
+  loadMoreBtn: { paddingVertical: 14, justifyContent: 'center', alignItems: 'center', borderTopWidth: 1, borderTopColor: THEME.colors.border, backgroundColor: '#FAF9F6' },
+  loadMoreText: { fontSize: 14, color: THEME.colors.primary, fontWeight: '700' },
+  loadingWrapper: { paddingVertical: 32, alignItems: 'center' },
+  emptyWrapper: { alignItems: 'center', justifyContent: 'center', paddingVertical: 32, marginTop: 12 },
+  emptyText: { fontSize: THEME.typography.bodySmall, color: THEME.colors.textMuted, marginTop: THEME.spacing.sm },
 });
-
-export default EarningsScreen;

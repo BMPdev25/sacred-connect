@@ -1,0 +1,190 @@
+/**
+ * A selected service for the booking.
+ */
+export interface BookingServiceSelection {
+  /** The unique identifier of the priest's service */
+  serviceId: string;
+  /** The unique identifier of the ceremony */
+  ceremonyId: string;
+  /** The display name of the ceremony */
+  ceremonyName: string;
+  /** The duration of the ceremony service in minutes */
+  durationMinutes: number;
+  /** The base cost of the service in INR */
+  basePrice: number;
+}
+
+/**
+ * A selected time slot for booking.
+ */
+export interface TimeSlot {
+  /** 24-hour format string, e.g., "HH:MM" */
+  startTime: string;
+  /** 24-hour format string, startTime + durationMinutes, e.g., "HH:MM" */
+  endTime: string;
+  /** 12-hour formatted label, e.g., "10:00 AM" */
+  displayLabel: string;
+  /** Indicates whether the slot is in the past and cannot be selected */
+  isPast: boolean;
+}
+
+/**
+ * A devotee's saved address details.
+ */
+export interface DevoteeAddress {
+  /** The unique identifier of the saved address */
+  _id: string;
+  /** Custom label for the address, e.g. "Home", "Office", "Work" */
+  label?: string;
+  /** House or apartment number */
+  houseNo: string;
+  /** Street name or locality */
+  street: string;
+  /** Optional landmark nearby */
+  landmark?: string;
+  /** City name */
+  city: string;
+  /** State name */
+  state: string;
+  /** Pincode / ZIP code */
+  pincode: string;
+  /** Concatenated full address display string */
+  fullAddress: string;
+  /** Geographic coordinates of the location */
+  coordinates?: {
+    /** Latitude */
+    lat: number;
+    /** Longitude */
+    lng: number;
+  };
+  /** Indicates if this is the devotee's default address */
+  isDefault: boolean;
+}
+
+/**
+ * Breakdown of the price calculation for the booking.
+ */
+export interface BookingPriceBreakdown {
+  /** The service base price */
+  basePrice: number;
+  /** The platform fee amount */
+  platformFee: number;
+  /** The total amount including platform fee */
+  totalAmount: number;
+  /** The fee percentage label for display, e.g. "5%" */
+  feePercentageLabel: string;
+}
+
+/**
+ * Full booking draft stored in Redux during devotee booking flow.
+ */
+export interface BookingDraft {
+  /** The priest profile ID (not user ID) */
+  priestProfileId: string | null;
+  /** The priest's backend user ID (User._id) */
+  priestUserId: string | null;
+  /** The priest's full name */
+  priestName: string | null;
+  /** The URL of the priest's profile picture */
+  priestProfilePicture: string | null;
+  /** The priest's rating */
+  priestRating: number | null;
+  
+  /** The selected service selection */
+  selectedService: BookingServiceSelection | null;
+  /** The selected date string in YYYY-MM-DD format */
+  selectedDate: string | null;
+  /** The selected time slot details */
+  selectedTimeSlot: TimeSlot | null;
+  /** The selected devotee address */
+  selectedAddress: DevoteeAddress | null;
+  
+  /** The calculated price breakdown */
+  pricing: BookingPriceBreakdown | null;
+  
+  /** The created booking identifier after backend submission */
+  createdBookingId: string | null;
+  /** The Razorpay order ID created for payment */
+  razorpayOrderId: string | null;
+  /** The formatted booking reference code */
+  bookingReference: string | null;
+  
+  /** The current active step/section in the UI booking flow */
+  activeSection: 'service' | 'date' | 'time' | 'address';
+
+  /** Which booking path this draft is on: broadcast 'instant' or priest-first 'scheduled'. */
+  bookingType: 'instant' | 'scheduled';
+  /** The ceremony id (set for the ceremony-first instant flow; null otherwise). */
+  ceremonyId: string | null;
+  /** For instant started from a priest's page: that priest gets a 3-min head-start. */
+  preferredPriestId: string | null;
+  /** ISO timestamp at which an in-progress instant search expires (10-min TTL). */
+  instantExpiresAt: string | null;
+}
+
+/**
+ * Schema representing the booking model returned by the backend.
+ */
+export interface BackendBooking {
+  /** The unique booking ID */
+  _id: string;
+  /** The unique ID of the devotee who made the booking */
+  devoteeId: string;
+  /** The unique ID of the priest booked for the ceremony */
+  priestId: string;
+  /** The type/name of the ceremony booked */
+  ceremonyType: string;
+  /** The date of the booking in YYYY-MM-DD format */
+  date: string;
+  /** The booking start time in HH:MM format */
+  startTime: string;
+  /** The booking end time in HH:MM format */
+  endTime: string;
+  /** The address details for the ceremony */
+  location: {
+    /** Concatenated address string */
+    address: string;
+    /** Geographic coordinates */
+    coordinates?: {
+      /** Latitude */
+      lat: number;
+      /** Longitude */
+      lng: number;
+    };
+  };
+  /** The service base price */
+  basePrice: number;
+  /** The platform fee charged */
+  platformFee: number;
+  /** The total transaction amount */
+  totalAmount: number;
+  /** The lifecycle status of the booking */
+  status: string;
+  /** The payment status of the booking */
+  paymentStatus: string;
+  /** Payment provider details */
+  paymentDetails?: {
+    /** The Razorpay order ID associated with this payment */
+    rzpOrderId?: string;
+    /** The Razorpay payment transaction ID */
+    rzpPaymentId?: string;
+    /** The receipt number generated by backend */
+    receiptNumber?: string;
+  };
+  /** The ISO timestamp indicating when the booking record was created */
+  createdAt: string;
+}
+
+/**
+ * Razorpay payment order representation from the backend.
+ */
+export interface PaymentOrder {
+  /** Razorpay order ID */
+  id: string;
+  /** Payment amount in paise (e.g. 100 paise = 1 INR) */
+  amount: number;
+  /** Currency code, e.g. "INR" */
+  currency: string;
+  /** Backend receipt reference string */
+  receipt: string;
+}

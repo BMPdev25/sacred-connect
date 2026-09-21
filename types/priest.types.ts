@@ -31,6 +31,18 @@ export interface WeeklySchedule {
 }
 
 /**
+ * A puja picked from the master catalog during onboarding Step 2 — the
+ * priest's declared specializations. Step 3 turns each of these into a
+ * priced PriestService (same ceremonyId), so the two stay in lockstep.
+ */
+export interface SelectedCeremony {
+  /** Unique identifier for the ceremony in the master catalog. */
+  ceremonyId: string;
+  /** Name of the ceremony (display only, not sent to the backend). */
+  ceremonyName: string;
+}
+
+/**
  * Represents a service offered by a priest.
  */
 export interface PriestService {
@@ -89,12 +101,12 @@ export interface OnboardingState {
     /** Short professional or spiritual bio. */
     bio: string;
   };
-  /** Step 2: Religious traditions and custom specializations. */
+  /** Step 2: Religious traditions and selected pujas (from the master catalog). */
   step2: {
     /** Religious traditions observed/taught (e.g. Shaivism, Vaishnavism). */
     religiousTraditions: string[];
-    /** Specializations or specific ritual focuses. */
-    specializations: string[];
+    /** Pujas selected as specializations, picked from the master catalog. */
+    specializations: SelectedCeremony[];
   };
   /** Step 3: List of services offered and pricing. */
   step3: {

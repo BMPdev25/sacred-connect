@@ -67,7 +67,7 @@ export default function SplashScreen(): React.ReactElement {
       <Animated.View style={[styles.content, { opacity }]}>
         <Logo variant="icon-only" size="lg" />
         <View style={styles.gap} />
-        <Text style={styles.brandText}>SACRED CONNECT</Text>
+        <Text style={styles.brandText}>BOOK MY PUJARI</Text>
       </Animated.View>
     </LinearGradient>
   );

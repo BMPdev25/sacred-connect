@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import { Alert, View, Text, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -7,7 +7,13 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 
 import { RootState } from '@/redux/store';
-import { initBookingFlow, setSelectedService, updatePriestDisplayInfo } from '@/redux/slices/bookingSlice';
+import {
+  initBookingFlow,
+  setBookingType,
+  setPreferredPriest,
+  setSelectedService,
+  updatePriestDisplayInfo,
+} from '@/redux/slices/bookingSlice';
 import { usePriestProfile } from '@/hooks/usePriestDetails';
 import { THEME } from '@/constants/theme';
 import { StepIndicator } from '@/components/devotee/booking/StepIndicator';
@@ -60,6 +66,38 @@ export default function BookCeremonyScreen() {
     if (isBookingComplete(draft)) {
       router.push('/devotee/BookingSummary' as any);
     }
+  };
+
+  // Selecting a near-term date (today/tomorrow/day-after) doesn't fit a
+  // scheduled booking with this specific priest — offer to switch into the
+  // instant flow instead, broadcasting with this priest getting first notice.
+  const handleModeConflict = (type: 'use_instant' | 'use_scheduled') => {
+    if (type !== 'use_instant') return;
+    const preferredPriestId = params.priestUserId || '';
+    Alert.alert(
+      'Switching to Instant Booking',
+      'We will broadcast your request to all available pandits. ' +
+      'We will try to notify this pandit first, but cannot ' +
+      'guarantee they will be the one who accepts.\n\n' +
+      'Continue with instant booking?',
+      [
+        {
+          text: 'Yes, Book Instantly',
+          onPress: () => {
+            dispatch(setBookingType('instant'));
+            dispatch(setPreferredPriest(preferredPriestId));
+            router.push({
+              pathname: '/devotee/InstantBookingSetup' as any,
+              params: {
+                ceremonyId: draft.selectedService?.ceremonyId || '',
+                preferredPriestId,
+              },
+            });
+          },
+        },
+        { text: 'Choose a Different Date' },
+      ]
+    );
   };
 
   // Effect 1: Runs ONCE on mount only (empty dependency array).
@@ -168,9 +206,10 @@ export default function BookCeremonyScreen() {
               <ServiceSection priestProfileId={params.priestId || ''} />
             </View>
             <View onLayout={onLayoutSection('date')}>
-              <DateSection 
+              <DateSection
                 weeklySchedule={cachedPriestData?.availability?.weeklySchedule}
                 dateOverrides={(cachedPriestData?.availability as any)?.dateOverrides}
+                onModeConflict={handleModeConflict}
               />
             </View>
             <View onLayout={onLayoutSection('time')}>

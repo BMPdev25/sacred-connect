@@ -8,11 +8,11 @@ export const LAST_UPDATED = 'Last updated: June 2026';
 export const TERMS_SECTIONS: LegalSection[] = [
   {
     title: 'Acceptance of Terms',
-    content: 'By accessing or using Sacred Connect, you agree to comply with and be bound by these Terms of Service. Please read them carefully. If you do not agree, you must not use our services.',
+    content: 'By accessing or using BookMyPujari, you agree to comply with and be bound by these Terms of Service. Please read them carefully. If you do not agree, you must not use our services.',
   },
   {
     title: 'Use of Services',
-    content: 'Sacred Connect provides a marketplace for booking religious ceremony services (pujas) in India. You must be at least 18 years old and capable of forming legally binding contracts under Indian law.',
+    content: 'BookMyPujari provides a marketplace for booking religious ceremony services (pujas) in India. You must be at least 18 years old and capable of forming legally binding contracts under Indian law.',
   },
   {
     title: 'Booking and Payments',
@@ -28,7 +28,7 @@ export const TERMS_SECTIONS: LegalSection[] = [
   },
   {
     title: 'Limitation of Liability',
-    content: 'Sacred Connect acts as a booking marketplace and is not liable for the quality of performance, conduct, or any disputes arising directly between the devotee and the booked priest.',
+    content: 'BookMyPujari acts as a booking marketplace and is not liable for the quality of performance, conduct, or any disputes arising directly between the devotee and the booked priest.',
   },
   {
     title: 'Contact Information',

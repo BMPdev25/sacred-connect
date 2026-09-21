@@ -82,7 +82,7 @@ export async function syncWithBackend(
       logger.warn('Failed to fetch priest profile during sync, defaulting to onboarding', priestErr?.message);
       return {
         ...userProfile,
-        priestState: { verificationStatus: 'pending', onboardingCompleted: false, onboardingCurrentStep: 1 },
+        priestState: { verificationStatus: 'incomplete', onboardingCompleted: false, onboardingCurrentStep: 1 },
       };
     }
   } catch (err: any) {

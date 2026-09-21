@@ -6,6 +6,8 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -23,11 +25,8 @@ import { logger } from '@/utils/logger';
 // Constants
 // ---------------------------------------------------------------------------
 
-const HEADER_PADDING_TOP = 64;
 const CARD_GAP = 16;
-const HEADING_MARGIN_BOTTOM = 40;
-const HEADER_LINE_WIDTH = 40;
-const HEADER_LINE_HEIGHT = 2;
+const LOGO_BADGE_SIZE = 48;
 
 // ---------------------------------------------------------------------------
 // Component
@@ -103,64 +102,74 @@ export default function RoleSelectionScreen(): React.ReactElement {
   }
 
   return (
-    <View style={[styles.screen, { paddingBottom: insets.bottom + THEME.spacing.lg }]}>
-
-      {/* Header: logo accent + headings */}
-      <View style={[styles.header, { paddingTop: insets.top + 20 }]}>
-        <View style={styles.logoRow}>
-          <Logo variant="icon-only" size="sm" />
-          <View style={styles.headerLine} />
-        </View>
-        <View style={{ marginBottom: HEADING_MARGIN_BOTTOM }}>
-          <Text style={styles.heading}>Welcome to Sacred Connect</Text>
-          <Text style={styles.subtext}>
-            {googleProfile
-              ? `Signed in as ${googleProfile.email}. Tell us how you'll use the app.`
-              : "Tell us how you'll use the app."}
-          </Text>
-        </View>
-      </View>
-
-      {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
-      {isRoleConflict && (
-        <TouchableOpacity onPress={handleLoginInstead} style={{ marginBottom: THEME.spacing.sm }}>
-          <Text style={[styles.loginLink, { textAlign: 'center' }]}>Log in instead</Text>
-        </TouchableOpacity>
-      )}
-
-      {isProcessing ? (
-        <ActivityIndicator size="large" color={THEME.colors.primary} style={styles.loadingIndicator} />
-      ) : (
-        <>
-          {/* Role cards */}
-          <RoleCard
-            icon="hand-left-outline"
-            title="I'm a Devotee"
-            subtitle="Book pandits for pujas and ceremonies"
-            onPress={handleDevoteePress}
-          />
-
-          <View style={{ height: CARD_GAP }} />
-
-          <RoleCard
-            icon="person-outline"
-            title="I'm a Pandit"
-            subtitle="Offer services and earn on your schedule"
-            onPress={handlePanditPress}
-          />
-        </>
-      )}
-
-      <View style={styles.spacer} />
-
-      {/* Footer */}
-      <TouchableOpacity
-        style={styles.loginRow}
-        onPress={handleLoginInstead}
+    <View style={styles.screen}>
+      {/* Hero: gradient header with brand mark + heading */}
+      <LinearGradient
+        colors={[THEME.colors.primary, THEME.colors.maroon]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[styles.hero, { paddingTop: insets.top + THEME.spacing.lg }]}
       >
-        <Text style={styles.loginPrompt}>Already have an account? </Text>
-        <Text style={styles.loginLink}>Login</Text>
-      </TouchableOpacity>
+        <View style={styles.logoBadge}>
+          <Logo variant="icon-only" size="sm" />
+        </View>
+        <Text style={styles.heading}>Welcome to BookMyPujari</Text>
+        <Text style={styles.subtext}>
+          {googleProfile
+            ? `Signed in as ${googleProfile.email}. Tell us how you'll use the app.`
+            : "Tell us how you'll use the app."}
+        </Text>
+      </LinearGradient>
+
+      {/* Content: role cards over the plain background, overlapping the hero */}
+      <View style={[styles.content, { paddingBottom: insets.bottom + THEME.spacing.lg }]}>
+        {Boolean(error) && <Text style={styles.errorText}>{error}</Text>}
+        {isRoleConflict && (
+          <TouchableOpacity onPress={handleLoginInstead} style={{ marginBottom: THEME.spacing.sm }}>
+            <Text style={[styles.loginLink, { textAlign: 'center' }]}>Log in instead</Text>
+          </TouchableOpacity>
+        )}
+
+        {isProcessing ? (
+          <ActivityIndicator size="large" color={THEME.colors.primary} style={styles.loadingIndicator} />
+        ) : (
+          <>
+            <RoleCard
+              icon="hand-left-outline"
+              title="I'm a Devotee"
+              subtitle="Book pandits for pujas and ceremonies"
+              accentColor={THEME.colors.primary}
+              onPress={handleDevoteePress}
+            />
+
+            <View style={{ height: CARD_GAP }} />
+
+            <RoleCard
+              icon="person-outline"
+              title="I'm a Pandit"
+              subtitle="Offer services and earn on your schedule"
+              accentColor={THEME.colors.maroon}
+              onPress={handlePanditPress}
+            />
+
+            <View style={styles.trustRow}>
+              <Ionicons name="shield-checkmark-outline" size={16} color={THEME.colors.textMuted} />
+              <Text style={styles.trustText}>Verified pandits · Secure payments · Trusted by thousands</Text>
+            </View>
+          </>
+        )}
+
+        <View style={styles.spacer} />
+
+        {/* Footer */}
+        <TouchableOpacity
+          style={styles.loginRow}
+          onPress={handleLoginInstead}
+        >
+          <Text style={styles.loginPrompt}>Already have an account? </Text>
+          <Text style={styles.loginLink}>Login</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -173,31 +182,36 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: THEME.colors.background,
+  },
+  hero: {
     paddingHorizontal: THEME.spacing.lg,
+    paddingBottom: THEME.spacing.xxl,
+    borderBottomLeftRadius: THEME.borderRadius.xl,
+    borderBottomRightRadius: THEME.borderRadius.xl,
   },
-  header: {
-    marginBottom: THEME.spacing.xl,
-  },
-  logoRow: {
-    flexDirection: 'row',
+  logoBadge: {
+    width: LOGO_BADGE_SIZE,
+    height: LOGO_BADGE_SIZE,
+    borderRadius: LOGO_BADGE_SIZE / 2,
+    backgroundColor: 'rgba(255,255,255,0.18)',
     alignItems: 'center',
-    gap: THEME.spacing.sm,
-    marginBottom: THEME.spacing.xl,
-  },
-  headerLine: {
-    height: HEADER_LINE_HEIGHT,
-    width: HEADER_LINE_WIDTH,
-    backgroundColor: THEME.colors.primary,
+    justifyContent: 'center',
+    marginBottom: THEME.spacing.lg,
   },
   heading: {
     fontSize: THEME.typography.displayMedium,
     fontWeight: '700',
-    color: THEME.colors.textPrimary,
+    color: THEME.colors.surface,
     marginBottom: THEME.spacing.xs,
   },
   subtext: {
     fontSize: THEME.typography.body,
-    color: THEME.colors.textSecondary,
+    color: 'rgba(255,255,255,0.85)',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: THEME.spacing.lg,
+    marginTop: -THEME.spacing.xl,
   },
   spacer: { flex: 1 },
   errorText: {
@@ -208,6 +222,20 @@ const styles = StyleSheet.create({
   },
   loadingIndicator: {
     marginTop: THEME.spacing.xl,
+  },
+  trustRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: THEME.spacing.xs,
+    marginTop: THEME.spacing.lg,
+    paddingHorizontal: THEME.spacing.md,
+  },
+  trustText: {
+    flex: 1,
+    fontSize: THEME.typography.caption,
+    color: THEME.colors.textMuted,
+    textAlign: 'center',
   },
   loginRow: {
     flexDirection: 'row',

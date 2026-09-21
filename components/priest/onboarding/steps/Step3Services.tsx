@@ -1,21 +1,9 @@
 import React, { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Ionicons } from '@expo/vector-icons';
 import { useDispatch, useSelector } from 'react-redux';
 
-import {
-  CeremonyModal,
-  DurationModal,
-  EmptyServiceState,
-  ServiceCard,
-  ServiceFormCard,
-  ServiceFormErrors,
-  ServiceFormValues,
-  buildUpdatedList,
-  validateServiceForm,
-} from '@/components/priest/onboarding/steps/Step3.subcomponents';
-import { DURATION_OPTIONS } from '@/constants/onboarding';
+import { PriceRow, PriceRowValues, validatePrice } from '@/components/priest/onboarding/steps/Step3.subcomponents';
 import { THEME } from '@/constants/theme';
 import { updateStep3Services } from '@/redux/slices/onboardingSlice';
 import { RootState } from '@/redux/store';
@@ -23,54 +11,46 @@ import { Ceremony, fetchCeremonies } from '@/services/metadataService';
 import { PriestService } from '@/types/priest.types';
 import { StepRef } from '@/types/stepRef.types';
 
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const EMPTY_FORM: ServiceFormValues = { ceremonyId: '', ceremonyName: '', durationMinutes: 0, price: '' };
-
-// ---------------------------------------------------------------------------
-// Pure helpers
-// ---------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+const DEFAULT_DURATION_MINUTES = 60;
 
 /**
  * Step 3 of the priest onboarding wizard.
- * Lets priests add, edit, and remove offered services with ceremony type,
- * duration, and pricing. Fetches available ceremony types from the API on mount.
+ * Purely a price list: one row per puja the priest already selected as a
+ * specialization in Step 2. There is no separate "add a ceremony" flow here
+ * — the ceremony picker lives in Step 2. Duration is taken silently from the
+ * catalog's typical duration; the priest only sets a price per puja.
  */
 export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
   const dispatch = useDispatch();
-  const reduxServices = useSelector((state: RootState) => state.onboarding.step3.services);
+  const specializations = useSelector((state: RootState) => state.onboarding.step2.specializations);
+  const savedServices = useSelector((state: RootState) => state.onboarding.step3.services);
 
-  const [services, setServices] = useState<PriestService[]>(reduxServices);
-
-  useEffect(() => {
-    setServices(reduxServices);
-  }, [reduxServices]);
-
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
-  const [formValues, setFormValues] = useState<ServiceFormValues>(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState<ServiceFormErrors>({});
-  const [availableCeremonies, setAvailableCeremonies] = useState<Ceremony[]>([]);
-  const [isCeremonyModalOpen, setIsCeremonyModalOpen] = useState(false);
-  const [isDurationModalOpen, setIsDurationModalOpen] = useState(false);
-  const [stepErrors, setStepErrors] = useState<string[]>([]);
+  const [ceremonies, setCeremonies] = useState<Ceremony[]>([]);
   const [isLoadingCeremonies, setIsLoadingCeremonies] = useState(false);
   const [ceremoniesError, setCeremoniesError] = useState<string | null>(null);
+  const [prices, setPrices] = useState<Record<string, string>>({});
+  const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const [generalError, setGeneralError] = useState<string | null>(null);
 
   useEffect(() => { loadCeremonies(); }, []);
+
+  // Seed local price inputs from any previously saved services (resuming onboarding).
+  useEffect(() => {
+    const seeded: Record<string, string> = {};
+    for (const spec of specializations) {
+      const existing = savedServices.find((s) => s.ceremonyId === spec.ceremonyId);
+      if (existing) seeded[spec.ceremonyId] = String(existing.price);
+    }
+    setPrices((prev) => ({ ...seeded, ...prev }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [specializations.length]);
 
   async function loadCeremonies(): Promise<void> {
     setIsLoadingCeremonies(true);
     setCeremoniesError(null);
     try {
       const data = await fetchCeremonies();
-      setAvailableCeremonies(data);
+      setCeremonies(data);
     } catch (err: any) {
       setCeremoniesError(err.message || 'Failed to load ceremony types.');
     } finally {
@@ -78,87 +58,52 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
     }
   }
 
-  function openAddForm(): void {
-    setFormValues(EMPTY_FORM);
-    setFormErrors({});
-    setEditingIndex(null);
-    setIsFormOpen(true);
+  const rows: PriceRowValues[] = specializations.map((spec) => {
+    const ceremony = ceremonies.find((c) => c._id === spec.ceremonyId);
+    return {
+      ceremonyId: spec.ceremonyId,
+      ceremonyName: spec.ceremonyName,
+      basePrice: ceremony?.pricing?.basePrice,
+      price: prices[spec.ceremonyId] ?? '',
+    };
+  });
+
+  function commitServices(nextPrices: Record<string, string>): void {
+    const services: PriestService[] = specializations.map((spec) => {
+      const ceremony = ceremonies.find((c) => c._id === spec.ceremonyId);
+      return {
+        ceremonyId: spec.ceremonyId,
+        ceremonyName: spec.ceremonyName,
+        durationMinutes: ceremony?.duration?.typical || DEFAULT_DURATION_MINUTES,
+        price: Number(nextPrices[spec.ceremonyId]) || 0,
+      };
+    });
+    dispatch(updateStep3Services(services));
   }
 
-  function openEditForm(index: number): void {
-    const svc = services[index];
-    setFormValues({ ceremonyId: svc.ceremonyId, ceremonyName: svc.ceremonyName, durationMinutes: svc.durationMinutes, price: String(svc.price) });
-    setFormErrors({});
-    setEditingIndex(index);
-    setIsFormOpen(true);
-  }
-
-  function closeForm(): void {
-    setIsFormOpen(false);
-    setFormValues(EMPTY_FORM);
-    setFormErrors({});
-    setEditingIndex(null);
-  }
-
-  function handleCeremonySelect(ceremony: Ceremony): void {
-    setFormValues((prev) => ({ ...prev, ceremonyId: ceremony._id, ceremonyName: ceremony.name }));
-    setIsCeremonyModalOpen(false);
-  }
-
-  function handleDurationSelect(option: { label: string; value: number }): void {
-    setFormValues((prev) => ({ ...prev, durationMinutes: option.value }));
-    setIsDurationModalOpen(false);
-  }
-
-  function handleSaveService(): void {
-    const errors = validateServiceForm(formValues);
-    if (Object.keys(errors).length > 0) { setFormErrors(errors); return; }
-    const updated = buildUpdatedList(services, formValues, editingIndex);
-    setServices(updated);
-    dispatch(updateStep3Services(updated));
-    closeForm();
-    setStepErrors([]);
-  }
-
-  function handleDeleteService(index: number): void {
-    const updated = services.filter((_, i) => i !== index);
-    setServices(updated);
-    dispatch(updateStep3Services(updated));
+  function handlePriceChange(ceremonyId: string, price: string): void {
+    const next = { ...prices, [ceremonyId]: price };
+    setPrices(next);
+    commitServices(next);
   }
 
   useImperativeHandle(ref, () => ({
     validate: () => {
-      const errs: string[] = [];
-      if (services.length < 1) {
-        errs.push('Add at least one service to continue');
-      } else {
-        const hasInvalid = services.some((s) => !s.ceremonyId || s.ceremonyId.trim() === '');
-        if (hasInvalid) {
-          errs.push('One or more services have invalid ceremony selections. Please remove and re-add them.');
-        }
+      if (specializations.length < 1) {
+        setGeneralError('Go back to Step 2 and select at least one puja you offer.');
+        setRowErrors({});
+        return false;
       }
-      setStepErrors(errs);
-      return errs.length === 0;
+      const errs: Record<string, string> = {};
+      for (const row of rows) {
+        const err = validatePrice(row.price, row.basePrice);
+        if (err) errs[row.ceremonyId] = err;
+      }
+      setRowErrors(errs);
+      setGeneralError(null);
+      return Object.keys(errs).length === 0;
     },
-    validateStep3: () => {
-      const errs: string[] = [];
-      if (services.length < 1) {
-        errs.push('Add at least one service to continue');
-      } else {
-        const hasInvalid = services.some((s) => !s.ceremonyId || s.ceremonyId.trim() === '');
-        if (hasInvalid) {
-          errs.push('One or more services have invalid ceremony selections. Please remove and re-add them.');
-        }
-      }
-      setStepErrors(errs);
-      return { isValid: errs.length === 0, errors: errs };
-    }
-  } as any));
-
-  const selectedDurationLabel = DURATION_OPTIONS.find((o) => o.value === formValues.durationMinutes)?.label ?? '';
-
-  const addedCeremonyIds = services.map((s) => s.ceremonyId);
-  const filteredCeremonies = availableCeremonies.filter((c) => !addedCeremonyIds.includes(c._id));
+  }));
 
   return (
     <KeyboardAwareScrollView
@@ -169,68 +114,44 @@ export const Step3Services = forwardRef<StepRef, {}>((_, ref) => {
       enableAutomaticScroll={true}
       extraScrollHeight={80}
     >
+      <Text style={styles.heading}>Set Your Prices</Text>
+      <Text style={styles.subtext}>
+        Set the price you charge for each puja you selected in the previous step.
+        Your price must be at or above the base price set by the admin.
+      </Text>
 
-      {ceremoniesError && !isFormOpen ? (
+      {ceremoniesError && !isLoadingCeremonies ? (
         <View style={styles.bannerError}>
           <Text style={styles.bannerErrorText}>{ceremoniesError}</Text>
           <TouchableOpacity onPress={loadCeremonies} style={styles.retryBtn} activeOpacity={0.8}>
-            <Text style={styles.retryBtnText}>Retry loading ceremonies</Text>
+            <Text style={styles.retryBtnText}>Retry loading pujas</Text>
           </TouchableOpacity>
         </View>
       ) : null}
 
-      {services.length === 0 && !isFormOpen ? <EmptyServiceState /> : null}
+      {!ceremoniesError && rows.length === 0 ? (
+        <Text style={styles.emptyText}>
+          No pujas selected yet. Go back to Step 2 to pick the pujas you offer.
+        </Text>
+      ) : null}
 
-      {services.length > 0 && !isFormOpen ? (
+      {!ceremoniesError ? (
         <FlatList
-          data={services}
-          keyExtractor={(svc, i) => `${svc.ceremonyId}-${i}`}
-          renderItem={({ item, index }) => (
-            <ServiceCard service={item} index={index} onEdit={openEditForm} onDelete={handleDeleteService} />
+          data={rows}
+          keyExtractor={(row) => row.ceremonyId}
+          renderItem={({ item }) => (
+            <PriceRow
+              row={item}
+              error={rowErrors[item.ceremonyId]}
+              onChangePrice={(price) => handlePriceChange(item.ceremonyId, price)}
+            />
           )}
+          ItemSeparatorComponent={() => <View style={{ height: THEME.spacing.sm }} />}
           scrollEnabled={false}
         />
       ) : null}
 
-      {stepErrors.map((err) => <Text key={err} style={styles.stepError}>{err}</Text>)}
-
-      {!isFormOpen && filteredCeremonies.length === 0 && services.length > 0 && !ceremoniesError ? (
-        <View style={styles.allAddedBanner}>
-          <Text style={styles.allAddedText}>All services added</Text>
-        </View>
-      ) : null}
-
-      {!isFormOpen && (filteredCeremonies.length > 0 || ceremoniesError) && (
-        <TouchableOpacity
-          style={[styles.addBtn, ceremoniesError ? styles.disabledBtn : null]}
-          onPress={ceremoniesError ? undefined : openAddForm}
-          activeOpacity={ceremoniesError ? 1 : 0.8}
-        >
-          <Ionicons
-            name="add-circle-outline"
-            size={18}
-            color={ceremoniesError ? THEME.colors.disabled : THEME.colors.primary}
-          />
-          <Text style={[styles.addBtnText, ceremoniesError ? styles.disabledBtnText : null]}>Add Service</Text>
-        </TouchableOpacity>
-      )}
-
-      {isFormOpen && (
-        <ServiceFormCard
-          formValues={formValues}
-          formErrors={formErrors}
-          editingIndex={editingIndex}
-          selectedDurationLabel={selectedDurationLabel}
-          onFieldChange={(patch) => setFormValues((prev) => ({ ...prev, ...patch }))}
-          onOpenCeremonyModal={() => setIsCeremonyModalOpen(true)}
-          onOpenDurationModal={() => setIsDurationModalOpen(true)}
-          onCancel={closeForm}
-          onSave={handleSaveService}
-        />
-      )}
-
-      <CeremonyModal visible={isCeremonyModalOpen} ceremonies={filteredCeremonies} onSelect={handleCeremonySelect} onClose={() => setIsCeremonyModalOpen(false)} />
-      <DurationModal visible={isDurationModalOpen} options={DURATION_OPTIONS} onSelect={handleDurationSelect} onClose={() => setIsDurationModalOpen(false)} />
+      {generalError ? <Text style={styles.stepError}>{generalError}</Text> : null}
     </KeyboardAwareScrollView>
   );
 });
@@ -240,14 +161,23 @@ Step3Services.displayName = 'Step3Services';
 const styles = StyleSheet.create({
   scroll: { flex: 1 },
   content: { padding: THEME.spacing.md, gap: THEME.spacing.md },
-  stepError: { fontSize: THEME.typography.caption, color: THEME.colors.error },
-  addBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: THEME.spacing.xs, borderWidth: 1.5, borderColor: THEME.colors.primary,
-    borderRadius: THEME.borderRadius.pill, paddingVertical: THEME.spacing.sm,
-    backgroundColor: THEME.colors.surface,
+  heading: {
+    fontSize: THEME.typography.subheading,
+    fontWeight: '600',
+    color: THEME.colors.maroon,
   },
-  addBtnText: { fontSize: THEME.typography.body, color: THEME.colors.primary, fontWeight: '600' },
+  subtext: {
+    fontSize: THEME.typography.bodySmall,
+    color: THEME.colors.textSecondary,
+    marginTop: -THEME.spacing.sm,
+  },
+  emptyText: {
+    fontSize: THEME.typography.body,
+    color: THEME.colors.textMuted,
+    textAlign: 'center',
+    paddingVertical: THEME.spacing.xl,
+  },
+  stepError: { fontSize: THEME.typography.caption, color: THEME.colors.error },
   bannerError: {
     backgroundColor: '#FEE2E2',
     borderWidth: 1,
@@ -275,20 +205,4 @@ const styles = StyleSheet.create({
     color: THEME.colors.surface,
     fontWeight: '600',
   },
-  disabledBtn: {
-    borderColor: THEME.colors.disabled,
-  },
-  disabledBtnText: {
-    color: THEME.colors.disabled,
-  },
-  allAddedBanner: {
-    alignItems: 'center',
-    paddingVertical: THEME.spacing.sm,
-  },
-  allAddedText: {
-    fontSize: THEME.typography.bodySmall,
-    color: THEME.colors.textMuted,
-    fontStyle: 'italic',
-  },
 });
-

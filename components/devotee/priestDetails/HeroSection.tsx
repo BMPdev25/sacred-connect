@@ -98,7 +98,7 @@ interface HeroSectionProps {
 export function HeroSection({ priest }: HeroSectionProps) {
   const onShare = async () => {
     try {
-      await Share.share({ message: `${priest.name} on Sacred Connect` });
+      await Share.share({ message: `${priest.name} on BookMyPujari` });
     } catch (error) {
       console.error(error);
     }

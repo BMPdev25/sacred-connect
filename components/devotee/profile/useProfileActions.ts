@@ -54,8 +54,8 @@ export function useProfileActions() {
   const handleShareApp = async () => {
     try {
       await Share.share({
-        message: 'Experience premium divine services! Download Sacred Connect to book verified pandits for religious ceremonies: https://play.google.com/store/apps/details?id=com.bookmypujari',
-        title: 'Share Sacred Connect',
+        message: 'Experience premium divine services! Download BookMyPujari to book verified pandits for religious ceremonies: https://play.google.com/store/apps/details?id=com.bookmypujari',
+        title: 'Share BookMyPujari',
       });
     } catch (err) {
       console.warn('Failed to share app', err);

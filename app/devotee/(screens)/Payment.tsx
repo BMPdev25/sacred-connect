@@ -90,12 +90,12 @@ export default function PaymentScreen(): React.ReactElement {
 
   const launchRazorpay = async () => {
     const options = {
-      description: 'Sacred Connect Ceremony Booking',
+      description: 'BookMyPujari Ceremony Booking',
       image: 'https://sacredconnect.in/logo.png',
       key: process.env.EXPO_PUBLIC_RAZORPAY_KEY_ID || '',
       amount: params.amount,
       currency: 'INR',
-      name: 'Sacred Connect',
+      name: 'BookMyPujari',
       order_id: params.razorpayOrderId,
       prefill: {
         email: user.email || '',

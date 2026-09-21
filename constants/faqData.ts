@@ -20,7 +20,7 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: '3',
     question: 'When does the pandit get paid?',
     answer:
-      'The pandit receives their share after the ceremony is marked as completed. Sacred Connect holds the payment securely and releases it once both parties confirm the ceremony was performed.',
+      'The pandit receives their share after the ceremony is marked as completed. BookMyPujari holds the payment securely and releases it once both parties confirm the ceremony was performed.',
   },
   {
     id: '4',
@@ -38,6 +38,6 @@ export const FAQ_ITEMS: FAQItem[] = [
     id: '6',
     question: 'How are prices determined?',
     answer:
-      "Each pandit sets their own service prices based on the ceremony type and duration. Sacred Connect adds a 5% platform fee on top of the pandit's price to support the platform. The total is shown clearly before you confirm payment.",
+      "Each pandit sets their own service prices based on the ceremony type and duration. BookMyPujari adds a 5% platform fee on top of the pandit's price to support the platform. The total is shown clearly before you confirm payment.",
   },
 ];

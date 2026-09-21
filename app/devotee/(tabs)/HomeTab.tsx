@@ -41,15 +41,13 @@ import { THEME } from '@/constants/theme';
 
 /**
  * Returns a time-appropriate greeting string.
- * 0-11 → Good morning, 12-16 → Good afternoon,
- * 17-20 → Good evening, 21-23 → Good night.
+ * 0-11 → Good Morning, 12-16 → Good Afternoon, 17-23 → Good Evening.
  */
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 17) return 'Good afternoon';
-  if (hour < 21) return 'Good evening';
-  return 'Good night';
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
 }
 
 // ---------------------------------------------------------------------------

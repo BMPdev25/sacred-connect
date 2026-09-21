@@ -6,7 +6,7 @@ import api from '@/api/index';
 import { isPriestVerified, normalizeVerificationStatus } from '@/utils/priestUtils';
 
 /** Normalized priest verification status values used across the frontend. */
-export type VerificationStatus = 'verified' | 'rejected' | 'pending';
+export type VerificationStatus = 'verified' | 'rejected' | 'pending' | 'incomplete';
 
 /**
  * Shows the "You're verified" confirmation alert then navigates to the dashboard.

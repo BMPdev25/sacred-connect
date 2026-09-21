@@ -64,24 +64,29 @@ interface BannerSlideProps {
 }
 
 /**
- * Renders a single banner slide. Falls back to solid colour when imageUrl is absent.
+ * Renders a single banner slide. When an image is present, it's shown on its
+ * own — the image is the banner, no title/subtitle text overlaid on top.
+ * The title/subtitle only render for the solid-colour fallback, where there'd
+ * otherwise be nothing to look at.
  */
 function BannerSlide({ item }: BannerSlideProps): React.JSX.Element {
+  const hasImage = typeof item.imageUrl === 'string' && !!item.imageUrl;
   return (
     <View style={[styles.slide, { backgroundColor: item.color }]}>
-      {typeof item.imageUrl === 'string' && item.imageUrl ? (
+      {hasImage ? (
         <Image
           source={{ uri: item.imageUrl }}
           style={styles.slideImage}
           resizeMode="cover"
         />
-      ) : null}
-      <View style={styles.slideOverlay}>
-        <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
-        {item.subtitle ? (
-          <Text style={styles.slideSubtitle} numberOfLines={1}>{item.subtitle}</Text>
-        ) : null}
-      </View>
+      ) : (
+        <View style={styles.slideOverlay}>
+          <Text style={styles.slideTitle} numberOfLines={2}>{item.title}</Text>
+          {item.subtitle ? (
+            <Text style={styles.slideSubtitle} numberOfLines={1}>{item.subtitle}</Text>
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }

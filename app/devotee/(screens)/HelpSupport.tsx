@@ -3,12 +3,10 @@ import {
   Alert,
   LayoutAnimation,
   Linking,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
-  UIManager,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,11 +16,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { THEME } from '@/constants/theme';
 import { FAQ_ITEMS } from '@/constants/faqData';
 import { FAQRow } from '@/components/devotee/profile/FAQRow';
-
-// Enable LayoutAnimation for Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
 
 /**
  * HelpSupport Screen.

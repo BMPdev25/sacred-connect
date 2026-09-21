@@ -29,7 +29,7 @@ const HERO_HEIGHT = 340;
  * and upcoming availability slots.
  */
 export default function PriestDetailsScreen() {
-  const { id: priestProfileId, userId } = useLocalSearchParams<{
+  const { id: priestProfileId, userId, ceremonyId: incomingCeremonyId, ceremonyName: incomingCeremonyName } = useLocalSearchParams<{
     id: string;
     userId?: string;
     ceremonyId?: string;
@@ -39,10 +39,26 @@ export default function PriestDetailsScreen() {
   const dispatch = useDispatch();
   const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
   const [selectedCeremonyId, setSelectedCeremonyId] = useState<string | null>(null);
+  const [selectedCeremonyName, setSelectedCeremonyName] = useState<string | null>(null);
   const scrollY = useRef(new Animated.Value(0)).current;
 
   const { data: priest, isLoading, error, refetch } = usePriestProfile(priestProfileId);
   const { data: reviewsData, isLoading: reviewsLoading } = usePriestReviews(priestProfileId);
+
+  // Carry the ceremony the devotee already picked (upstream, on the ceremony
+  // or filtered-explore screens) into this priest's own service list, so
+  // "Book Now" doesn't force them to re-pick it from scratch.
+  useEffect(() => {
+    if (!incomingCeremonyId || !priest?.services) return;
+    const svc = (priest.services as any[]).find(
+      (s: any) => s.ceremonyId?._id === incomingCeremonyId || s.ceremonyId === incomingCeremonyId
+    );
+    if (svc) {
+      setSelectedServiceId(svc._id);
+      setSelectedCeremonyId(incomingCeremonyId);
+      setSelectedCeremonyName(svc.ceremonyId?.name || incomingCeremonyName || null);
+    }
+  }, [incomingCeremonyId, incomingCeremonyName, priest?.services]);
 
   const collapsedHeaderOpacity = scrollY.interpolate({
     inputRange: [HERO_HEIGHT - 80, HERO_HEIGHT - 20],
@@ -56,6 +72,11 @@ export default function PriestDetailsScreen() {
       params: {
         priestId: priestProfileId,
         priestUserId: userId || priest?.userId || '',
+        // Forward the ceremony already picked upstream (if any) so
+        // BookCeremony pre-selects it instead of asking again.
+        ...(selectedServiceId && selectedCeremonyName
+          ? { serviceId: selectedServiceId, ceremonyName: selectedCeremonyName }
+          : {}),
       }
     });
   };
@@ -157,7 +178,7 @@ export default function PriestDetailsScreen() {
         <AboutSection bio={priest.description} specializations={priest.specializations} />
         
         <View style={styles.servicesWrapper}>
-          <ServicesSection services={priest.services} priestProfileId={priestProfileId} onBookService={handleBookService} />
+          <ServicesSection services={priest.services} priestProfileId={priestProfileId} onBookService={handleBookService} highlightedServiceId={selectedServiceId} />
         </View>
         
         <RatingsSection ratings={priest.ratings} reviews={reviewsData?.reviews ?? []} isLoading={reviewsLoading} onViewAll={handleViewAllReviews} />

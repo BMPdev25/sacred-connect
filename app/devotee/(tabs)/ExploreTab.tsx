@@ -353,7 +353,9 @@ export default function ExploreTab(): React.JSX.Element {
                   onPriestPress={(id, userId) =>
                     router.push({
                       pathname: '/devotee/PriestDetails' as any,
-                      params: { id, userId },
+                      params: ceremonyFilter
+                        ? { id, userId, ceremonyId: ceremonyFilter.id, ceremonyName: ceremonyFilter.name }
+                        : { id, userId },
                     })
                   }
                   resultCount={priests.length}

@@ -1,5 +1,5 @@
 /**
- * Logo component that renders the Sacred Connect brand mark.
+ * Logo component that renders the BookMyPujari brand mark.
  * Supports 'icon-only' and 'full' layout variants at three size presets.
  * Display-only — no press interaction.
  */
@@ -56,7 +56,7 @@ function LogoIcon({ size }: { size: LogoProps['size'] }): React.ReactElement {
       source={AssetService.getImage('shared.logoIcon') as ImageSourcePropType}
       style={{ width: dimension, height: dimension }}
       resizeMode="contain"
-      accessibilityLabel="Sacred Connect logo icon"
+      accessibilityLabel="BookMyPujari logo icon"
     />
   );
 }
@@ -74,8 +74,8 @@ function LogoText({
   const fontSize = TEXT_SIZE[size];
   return (
     <View style={styles.textContainer}>
-      <Text style={[styles.brandText, { fontSize }]}>SACRED</Text>
-      <Text style={[styles.brandText, { fontSize }]}>CONNECT</Text>
+      <Text style={[styles.brandText, { fontSize }]}>BOOK MY</Text>
+      <Text style={[styles.brandText, { fontSize }]}>PUJARI</Text>
       {showTagline && (
         <Text style={styles.taglineText}>seva · sanskriti · samarpan</Text>
       )}
@@ -88,7 +88,7 @@ function LogoText({
 // ---------------------------------------------------------------------------
 
 /**
- * Sacred Connect brand logo. Use this component anywhere the logo must appear.
+ * BookMyPujari brand logo. Use this component anywhere the logo must appear.
  * Reads assets through AssetService so the source URL swaps automatically
  * when migrating to S3.
  */

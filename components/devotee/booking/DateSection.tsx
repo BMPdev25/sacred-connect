@@ -304,22 +304,23 @@ export function DateSection({
       <View style={styles.container}>
         <Text style={styles.sectionLabelLocked}>DATE</Text>
         <View style={[styles.card, styles.completedCard]}>
+          <View style={styles.completedContent}>
+            <Ionicons name="calendar" size={24} color={THEME.colors.primary} />
+            <Text style={styles.completedDateText} numberOfLines={1}>
+              {formatDisplayDate(draft.selectedDate)}
+            </Text>
+          </View>
           <TouchableOpacity
-            style={styles.changeLink}
+            style={styles.changeBtn}
             onPress={() => {
               dispatch(setActiveSection('date'));
               setIsCalendarOpen(true);
               dispatch(setSelectedDate(null));
             }}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
           >
             <Text style={styles.changeText}>Change</Text>
           </TouchableOpacity>
-
-          <Ionicons name="calendar" size={24} color={THEME.colors.primary} />
-          <Text style={styles.completedDateText}>
-            {formatDisplayDate(draft.selectedDate)}
-          </Text>
         </View>
       </View>
     );
@@ -385,28 +386,37 @@ const styles = StyleSheet.create({
   completedCard: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
     borderLeftWidth: 3,
     borderLeftColor: THEME.colors.primary,
     ...THEME.shadow.card,
-    position: 'relative',
+  },
+  completedContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    marginRight: THEME.spacing.sm,
   },
   completedDateText: {
     fontSize: THEME.typography.subheading,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
     marginLeft: 12,
+    flexShrink: 1,
   },
-  changeLink: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
+  changeBtn: {
+    paddingHorizontal: THEME.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.pill,
+    backgroundColor: THEME.colors.background,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
   },
   changeText: {
-    fontSize: THEME.typography.caption,
-    color: THEME.colors.textMuted,
-    textDecorationLine: 'underline',
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '600',
+    color: THEME.colors.primary,
   },
   instantWindowBanner: {
     flexDirection: 'row',

@@ -64,22 +64,23 @@ export function ServiceSection({ priestProfileId }: ServiceSectionProps) {
       <View style={styles.container}>
         <Text style={styles.sectionLabelCompleted}>SERVICE</Text>
         <View style={styles.completedCard}>
-          <TouchableOpacity 
-            style={styles.changeLink} 
+          <View style={styles.completedContent}>
+            <View style={styles.pickerRow}>
+              <Text style={styles.serviceName} numberOfLines={1}>{ceremonyName}</Text>
+              <Text style={styles.servicePrice}>₹{basePrice}</Text>
+            </View>
+            <View style={styles.durationRow}>
+              <Ionicons name="time-outline" size={14} color={THEME.colors.textSecondary} />
+              <Text style={styles.durationText}>{durationMinutes} mins</Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={styles.changeBtn}
             onPress={() => dispatch(setActiveSection('service'))}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
           >
             <Text style={styles.changeText}>Change</Text>
           </TouchableOpacity>
-          
-          <View style={styles.pickerRow}>
-            <Text style={styles.serviceName}>{ceremonyName}</Text>
-            <Text style={styles.servicePrice}>₹{basePrice}</Text>
-          </View>
-          <View style={styles.durationRow}>
-            <Ionicons name="time-outline" size={14} color={THEME.colors.textSecondary} />
-            <Text style={styles.durationText}>{durationMinutes} mins</Text>
-          </View>
         </View>
       </View>
     );
@@ -116,25 +117,32 @@ const styles = StyleSheet.create({
     ...THEME.shadow.card,
   },
   completedCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: THEME.colors.surface,
     borderRadius: THEME.borderRadius.md,
     padding: 16,
     borderLeftWidth: 3,
     borderLeftColor: THEME.colors.primary,
     ...THEME.shadow.card,
-    position: 'relative',
+  },
+  completedContent: {
+    flex: 1,
+    marginRight: THEME.spacing.sm,
   },
   pickerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 4,
-    paddingRight: 40, // Space for the "Change" link in completed state
   },
   serviceName: {
     fontSize: THEME.typography.subheading,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
+    flexShrink: 1,
+    marginRight: THEME.spacing.sm,
   },
   servicePrice: {
     fontSize: THEME.typography.subheading,
@@ -151,15 +159,17 @@ const styles = StyleSheet.create({
     color: THEME.colors.textSecondary,
     marginLeft: 4,
   },
-  changeLink: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    zIndex: 1,
+  changeBtn: {
+    paddingHorizontal: THEME.spacing.sm,
+    paddingVertical: 6,
+    borderRadius: THEME.borderRadius.pill,
+    backgroundColor: THEME.colors.background,
+    borderWidth: 1,
+    borderColor: THEME.colors.border,
   },
   changeText: {
-    fontSize: THEME.typography.caption,
-    color: THEME.colors.textMuted,
-    textDecorationLine: 'underline',
+    fontSize: THEME.typography.bodySmall,
+    fontWeight: '600',
+    color: THEME.colors.primary,
   },
 });

@@ -25,14 +25,20 @@ export { formatTime12Hour };
  * Raw backend → Frontend
  *   'approved'            → 'verified'
  *   'rejected'            → 'rejected'
- *   anything else         → 'pending'
+ *   'pending'             → 'pending'
+ *   'incomplete' / absent → 'incomplete'  (never submitted — must not be
+ *                            treated as "under review", or a priest who
+ *                            hasn't finished the onboarding wizard gets
+ *                            routed to the verification-status screen
+ *                            instead of back into the wizard)
  */
 export function normalizeVerificationStatus(
   rawStatus: string | undefined
-): 'verified' | 'rejected' | 'pending' {
+): 'verified' | 'rejected' | 'pending' | 'incomplete' {
   if (rawStatus === 'approved' || rawStatus === 'verified') return 'verified';
   if (rawStatus === 'rejected') return 'rejected';
-  return 'pending';
+  if (rawStatus === 'pending') return 'pending';
+  return 'incomplete';
 }
 
 /**

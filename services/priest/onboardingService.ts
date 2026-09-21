@@ -21,6 +21,7 @@ import {
   DocumentSlot,
   OnboardingState,
   PriestService,
+  SelectedCeremony,
   WeeklySchedule,
 } from '@/types/priest.types';
 
@@ -125,10 +126,18 @@ function mapProfileToOnboardingState(profile: Record<string, any>): OnboardingSt
     ? profile.religiousTraditions 
     : (profile.religiousTradition ? [profile.religiousTradition] : []);
 
-  const specializations = profile.specializations?.map((s: any) => {
-    if (typeof s === 'string') return s;
-    return s.name || '';
-  }) || [];
+  // Legacy specializations saved before ceremonyId existed can't be
+  // reconstructed as a selectable puja, so they're dropped here — the
+  // priest just re-picks them in Step 2.
+  const specializations: SelectedCeremony[] = (profile.specializations || []).reduce(
+    (acc: SelectedCeremony[], s: any) => {
+      if (s && typeof s !== 'string' && s.ceremonyId) {
+        acc.push({ ceremonyId: s.ceremonyId, ceremonyName: s.name || '' });
+      }
+      return acc;
+    },
+    []
+  );
 
   const step2 = {
     religiousTraditions,
@@ -284,9 +293,11 @@ function buildStepPayload(step: number, data: Record<string, any>): Record<strin
         // backward compatibility with existing queries that filter on religiousTradition.
         religiousTraditions: data.religiousTraditions || [],
         religiousTradition: data.religiousTraditions?.[0] || '',
-        specializations: data.specializations?.map((spec: any) =>
-          typeof spec === 'string' ? { name: spec, experience: 0 } : spec
-        ) || [],
+        specializations: (data.specializations as SelectedCeremony[] | undefined)?.map((spec) => ({
+          name: spec.ceremonyName,
+          ceremonyId: spec.ceremonyId,
+          experience: 0,
+        })) || [],
       };
     case 3:
       return {

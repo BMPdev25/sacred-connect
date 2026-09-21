@@ -37,7 +37,7 @@ export type UserType = 'devotee' | 'priest' | 'admin';
 /**
  * Priest verification status options.
  */
-export type VerificationStatus = 'pending' | 'verified' | 'rejected';
+export type VerificationStatus = 'incomplete' | 'pending' | 'verified' | 'rejected';
 
 /**
  * Supported authentication providers.

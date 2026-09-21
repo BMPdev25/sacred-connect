@@ -63,8 +63,8 @@ export default function ProfileTab(): React.JSX.Element {
   const handleShareApp = async () => {
     try {
       await Share.share({
-        message: 'Experience premium divine services! Download Sacred Connect: https://play.google.com/store/apps/details?id=com.bookmypujari',
-        title: 'Share Sacred Connect',
+        message: 'Experience premium divine services! Download BookMyPujari: https://play.google.com/store/apps/details?id=com.bookmypujari',
+        title: 'Share BookMyPujari',
       });
     } catch (err) {
       console.warn('Failed to share app', err);
@@ -149,7 +149,7 @@ export default function ProfileTab(): React.JSX.Element {
           </MenuCard>
         </View>
 
-        <Text style={styles.versionText}>Sacred Connect v1.0.0</Text>
+        <Text style={styles.versionText}>BookMyPujari v1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

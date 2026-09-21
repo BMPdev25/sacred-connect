@@ -10,25 +10,35 @@ export interface ServicesSectionProps {
   services: PublicPriestProfile['services'];
   priestProfileId: string;
   onBookService: (serviceId: string, ceremonyName: string) => void;
+  /** Service already chosen upstream (e.g. from the ceremony/explore screens) — highlighted so the devotee sees it's carried forward. */
+  highlightedServiceId?: string | null;
 }
 
-function ServiceItem({ service, onBook }: { service: PublicPriestProfile['services'][0], onBook: () => void }) {
+function ServiceItem({ service, onBook, highlighted }: { service: PublicPriestProfile['services'][0], onBook: () => void, highlighted?: boolean }) {
   return (
-    <View style={styles.serviceCard}>
+    <View style={[styles.serviceCard, highlighted && styles.serviceCardHighlighted]}>
       <View style={styles.serviceInfo}>
-        <Text style={styles.serviceName}>{service.ceremonyId?.name || 'Ceremony'}</Text>
+        <View style={styles.serviceNameRow}>
+          <Text style={styles.serviceName}>{service.ceremonyId?.name || 'Ceremony'}</Text>
+          {highlighted && (
+            <View style={styles.selectedBadge}>
+              <Ionicons name="checkmark-circle" size={14} color={THEME.colors.primary} />
+              <Text style={styles.selectedBadgeText}>Selected</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.serviceMetaRow}>
           <Ionicons name="time-outline" size={14} color={THEME.colors.textMuted} style={styles.metaIcon} />
           <Text style={styles.serviceMetaText}>{formatDuration(service.durationMinutes)}</Text>
         </View>
       </View>
-      
+
       <View style={styles.serviceRight}>
         <Text style={styles.servicePrice}>₹{service.price.toLocaleString('en-IN')}</Text>
-        <PrimaryButton 
-          title="Book" 
-          onPress={onBook} 
-          style={styles.bookButton} 
+        <PrimaryButton
+          title="Book"
+          onPress={onBook}
+          style={styles.bookButton}
           variant="outline"
         />
       </View>
@@ -36,24 +46,27 @@ function ServiceItem({ service, onBook }: { service: PublicPriestProfile['servic
   );
 }
 
-export function ServicesSection({ services, onBookService }: ServicesSectionProps) {
-  const [expanded, setExpanded] = useState(false);
-  
-  if (!services || services.length === 0) return null;
-  
+export function ServicesSection({ services, onBookService, highlightedServiceId }: ServicesSectionProps) {
   const initialCount = 4;
+  const highlightedIsBeyondFold =
+    !!highlightedServiceId && services.findIndex((s) => s._id === highlightedServiceId) >= initialCount;
+  const [expanded, setExpanded] = useState(false);
+
+  if (!services || services.length === 0) return null;
+
   const hasMore = services.length > initialCount;
-  const visibleServices = expanded ? services : services.slice(0, initialCount);
+  const visibleServices = expanded || highlightedIsBeyondFold ? services : services.slice(0, initialCount);
 
   return (
     <View style={styles.container}>
       <Text style={styles.heading}>Services Provided</Text>
-      
+
       <View style={styles.list}>
         {visibleServices.map((service, index) => (
           <ServiceItem
             key={service._id ?? index}
             service={service}
+            highlighted={!!highlightedServiceId && service._id === highlightedServiceId}
             onBook={() => onBookService(service._id, service.ceremonyId?.name || 'Ceremony')}
           />
         ))}
@@ -93,15 +106,37 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     ...THEME.shadow.card,
   },
+  serviceCardHighlighted: {
+    borderWidth: 2,
+    borderColor: THEME.colors.primary,
+    backgroundColor: THEME.colors.primary + '0D',
+  },
   serviceInfo: {
     flex: 1,
     paddingRight: 16,
+  },
+  serviceNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   serviceName: {
     fontSize: THEME.typography.body,
     fontWeight: '600',
     color: THEME.colors.textPrimary,
     marginBottom: 4,
+  },
+  selectedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginBottom: 4,
+  },
+  selectedBadgeText: {
+    fontSize: THEME.typography.caption,
+    fontWeight: '600',
+    color: THEME.colors.primary,
   },
   serviceMetaRow: {
     flexDirection: 'row',

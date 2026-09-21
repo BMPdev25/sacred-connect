@@ -12,8 +12,8 @@ import { logger } from '@/utils/logger';
 // ---------------------------------------------------------------------------
 
 /**
- * A ceremony category returned by the backend GET /api/metadata/categories.
- * Maps to the CeremonyCategory mongoose model.
+ * A ceremony from the master catalog, returned by the backend GET /api/ceremonies.
+ * The catalog itself is maintained by the super admin — priests only select from it.
  */
 export interface Ceremony {
   /** MongoDB ObjectId string. */
@@ -26,6 +26,10 @@ export interface Ceremony {
   color?: string;
   /** Optional description of the ceremony. */
   description?: string;
+  /** Admin-configured pricing; priests must price their own service at or above basePrice. */
+  pricing?: { basePrice: number };
+  /** Admin-configured typical duration, used as the silent default in onboarding Step 3. */
+  duration?: { typical: number; minimum?: number; maximum?: number };
 }
 
 // ---------------------------------------------------------------------------

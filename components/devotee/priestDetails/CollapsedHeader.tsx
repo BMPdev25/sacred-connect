@@ -63,7 +63,7 @@ export function CollapsedHeader({ name, opacity }: CollapsedHeaderProps) {
 
   const onShare = async () => {
     try {
-      await Share.share({ message: `${name} on Sacred Connect` });
+      await Share.share({ message: `${name} on BookMyPujari` });
     } catch (error) {
       console.error(error);
     }

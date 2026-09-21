@@ -21,7 +21,6 @@ const CARD_PADDING = 20;
 const PRESSED_SCALE = 0.98;
 const SPRING_FRICTION = 4;
 const SPRING_TENSION = 100;
-const ICON_BG = '#FFF3E0';
 
 // ---------------------------------------------------------------------------
 // Hook
@@ -75,13 +74,15 @@ export interface RoleCardProps {
   subtitle: string;
   /** Press handler. */
   onPress: () => void;
+  /** Icon/chevron/border accent colour. Defaults to the app's primary saffron. */
+  accentColor?: string;
 }
 
 /**
  * Tappable role selection card with spring press animation,
  * coloured icon circle, and chevron indicator.
  */
-export function RoleCard({ icon, title, subtitle, onPress }: RoleCardProps): React.ReactElement {
+export function RoleCard({ icon, title, subtitle, onPress, accentColor = THEME.colors.primary }: RoleCardProps): React.ReactElement {
   const { scale, onPressIn, onPressOut } = useCardPressAnimation();
 
   return (
@@ -91,15 +92,15 @@ export function RoleCard({ icon, title, subtitle, onPress }: RoleCardProps): Rea
       onPressOut={onPressOut}
       activeOpacity={1}
     >
-      <Animated.View style={[styles.card, { transform: [{ scale }] }]}>
-        <View style={styles.iconCircle}>
-          <Ionicons name={icon} size={ICON_SIZE} color={THEME.colors.primary} />
+      <Animated.View style={[styles.card, { borderColor: accentColor, transform: [{ scale }] }]}>
+        <View style={[styles.iconCircle, { backgroundColor: `${accentColor}1A` }]}>
+          <Ionicons name={icon} size={ICON_SIZE} color={accentColor} />
         </View>
         <View style={styles.textBlock}>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.subtitle}>{subtitle}</Text>
         </View>
-        <Ionicons name="chevron-forward" size={CHEVRON_SIZE} color={THEME.colors.primary} />
+        <Ionicons name="chevron-forward" size={CHEVRON_SIZE} color={accentColor} />
       </Animated.View>
     </TouchableOpacity>
   );
@@ -111,6 +112,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: THEME.colors.surface,
     borderRadius: THEME.borderRadius.lg,
+    borderWidth: 1.5,
     padding: CARD_PADDING,
     ...THEME.shadow.card,
   },
@@ -118,7 +120,6 @@ const styles = StyleSheet.create({
     width: ICON_CIRCLE_SIZE,
     height: ICON_CIRCLE_SIZE,
     borderRadius: ICON_CIRCLE_SIZE / 2,
-    backgroundColor: ICON_BG,
     alignItems: 'center',
     justifyContent: 'center',
   },

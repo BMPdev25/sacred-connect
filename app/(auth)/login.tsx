@@ -57,7 +57,7 @@ export default function LoginScreen(): React.ReactElement {
   return (
     <View style={styles.flex}>
       <TouchableOpacity
-        onPress={() => router.back()}
+        onPress={() => router.replace('/onboarding')}
         style={[styles.backBtn, { top: insets.top + 8 }]}
         hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       >

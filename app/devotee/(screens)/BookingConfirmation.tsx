@@ -35,7 +35,7 @@ const handleAddToCalendar = async (draft: BookingDraft) => {
   
   try {
     await Calendar.createEventAsync(defaultCalendar.id, {
-      title: `${draft.selectedService?.ceremonyName} — Sacred Connect`,
+      title: `${draft.selectedService?.ceremonyName} — BookMyPujari`,
       startDate: new Date(startStr),
       endDate: new Date(endStr),
       location: draft.selectedAddress?.fullAddress,

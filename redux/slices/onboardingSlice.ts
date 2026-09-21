@@ -5,6 +5,7 @@ import {
   DocumentSlot,
   OnboardingState,
   PriestService,
+  SelectedCeremony,
   WeeklySchedule,
 } from '@/types/priest.types';
 
@@ -54,8 +55,8 @@ export interface PriestProfileHydrationData {
   religiousTraditions?: string[];
   /** Fallback religious tradition string. */
   religiousTradition?: string;
-  /** Specialization details. */
-  specializations?: Array<{ name: string } | string>;
+  /** Specialization details — a puja picked from the catalog in onboarding Step 2. */
+  specializations?: Array<{ name: string; ceremonyId?: string } | string>;
   /** Offered services. */
   services?: Array<{
     ceremonyId: { _id: string; name?: string } | string;
@@ -318,10 +319,18 @@ export const onboardingSlice = createSlice({
         state.step2.religiousTraditions = [];
       }
 
-      state.step2.specializations = profile.specializations?.map((s) => {
-        if (typeof s === 'string') return s;
-        return s.name;
-      }) || [];
+      // Legacy specializations saved before ceremonyId existed can't be
+      // reconstructed as a selectable puja, so they're dropped here — the
+      // priest just re-picks them in Step 2.
+      state.step2.specializations = (profile.specializations || []).reduce<SelectedCeremony[]>(
+        (acc, s) => {
+          if (typeof s !== 'string' && s.ceremonyId) {
+            acc.push({ ceremonyId: s.ceremonyId, ceremonyName: s.name });
+          }
+          return acc;
+        },
+        []
+      );
 
       // Step 3
       state.step3.services = profile.services?.map((s) => {

@@ -1,7 +1,7 @@
 /**
  * The user-facing name of the application.
  */
-export const APP_NAME = 'Sacred Connect';
+export const APP_NAME = 'BookMyPujari';
 
 /**
  * Timeout duration for API HTTP requests in milliseconds.

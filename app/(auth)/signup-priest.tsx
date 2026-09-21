@@ -246,8 +246,8 @@ export default function SignupPriestScreen(): React.ReactElement {
 
               {/* Legal Text */}
               <LegalText
-                onTermsPress={() => { /* TODO: route to terms */ }}
-                onPrivacyPress={() => { /* TODO: route to privacy */ }}
+                onTermsPress={() => router.push({ pathname: '/devotee/(screens)/TermsPrivacy' as any, params: { type: 'terms' } })}
+                onPrivacyPress={() => router.push({ pathname: '/devotee/(screens)/TermsPrivacy' as any, params: { type: 'privacy' } })}
               />
             </View>
 

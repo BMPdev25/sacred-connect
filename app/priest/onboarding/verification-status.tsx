@@ -63,7 +63,7 @@ export default function VerificationStatusScreen() {
 
   const [loading, setLoading] = useState(true);
   const [priestProfile, setPriestProfile] = useState<{
-    verificationStatus: 'pending' | 'verified' | 'rejected';
+    verificationStatus: 'incomplete' | 'pending' | 'verified' | 'rejected';
     isVerified?: boolean;
     rejectionReason?: string;
   } | null>(null);

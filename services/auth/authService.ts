@@ -6,14 +6,19 @@
 import {
   createUserWithEmailAndPassword,
   deleteUser,
+  getAdditionalUserInfo,
+  GoogleAuthProvider,
   sendPasswordResetEmail,
+  signInWithCredential,
   signInWithCustomToken,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
+import { GoogleSignin, isSuccessResponse, isErrorWithCode, statusCodes } from '@react-native-google-signin/google-signin';
 
 import api from '@/api';
 import { auth } from '@/config/firebase';
+import { ensureGoogleSignInConfigured } from '@/config/googleSignIn';
 import { SocketManager as socketManager } from '@/services/priest/socketManager';
 import { PriestAuthState, UserProfile } from '@/types/api.types';
 import { AuthSyncPayload, SignupDevoteePayload, SignupPriestPayload } from '@/types/auth.types';
@@ -189,19 +194,51 @@ export async function sendPasswordReset(email: string): Promise<void> {
 }
 
 /**
- * Initiates Google OAuth authentication flow.
+ * Initiates Google OAuth authentication flow: native Google Sign-In ->
+ * Firebase credential exchange. Resolves { isNewUser, email, name } so
+ * callers can route new users through role-selection with a prefilled
+ * identity (mirrors completeGoogleSignup's expectations below).
  *
- * Not yet wired: requires @react-native-google-signin/google-signin (not a
- * project dependency), GoogleSignin.configure({ webClientId }) using the Web
- * client ID from Firebase Console, and a custom dev-client/EAS rebuild — see
- * the Google Sign-In config checklist. Once implemented, must resolve
- * { isNewUser, email, name } from the Google profile so callers can route
- * new users through role-selection with a prefilled identity.
+ * Requires EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID (see config/googleSignIn.ts) and
+ * a custom dev-client/EAS build — the native module doesn't run in Expo Go.
  */
 export async function loginWithGoogle(): Promise<{ isNewUser: boolean; email?: string; name?: string }> {
   try {
-    throw new Error('Google OAuth is not configured on this device');
+    ensureGoogleSignInConfigured();
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+
+    const response = await GoogleSignin.signIn();
+    if (!isSuccessResponse(response)) {
+      // User dismissed the Google account picker — not an error, just no-op.
+      throw new Error('Google sign-in was cancelled.');
+    }
+
+    const { idToken, user: googleUser } = response.data;
+    if (!idToken) {
+      throw new Error('Google did not return an ID token. Please try again.');
+    }
+
+    const credential = GoogleAuthProvider.credential(idToken);
+    const userCredential = await signInWithCredential(auth, credential);
+    const isNewUser = getAdditionalUserInfo(userCredential)?.isNewUser ?? false;
+
+    return {
+      isNewUser,
+      email: userCredential.user.email || googleUser.email || undefined,
+      name: userCredential.user.displayName || googleUser.name || undefined,
+    };
   } catch (err: any) {
+    if (isErrorWithCode(err)) {
+      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
+        throw new Error('Google sign-in was cancelled.');
+      }
+      if (err.code === statusCodes.IN_PROGRESS) {
+        throw new Error('Google sign-in is already in progress.');
+      }
+      if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        throw new Error('Google Play Services is not available on this device.');
+      }
+    }
     logger.error('Google authentication failed', err);
     throw new Error(getReadableErrorMessage(err));
   }

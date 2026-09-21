@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Animated,
   StyleSheet,
@@ -20,6 +20,8 @@ import { useCountdown } from '@/hooks/useCountdown';
 import { OtpHeader, OtpBoxRow, OtpTimerText } from '@/components/auth/otp-verify.components';
 import { handleVerify, handleResend } from '@/handlers/auth/otp-verify.handlers';
 
+const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_ENABLED === 'true';
+
 /**
  * OtpVerifyScreen — verification code screen for phone logins/signups.
  * Includes horizontal shake animations on validation failure.
@@ -28,13 +30,31 @@ export default function OtpVerifyScreen(): React.JSX.Element {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ phone?: string; flowContext?: string }>();
-  
+
   const phone = params.phone || '';
   const flowContext = (params.flowContext as 'login' | 'signup') || 'login';
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
+
+  // This screen is only reachable when OTP_ENABLED is on. If a stale nav
+  // state or deep link lands here while it's off, /send-otp and /verify-otp
+  // aren't even registered on the backend (bare 404s, not a friendly error)
+  // — bounce back to login with a clear message instead of letting the user
+  // sit on a form that can never succeed.
+  useEffect(() => {
+    if (!OTP_ENABLED) {
+      router.replace({
+        pathname: '/(auth)/login',
+        params: { otpUnavailable: '1' },
+      });
+    }
+  }, [router]);
+
+  if (!OTP_ENABLED) {
+    return <View style={styles.flex} />;
+  }
 
   const shakeAnim = useRef(new Animated.Value(0)).current;
 

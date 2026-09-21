@@ -10,7 +10,7 @@ import {
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import FloatingInput from '@/components/shared/FloatingInput';
 import Logo from '@/components/shared/Logo';
@@ -36,6 +36,7 @@ const OTP_ENABLED = process.env.EXPO_PUBLIC_OTP_ENABLED === 'true';
 export default function LoginScreen(): React.ReactElement {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ otpUnavailable?: string }>();
 
   // When OTP is disabled the tab is always 'email' and cannot be changed.
   const [activeTab, setActiveTab] = useState<LoginTab>('email');
@@ -43,7 +44,9 @@ export default function LoginScreen(): React.ReactElement {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState(
+    params.otpUnavailable === '1' ? 'Phone login is temporarily unavailable. Please use email.' : ''
+  );
   const [loading, setLoading] = useState(false);
 
   function onPrimaryPress(): void {

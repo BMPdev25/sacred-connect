@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -14,15 +14,22 @@ import { THEME } from '@/constants/theme';
 import { initializeAuthListener } from '@/services/auth/authStateManager';
 import { pendingNotificationRef } from '@/services/notifications/pendingNotification';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// expo-notifications' native listener/handler APIs are unimplemented on web
+// (they throw "method not available") — this app targets native only, so
+// skip registration entirely there rather than crashing the whole root layout.
+const NOTIFICATIONS_SUPPORTED = Platform.OS !== 'web';
+
+if (NOTIFICATIONS_SUPPORTED) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 function RootStack(): React.JSX.Element {
   const notificationListener = useRef<any>(null);
@@ -31,6 +38,10 @@ function RootStack(): React.JSX.Element {
   useEffect(() => {
     console.log('[DEBUG] RootStack: Subscribing to auth state change observer...');
     const unsubscribe = initializeAuthListener();
+
+    if (!NOTIFICATIONS_SUPPORTED) {
+      return unsubscribe;
+    }
 
     notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
       console.log('[Push] Received:', notification.request.content.title);

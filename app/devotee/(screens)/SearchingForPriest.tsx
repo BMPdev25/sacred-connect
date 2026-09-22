@@ -16,6 +16,7 @@ import PrimaryButton from '@/components/shared/PrimaryButton';
 import * as bookingService from '@/services/devotee/bookingService';
 import { fetchBookingDetails } from '@/services/devotee/bookingManagementService';
 import { BookingListItem } from '@/types/bookingManagement.types';
+import { formatDate } from '@/utils/dateUtils';
 import { logger } from '@/utils/logger';
 
 // ---------------------------------------------------------------------------
@@ -76,7 +77,7 @@ function BookingCard({ booking }: BookingCardProps): React.JSX.Element {
   return (
     <View style={styles.bookingCard}>
       <InfoRow icon="pricetag-outline" text={booking.ceremonyType} />
-      <InfoRow icon="calendar-outline" text={booking.date} />
+      <InfoRow icon="calendar-outline" text={formatDate(booking.date, 'medium')} />
       <InfoRow icon="time-outline" text={booking.startTime} />
       {booking.location?.address ? (
         <InfoRow icon="location-outline" text={booking.location.address} />

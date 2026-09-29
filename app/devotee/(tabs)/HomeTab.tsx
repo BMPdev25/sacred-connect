@@ -20,14 +20,16 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import { useRouter } from 'expo-router';
 
 import { RootState } from '@/redux/store';
 import { useBanners, useCategories, useNearbyPriests, useUpcomingFestivals } from '@/hooks/useHomeData';
 import { useUserLocation } from '@/hooks/useUserLocation';
+import { getUnreadCount } from '@/services/notifications/notificationService';
 import HomeSkeleton from '@/components/devotee/home/HomeSkeleton';
 import HomeBannerCarousel from '@/components/devotee/home/HomeBannerCarousel';
 import CategoryChips from '@/components/devotee/home/CategoryChips';
@@ -68,41 +70,66 @@ interface HomeHeaderProps {
   cityName: string | null;
   permissionStatus: string;
   onRequestLocation: () => void;
+  unreadCount: number;
+  onNotificationPress: () => void;
 }
 
 /**
- * Top greeting block with username and location row.
+ * Top greeting block with username, location row, and a notification bell —
+ * the only entry point into NotificationCenter for devotees (there is no
+ * other link to it anywhere else in the devotee app).
  */
 function HomeHeader({
   userName,
   cityName,
   permissionStatus,
   onRequestLocation,
+  unreadCount,
+  onNotificationPress,
 }: HomeHeaderProps): React.JSX.Element {
   const firstName = userName.split(' ')[0] || 'Devotee';
 
   return (
-    <View style={styles.headerBlock}>
-      <Text style={styles.greeting}>{getGreeting()},</Text>
-      <Text style={styles.userName} numberOfLines={1}>{firstName} 🙏</Text>
+    <View style={styles.headerRow}>
+      <View style={styles.headerBlock}>
+        <Text style={styles.greeting}>{getGreeting()},</Text>
+        <Text style={styles.userName} numberOfLines={1}>{firstName} 🙏</Text>
 
-      {permissionStatus === 'granted' && cityName ? (
-        <View style={styles.locationRow}>
-          <Ionicons name="location" size={14} color={THEME.colors.primary} />
-          <Text style={styles.locationText}>{cityName}</Text>
-        </View>
-      ) : (
-        <TouchableOpacity
-          style={styles.locationRow}
-          onPress={onRequestLocation}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Set your location"
-        >
-          <Ionicons name="location-outline" size={14} color={THEME.colors.textMuted} />
-          <Text style={styles.locationCta}>Set location</Text>
-        </TouchableOpacity>
-      )}
+        {permissionStatus === 'granted' && cityName ? (
+          <View style={styles.locationRow}>
+            <Ionicons name="location" size={14} color={THEME.colors.primary} />
+            <Text style={styles.locationText}>{cityName}</Text>
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={styles.locationRow}
+            onPress={onRequestLocation}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Set your location"
+          >
+            <Ionicons name="location-outline" size={14} color={THEME.colors.textMuted} />
+            <Text style={styles.locationCta}>Set location</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <TouchableOpacity
+        style={styles.notificationBtn}
+        onPress={onNotificationPress}
+        accessibilityRole="button"
+        accessibilityLabel="Notifications"
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      >
+        <Ionicons name="notifications-outline" size={24} color={THEME.colors.textPrimary} />
+        {unreadCount > 0 && (
+          <View style={styles.notificationBadge}>
+            <Text style={styles.notificationBadgeText}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
     </View>
   );
 }
@@ -118,10 +145,20 @@ function HomeHeader({
 export default function HomeTab(): React.JSX.Element {
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const userName = useSelector((state: RootState) => state.user.name);
   const { coordinates, cityName, permissionStatus, isLoading: locationLoading, requestLocation } =
     useUserLocation();
+
+  const unreadCountQuery = useQuery({
+    queryKey: ['devoteeUnreadNotifications'],
+    queryFn: () => getUnreadCount('devotee'),
+    staleTime: 30000,
+  });
+  const handleNotificationPress = useCallback(() => {
+    router.push('/devotee/(screens)/NotificationCenter' as any);
+  }, [router]);
 
   const lat = coordinates?.latitude ?? null;
   const lng = coordinates?.longitude ?? null;
@@ -186,6 +223,8 @@ export default function HomeTab(): React.JSX.Element {
           cityName={cityName}
           permissionStatus={permissionStatus}
           onRequestLocation={requestLocation}
+          unreadCount={unreadCountQuery.data ?? 0}
+          onNotificationPress={handleNotificationPress}
         />
 
         <HomeBannerCarousel banners={banners} />
@@ -238,8 +277,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: THEME.spacing.md,
     paddingTop: THEME.spacing.sm,
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
   headerBlock: {
+    flex: 1,
     marginBottom: THEME.spacing.md,
+  },
+  notificationBtn: {
+    position: 'relative',
+    padding: 4,
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: THEME.colors.error,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  notificationBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   greeting: {
     fontSize: THEME.typography.bodySmall,

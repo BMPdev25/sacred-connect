@@ -10,7 +10,7 @@ import { THEME } from '@/constants/theme';
 import PrimaryButton from '@/components/shared/PrimaryButton';
 import LoadingSpinner from '@/components/shared/LoadingSpinner';
 import { Step3Services } from '@/components/priest/onboarding/steps/Step3Services';
-import { updateStep3Services } from '@/redux/slices/onboardingSlice';
+import { updateStep2Data, updateStep3Services } from '@/redux/slices/onboardingSlice';
 import { RootState } from '@/redux/store';
 import { CalendarService } from '@/services/priest/calendarService';
 import { PriestService } from '@/types/priest.types';
@@ -63,6 +63,19 @@ export default function EditServices(): React.JSX.Element {
       }) || [];
 
       dispatch(updateStep3Services(mappedServices));
+      // Step3Services renders its rows from step2.specializations, not
+      // step3.services (services only seeds the per-row price inputs) — so
+      // without this, opening Edit Services in a fresh session (redux state
+      // not already populated by the onboarding wizard) always showed "No
+      // pujas selected yet", even for a priest with real configured services.
+      dispatch(
+        updateStep2Data({
+          specializations: mappedServices.map((s) => ({
+            ceremonyId: s.ceremonyId,
+            ceremonyName: s.ceremonyName,
+          })),
+        })
+      );
       setHasHydrated(true);
     }
   }, [priestProfile, hasHydrated, dispatch]);
